@@ -1,0 +1,53 @@
+package jsonschema
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+// EvaluatePrefixItems checks if each element in an array instance matches the schema specified at the same index in the 'prefixItems' array.
+// According to the JSON Schema Draft 2020-12:
+//   - The value of "prefixItems" MUST be a non-empty array of valid JSON Schemas.
+//   - Validation succeeds if each element of the instance validates against the schema at the same position, if any.
+//   - This keyword does not constrain the length of the array; it validates only the prefix of the array up to the length of 'prefixItems'.
+//   - Produces an annotation value of the largest index validated if all items up to that index are valid. The value may be true if all items are valid.
+//   - Omitting this keyword implies an empty array behavior, meaning no validation is enforced on the array items.
+//
+// If validation fails, it returns a EvaluationError detailing the index and discrepancy.
+func evaluatePrefixItems(schema *Schema, data []interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+	if schema.PrefixItems == nil || len(schema.PrefixItems) == 0 {
+		return nil, nil // If no prefixItems are defined, there is nothing to validate against.
+	}
+
+	invalid_indexs := []string{}
+	results := []*EvaluationResult{}
+
+	for i, itemSchema := range schema.PrefixItems {
+		if i >= len(data) {
+			break // Stop validation if there are more schemas than data items.
+		}
+
+		result, _, _ := itemSchema.evaluate(data[i], DynamicScope)
+		if result != nil {
+			results = append(results, result.SetEvaluationPath(fmt.Sprintf("/prefixItems/%d", i)).
+				SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/prefixItems/%d", i))).
+				SetInstanceLocation(fmt.Sprintf("/%d", i)),
+			)
+
+			if result.IsValid() {
+				evaluatedItems[i] = true // Mark the item as evaluated if it passes schema validation.
+			} else {
+				invalid_indexs = append(invalid_indexs, strconv.Itoa(i))
+			}
+		}
+	}
+
+	if len(invalid_indexs) == 0 {
+		return results, nil
+	}
+
+	return results, NewEvaluationError("prefixItems", "prefix_item_mismatch", "Value does not match the prefixItems item at index {indexs}", map[string]interface{}{
+		"indexs": strings.Join(invalid_indexs, ", "),
+	})
+}

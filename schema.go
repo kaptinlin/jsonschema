@@ -1,0 +1,447 @@
+package jsonschema
+
+import (
+	"fmt"
+	"regexp"
+
+	"github.com/goccy/go-json"
+)
+
+// Schema represents a JSON Schema as per the 2020-12 draft, containing all
+// necessary metadata and validation properties defined by the specification.
+type Schema struct {
+	compiledPatterns map[string]*regexp.Regexp // Cached compiled regular expressions for pattern properties.
+	compiler         *Compiler                 // Reference to the associated Compiler instance.
+	parent           *Schema                   // Parent schema for hierarchical resolution.
+	uri              string                    // Internal schema identifier resolved during compilation.
+	baseURI          string                    // Base URI for resolving relative references within the schema.
+	anchors          map[string]*Schema        // Anchors for quick lookup of internal schema references.
+	dynamicAnchors   map[string]*Schema        // Dynamic anchors for more flexible schema references.
+
+	ID     string  `json:"$id,omitempty"`     // Public identifier for the schema.
+	Schema string  `json:"$schema,omitempty"` // URI indicating the specification the schema conforms to.
+	Format *string `json:"format,omitempty"`  // Format hint for string data, e.g., "email" or "date-time".
+
+	// Schema reference keywords, see https://json-schema.org/draft/2020-12/json-schema-core#ref
+	Ref                string             `json:"$ref,omitempty"`           // Reference to another schema.
+	DynamicRef         string             `json:"$dynamicRef,omitempty"`    // Reference to another schema that can be dynamically resolved.
+	Anchor             string             `json:"$anchor,omitempty"`        // Anchor for resolving relative JSON Pointers.
+	DynamicAnchor      string             `json:"$dynamicAnchor,omitempty"` // Anchor for dynamic resolution
+	Defs               map[string]*Schema `json:"$defs,omitempty"`          // An object containing schema definitions.
+	ResolvedRef        *Schema            `json:"-"`                        // Resolved schema for $ref
+	ResolvedDynamicRef *Schema            `json:"-"`                        // Resolved schema for $dynamicRef
+
+	// Boolean JSON Schemas, see https://json-schema.org/draft/2020-12/json-schema-core#name-boolean-json-schemas
+	Boolean *bool `json:"-"` // Boolean schema, used for quick validation.
+
+	// Applying subschemas with logical keywords, see https://json-schema.org/draft/2020-12/json-schema-core#name-keywords-for-applying-subsch
+	AllOf []*Schema `json:"allOf,omitempty"` // Array of schemas for validating the instance against all of them.
+	AnyOf []*Schema `json:"anyOf,omitempty"` // Array of schemas for validating the instance against any of them.
+	OneOf []*Schema `json:"oneOf,omitempty"` // Array of schemas for validating the instance against exactly one of them.
+	Not   *Schema   `json:"not,omitempty"`   // Schema for validating the instance against the negation of it.
+
+	// Applying subschemas conditionally, see https://json-schema.org/draft/2020-12/json-schema-core#name-keywords-for-applying-subsche
+	If               *Schema            `json:"if,omitempty"`               // Schema to be evaluated as a condition
+	Then             *Schema            `json:"then,omitempty"`             // Schema to be evaluated if 'if' is successful
+	Else             *Schema            `json:"else,omitempty"`             // Schema to be evaluated if 'if' is not successful
+	DependentSchemas map[string]*Schema `json:"dependentSchemas,omitempty"` // Dependent schemas based on property presence
+
+	// Applying subschemas to array keywords, see https://json-schema.org/draft/2020-12/json-schema-core#name-keywords-for-applying-subschem
+	PrefixItems []*Schema `json:"prefixItems,omitempty"` // Array of schemas for validating the array items' prefix.
+	Items       *Schema   `json:"items,omitempty"`       // Schema for items in an array.
+	Contains    *Schema   `json:"contains,omitempty"`    // Schema for validating items in the array.
+
+	// Applying subschemas to objects keywords, see https://json-schema.org/draft/2020-12/json-schema-core#name-keywords-for-applying-subschemas
+	Properties           *SchemaMap `json:"properties,omitempty"`           // Definitions of properties for object types.
+	PatternProperties    *SchemaMap `json:"patternProperties,omitempty"`    // Definitions of properties for object types matched by specific patterns.
+	AdditionalProperties *Schema    `json:"additionalProperties,omitempty"` // Can be a boolean or a schema, controls additional properties handling.
+	PropertyNames        *Schema    `json:"propertyNames,omitempty"`        // Can be a boolean or a schema, controls property names validation.
+
+	// Any validation keywords, see https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1
+	Types SchemaTypes   `json:"type,omitempty"`  // Can be a single type or an array of types.
+	Enum  []interface{} `json:"enum,omitempty"`  // Enumerated values for the property.
+	Const *ConstValue   `json:"const,omitempty"` // Constant value for the property.
+
+	// Numeric validation keywords, see https://json-schema.org/draft/2020-12/json-schema-validation#section-6.2
+	MultipleOf       *Rat `json:"multipleOf,omitempty"`       // Number must be a multiple of this value, strictly greater than 0.
+	Maximum          *Rat `json:"maximum,omitempty"`          // Maximum value of the number.
+	ExclusiveMaximum *Rat `json:"exclusiveMaximum,omitempty"` // Number must be less than this value.
+	Minimum          *Rat `json:"minimum,omitempty"`          // Minimum value of the number.
+	ExclusiveMinimum *Rat `json:"exclusiveMinimum,omitempty"` // Number must be greater than this value.
+
+	// String validation keywords, see https://json-schema.org/draft/2020-12/json-schema-validation#section-6.3
+	MaxLength *float64 `json:"maxLength,omitempty"` // Maximum length of a string.
+	MinLength *float64 `json:"minLength,omitempty"` // Minimum length of a string.
+	Pattern   *string  `json:"pattern,omitempty"`   // Regular expression pattern to match the string against.
+
+	// Array validation keywords, see https://json-schema.org/draft/2020-12/json-schema-validation#section-6.4
+	MaxItems    *float64 `json:"maxItems,omitempty"`    // Maximum number of items in an array.
+	MinItems    *float64 `json:"minItems,omitempty"`    // Minimum number of items in an array.
+	UniqueItems *bool    `json:"uniqueItems,omitempty"` // Whether the items in the array must be unique.
+	MaxContains *float64 `json:"maxContains,omitempty"` // Maximum number of items in the array that can match the contains schema.
+	MinContains *float64 `json:"minContains,omitempty"` // Minimum number of items in the array that must match the contains schema.
+
+	// https://json-schema.org/draft/2020-12/json-schema-core#name-unevaluateditems
+	UnevaluatedItems *Schema `json:"unevaluatedItems,omitempty"` // Schema for unevaluated items in an array.
+
+	// Object validation keywords, see https://json-schema.org/draft/2020-12/json-schema-validation#section-6.5
+	MaxProperties     *float64            `json:"maxProperties,omitempty"`     // Maximum number of properties in an object.
+	MinProperties     *float64            `json:"minProperties,omitempty"`     // Minimum number of properties in an object.
+	Required          []string            `json:"required,omitempty"`          // List of required property names for object types.
+	DependentRequired map[string][]string `json:"dependentRequired,omitempty"` // Properties required when another property is present.
+
+	// https://json-schema.org/draft/2020-12/json-schema-core#name-unevaluatedproperties
+	UnevaluatedProperties *Schema `json:"unevaluatedProperties,omitempty"` // Schema for unevaluated properties in an object.
+
+	// Content validation keywords, see https://json-schema.org/draft/2020-12/json-schema-validation#name-a-vocabulary-for-the-conten
+	ContentEncoding  *string `json:"contentEncoding,omitempty"`  // Encoding format of the content.
+	ContentMediaType *string `json:"contentMediaType,omitempty"` // Media type of the content.
+	ContentSchema    *Schema `json:"contentSchema,omitempty"`    // Schema for validating the content.
+
+	// Meta-data for schema and instance description, see https://json-schema.org/draft/2020-12/json-schema-validation#name-a-vocabulary-for-basic-meta
+	Title       *string           `json:"title,omitempty"`       // A short summary of the schema.
+	Description *string           `json:"description,omitempty"` // A detailed description of the purpose of the schema.
+	Default     *json.RawMessage  `json:"default,omitempty"`     // Default value of the instance.
+	Deprecated  *bool             `json:"deprecated,omitempty"`  // Indicates that the schema is deprecated.
+	ReadOnly    *bool             `json:"readOnly,omitempty"`    // Indicates that the property is read-only.
+	WriteOnly   *bool             `json:"writeOnly,omitempty"`   // Indicates that the property is write-only.
+	Examples    []json.RawMessage `json:"examples,omitempty"`    // Examples of the instance data that validates against this schema.
+}
+
+// newSchema parses JSON schema data and returns a Schema object.
+func newSchema(jsonSchema []byte) (*Schema, error) {
+	var schema Schema
+	err := json.Unmarshal(jsonSchema, &schema)
+	if err != nil {
+		return &schema, err
+	}
+
+	return &schema, nil
+}
+
+// initializeSchema sets up the schema structure, resolves URIs, and initializes nested schemas.
+// It populates schema properties from the compiler settings and the parent schema context.
+func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
+	s.compiler = compiler
+	s.parent = parent
+
+	parentBaseURI := s.getParentBaseURI()
+	if s.ID != "" {
+		if isValidURI(s.ID) {
+			s.uri = s.ID
+			s.baseURI = getBaseURI(s.ID)
+		} else {
+			// Resolve the relative ID against the parent's base URL or the compiler's default base URL
+			resolvedURL := resolveRelativeURI(parentBaseURI, s.ID)
+			s.uri = resolvedURL
+			s.baseURI = getBaseURI(resolvedURL)
+		}
+		s.parent = nil
+	} else {
+		// Use the parent's base URL or the compiler's default if no ID is provided
+		if parentBaseURI != "" {
+			s.baseURI = parentBaseURI
+		} else {
+			s.baseURI = compiler.DefaultBaseURI
+		}
+	}
+
+	if s.baseURI == "" {
+		if s.uri != "" && isValidURI(s.uri) {
+			s.baseURI = getBaseURI(s.uri)
+		}
+	}
+
+	// Handle anchors
+	if s.Anchor != "" {
+		s.setAnchor(s.Anchor)
+	}
+
+	if s.DynamicAnchor != "" {
+		s.setDynamicAnchor(s.DynamicAnchor)
+	}
+
+	// Initialize nested schemas...
+	initializeNestedSchemas(s, compiler)
+
+	// Register the schema in the compiler's schema map with its resolved ID
+	if s.uri != "" && isValidURI(s.uri) {
+		compiler.SetSchema(s.uri, s)
+	}
+
+	s.resolveReferences()
+}
+
+// initializeNestedSchemas initializes all nested or related schemas as defined in the structure.
+func initializeNestedSchemas(s *Schema, compiler *Compiler) {
+	if s.Defs != nil {
+		for _, def := range s.Defs {
+			def.initializeSchema(compiler, s)
+		}
+	}
+	// Initialize logical schema groupings
+	initializeSchemas(s.AllOf, compiler, s)
+	initializeSchemas(s.AnyOf, compiler, s)
+	initializeSchemas(s.OneOf, compiler, s)
+
+	// Initialize conditional schemas
+	if s.Not != nil {
+		s.Not.initializeSchema(compiler, s)
+	}
+	if s.If != nil {
+		s.If.initializeSchema(compiler, s)
+	}
+	if s.Then != nil {
+		s.Then.initializeSchema(compiler, s)
+	}
+	if s.Else != nil {
+		s.Else.initializeSchema(compiler, s)
+	}
+	if s.DependentSchemas != nil {
+		for _, depSchema := range s.DependentSchemas {
+			depSchema.initializeSchema(compiler, s)
+		}
+	}
+
+	// Initialize array and object schemas
+	if s.PrefixItems != nil {
+		for _, item := range s.PrefixItems {
+			item.initializeSchema(compiler, s)
+		}
+	}
+	if s.Items != nil {
+		s.Items.initializeSchema(compiler, s)
+	}
+	if s.Contains != nil {
+		s.Contains.initializeSchema(compiler, s)
+	}
+	if s.AdditionalProperties != nil {
+		s.AdditionalProperties.initializeSchema(compiler, s)
+	}
+	if s.Properties != nil {
+		for _, prop := range *s.Properties {
+			prop.initializeSchema(compiler, s)
+		}
+	}
+	if s.PatternProperties != nil {
+		for _, prop := range *s.PatternProperties {
+			prop.initializeSchema(compiler, s)
+		}
+	}
+	if s.UnevaluatedProperties != nil {
+		s.UnevaluatedProperties.initializeSchema(compiler, s)
+	}
+	if s.UnevaluatedItems != nil {
+		s.UnevaluatedItems.initializeSchema(compiler, s)
+	}
+	if s.ContentSchema != nil {
+		s.ContentSchema.initializeSchema(compiler, s)
+	}
+	if s.PropertyNames != nil {
+		s.PropertyNames.initializeSchema(compiler, s)
+	}
+}
+
+// setAnchor creates or updates the anchor mapping for the current schema and propagates it to parent schemas.
+func (s *Schema) setAnchor(anchor string) {
+	if s.anchors == nil {
+		s.anchors = make(map[string]*Schema)
+	}
+	s.anchors[anchor] = s
+
+	root := s.getRootSchema()
+	if root.anchors == nil {
+		root.anchors = make(map[string]*Schema)
+	}
+
+	if _, ok := root.anchors[anchor]; !ok {
+		root.anchors[anchor] = s
+	}
+}
+
+// setDynamicAnchor sets or updates a dynamic anchor for the current schema and propagates it to parents in the same scope.
+func (s *Schema) setDynamicAnchor(anchor string) {
+	if s.dynamicAnchors == nil {
+		s.dynamicAnchors = make(map[string]*Schema)
+	}
+	if _, ok := s.dynamicAnchors[anchor]; !ok {
+		s.dynamicAnchors[anchor] = s
+	}
+
+	root := s.getRootSchema()
+	if root.dynamicAnchors == nil {
+		root.dynamicAnchors = make(map[string]*Schema)
+	}
+
+	if _, ok := root.dynamicAnchors[anchor]; !ok {
+		root.dynamicAnchors[anchor] = s
+	}
+}
+
+// initializeSchemas iteratively initializes a list of nested schemas.
+func initializeSchemas(schemas []*Schema, compiler *Compiler, parent *Schema) {
+	for _, schema := range schemas {
+		if schema != nil {
+			schema.initializeSchema(compiler, parent)
+		}
+	}
+}
+
+// GetSchemaURI returns the resolved URI for the schema, or an empty string if no URI is defined.
+func (s *Schema) GetSchemaURI() string {
+	if s.uri != "" {
+		return s.uri
+	}
+	root := s.getRootSchema()
+	if root.uri != "" {
+		return root.uri
+	}
+
+	return ""
+}
+
+func (s *Schema) GetSchemaLocation(anchor string) string {
+	uri := s.GetSchemaURI()
+
+	return uri + "#" + anchor
+}
+
+// getRootSchema returns the highest-level parent schema, serving as the root in the schema tree.
+func (s *Schema) getRootSchema() *Schema {
+	if s.parent != nil {
+		return s.parent.getRootSchema()
+	}
+
+	return s
+}
+
+// getParents returns a list of all parent schemas leading up to the current schema.
+// It traverses up the schema hierarchy collecting each parent until no further parents are found.
+func (s *Schema) getParents() []*Schema {
+	var parents []*Schema
+	for current := s; current != nil; current = current.parent {
+		parents = append(parents, current)
+	}
+	return parents
+}
+
+// getParentBaseURI returns the base URI from the nearest parent schema that has one defined,
+// or an empty string if none of the parents up to the root define a base URI.
+func (s *Schema) getParentBaseURI() string {
+	for p := s.parent; p != nil; p = p.parent {
+		if p.baseURI != "" {
+			return p.baseURI
+		}
+	}
+	return ""
+}
+
+// UnmarshalJSON customizes the unmarshaling of a Schema to properly initialize properties,
+// particularly handling the 'const' keyword to manage null values and avoid recursion issues.
+func (s *Schema) UnmarshalJSON(data []byte) error {
+	var boolVal bool
+	if err := json.Unmarshal(data, &boolVal); err == nil {
+		s.Boolean = &boolVal
+		return nil
+	}
+
+	type Alias Schema
+	aux := struct {
+		*Alias
+		RawConst json.RawMessage `json:"const,omitempty"` // Manually parse 'const' to handle specific edge cases.
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	if aux.RawConst != nil {
+		s.Const = &ConstValue{IsSet: true}
+		if err := json.Unmarshal(aux.RawConst, &s.Const.Value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// MarshalJSON ensures that Schema instances serialize correctly, particularly handling boolean schemas directly.
+func (s *Schema) MarshalJSON() ([]byte, error) {
+	if s.Boolean != nil {
+		return json.Marshal(s.Boolean)
+	}
+	type Alias Schema
+	return json.Marshal(&struct {
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	})
+}
+
+// SchemaMap represents a map of string keys to *Schema values, used primarily for properties and patternProperties.
+type SchemaMap map[string]*Schema
+
+// MarshalJSON ensures that SchemaMap serializes properly as a JSON object.
+func (sm SchemaMap) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]*Schema(sm))
+}
+
+// UnmarshalJSON ensures that JSON objects are correctly parsed into SchemaMap,
+// supporting the detailed structure required for nested schema definitions.
+func (sm *SchemaMap) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, (*map[string]*Schema)(sm))
+}
+
+// SchemaTypes holds a set of SchemaType values, accommodating complex schema definitions that permit multiple types.
+type SchemaTypes []string
+
+// MarshalJSON customizes the JSON serialization of SchemaTypes.
+func (r SchemaTypes) MarshalJSON() ([]byte, error) {
+	if len(r) == 1 {
+		// Serialize a single type as a simple JSON string if only one type is present.
+		return json.Marshal(r[0])
+	}
+	// Serialize multiple types as a JSON array of strings.
+	return json.Marshal([]string(r))
+}
+
+// UnmarshalJSON customizes the JSON deserialization into SchemaTypes.
+func (r *SchemaTypes) UnmarshalJSON(data []byte) error {
+	var singleType string
+	// Attempt to unmarshal the data as a single SchemaType.
+	if err := json.Unmarshal(data, &singleType); err == nil {
+		*r = SchemaTypes{singleType}
+		return nil
+	}
+
+	var multiType []string
+	// Attempt to unmarshal the data as an array of SchemaTypes.
+	if err := json.Unmarshal(data, &multiType); err == nil {
+		*r = SchemaTypes(multiType)
+		return nil
+	}
+
+	// Return a global error if the data does not conform to either a single or multiple SchemaType formats.
+	return fmt.Errorf("invalid JSON schema type: %s", string(data))
+}
+
+type ConstValue struct {
+	Value interface{}
+	IsSet bool
+}
+
+// UnmarshalJSON handles unmarshaling a JSON value into the ConstValue type.
+func (cv *ConstValue) UnmarshalJSON(data []byte) error {
+	cv.IsSet = true // If UnmarshalJSON is called, the 'const' was set in JSON.
+	return json.Unmarshal(data, &cv.Value)
+}
+
+// MarshalJSON handles marshaling the ConstValue type back to JSON.
+func (cv ConstValue) MarshalJSON() ([]byte, error) {
+	if !cv.IsSet {
+		return nil, nil
+	}
+	// Otherwise, marshal the value as normal
+	return json.Marshal(cv.Value)
+}
