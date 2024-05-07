@@ -81,7 +81,7 @@ func evaluatePatternProperties(schema *Schema, object map[string]interface{}, ev
 	}
 
 	if len(invalid_properties) == 1 {
-		return results, NewEvaluationError("properties", "pattern_property_mismatch", "Property {property} does not match the defined pattern schema", map[string]interface{}{
+		return results, NewEvaluationError("properties", "pattern_property_mismatch", "Property {property} does not match the pattern schema", map[string]interface{}{
 			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
 		})
 	} else if len(invalid_properties) > 1 {

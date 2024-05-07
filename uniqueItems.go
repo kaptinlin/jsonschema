@@ -29,7 +29,7 @@ func evaluateUniqueItems(schema *Schema, data []interface{}) *EvaluationError {
 		itemBytes, err := json.Marshal(item)
 		if err != nil {
 			// Handle serialization error
-			return NewEvaluationError("uniqueItems", "item_serialization_error", "Error serializing array item at index {index}", map[string]interface{}{
+			return NewEvaluationError("uniqueItems", "item_serialization_error", "Error serializing item at index {index}", map[string]interface{}{
 				"index": fmt.Sprint(index),
 			})
 		}
@@ -52,7 +52,7 @@ func evaluateUniqueItems(schema *Schema, data []interface{}) *EvaluationError {
 
 	// If there are duplicates, return an error message with all duplicate index groups
 	if len(duplicates) > 0 {
-		return NewEvaluationError("uniqueItems", "duplicate_array_items", "Found duplicates at the following index groups: {duplicates}", map[string]interface{}{
+		return NewEvaluationError("uniqueItems", "unique_items_mismatch", "Found duplicates at the following index groups: {duplicates}", map[string]interface{}{
 			"duplicates": strings.Join(duplicates, ", "),
 		})
 	}

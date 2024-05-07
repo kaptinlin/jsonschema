@@ -10,12 +10,12 @@ package jsonschema
 // If the instance fails to conform to the schema or the boolean logic dictates failure, it returns a EvaluationError.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-not
-func evaluateNot(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) (*EvaluationResult, *EvaluationError) {
+func evaluateNot(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) (*EvaluationResult, *EvaluationError) {
 	if schema.Not == nil {
 		return nil, nil // No 'not' constraints to validate against
 	}
 
-	result, _, _ := schema.Not.evaluate(data, DynamicScope)
+	result, _, _ := schema.Not.evaluate(instance, DynamicScope)
 
 	if result != nil {
 		result.SetEvaluationPath("/oneOf").
@@ -23,7 +23,7 @@ func evaluateNot(schema *Schema, data interface{}, evaluatedProps map[string]boo
 			SetInstanceLocation("")
 
 		if result.IsValid() {
-			return result, NewEvaluationError("not", "not_schema_violation", "Data should not match the schema defined in 'not'")
+			return result, NewEvaluationError("not", "not_schema_mismatch", "Value should not match the not schema")
 		}
 	}
 

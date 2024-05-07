@@ -10,13 +10,13 @@ package jsonschema
 // If the instance violates this constraint, it returns a EvaluationError detailing the required minimum and the actual size.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-minitems
-func evaluateMinItems(schema *Schema, data []interface{}) *EvaluationError {
+func evaluateMinItems(schema *Schema, array []interface{}) *EvaluationError {
 	if schema.MinItems != nil {
-		if float64(len(data)) < *schema.MinItems {
+		if float64(len(array)) < *schema.MinItems {
 			// If the array size is less than the minimum required, construct and return an error.
 			return NewEvaluationError("minItems", "items_too_short", "Value should have at least {min_items} items", map[string]interface{}{
 				"min_items": *schema.MinItems,
-				"actual":    len(data),
+				"count":     len(array),
 			})
 		}
 	}

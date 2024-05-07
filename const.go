@@ -13,18 +13,18 @@ import (
 // If they do not match, it returns a EvaluationError detailing the expected and actual values.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-const
-func evaluateConst(schema *Schema, data interface{}) *EvaluationError {
+func evaluateConst(schema *Schema, instance interface{}) *EvaluationError {
 	if schema.Const == nil {
 		return nil
 	}
 
 	if schema.Const.Value == nil {
-		if data != nil {
-			return NewEvaluationError("const", "const_mismatch_null", "Value is not null, but the constant value is null")
+		if instance != nil {
+			return NewEvaluationError("const", "const_mismatch_null", "Value does not match constant null value")
 		}
 	}
 
-	if !reflect.DeepEqual(data, schema.Const.Value) {
+	if !reflect.DeepEqual(instance, schema.Const.Value) {
 		return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value")
 	}
 	return nil

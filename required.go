@@ -31,7 +31,7 @@ func evaluateRequired(schema *Schema, object map[string]interface{}) *Evaluation
 
 	if len(missingProps) > 0 {
 		if len(missingProps) == 1 {
-			return NewEvaluationError("required", "missing_required_property", "Missing required property {property}", map[string]interface{}{
+			return NewEvaluationError("required", "missing_required_property", "Required property {property} is missing", map[string]interface{}{
 				"property": fmt.Sprintf("'%s'", missingProps[0]),
 			})
 		} else {
@@ -39,7 +39,7 @@ func evaluateRequired(schema *Schema, object map[string]interface{}) *Evaluation
 			for i, prop := range missingProps {
 				quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 			}
-			return NewEvaluationError("required", "missing_required_properties", "Missing required properties {properties}", map[string]interface{}{
+			return NewEvaluationError("required", "missing_required_properties", "Required properties {properties} are missing", map[string]interface{}{
 				"properties": strings.Join(quotedProperties, ", "),
 			})
 		}

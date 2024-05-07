@@ -18,10 +18,12 @@ import (
 func evaluateMaxLength(schema *Schema, value string) *EvaluationError {
 	if schema.MaxLength != nil {
 		// Use utf8.RuneCountInString to correctly count the number of graphemes in the string
-		if utf8.RuneCountInString(value) > int(*schema.MaxLength) {
+		length := utf8.RuneCountInString(value)
+		if length > int(*schema.MaxLength) {
 			// String exceeds the maximum length.
 			return NewEvaluationError("maxLength", "string_too_long", "Value should be at most {max_length} characters", map[string]interface{}{
 				"max_length": fmt.Sprintf("%.0f", *schema.MaxLength),
+				"length":     length,
 			})
 		}
 	}

@@ -54,7 +54,6 @@ type List struct {
 
 type EvaluationResult struct {
 	schema           *Schema                     `json:"-"`
-	localizer        *i18n.Localizer             `json:"-"`
 	Valid            bool                        `json:"valid"`
 	EvaluationPath   string                      `json:"evaluationPath"`
 	SchemaLocation   string                      `json:"schemaLocation"`
@@ -96,11 +95,6 @@ func (e *EvaluationResult) SetInstanceLocation(instanceLocation string) *Evaluat
 func (e *EvaluationResult) SetInvalid() *EvaluationResult {
 	e.Valid = false
 
-	return e
-}
-
-func (e *EvaluationResult) SetLocalizer(localizer *i18n.Localizer) *EvaluationResult {
-	e.localizer = localizer
 	return e
 }
 
@@ -185,29 +179,41 @@ func (e *EvaluationResult) ToList(includeHierarchy ...bool) *List {
 		hierarchyIncluded = includeHierarchy[0]
 	}
 
+	return e.ToLocalizeList(nil, hierarchyIncluded)
+}
+
+// ToLocalizeList converts the evaluation results into a list format with optional hierarchy with localization
+// includeHierarchy is variadic; if not provided, it defaults to true
+func (e *EvaluationResult) ToLocalizeList(localizer *i18n.Localizer, includeHierarchy ...bool) *List {
+	// Set default value for includeHierarchy to true
+	hierarchyIncluded := true
+	if len(includeHierarchy) > 0 {
+		hierarchyIncluded = includeHierarchy[0]
+	}
+
 	list := &List{
 		Valid:            e.Valid,
 		EvaluationPath:   e.EvaluationPath,
 		SchemaLocation:   e.SchemaLocation,
 		InstanceLocation: e.InstanceLocation,
 		Annotations:      e.Annotations,
-		Errors:           e.convertErrors(),
+		Errors:           e.convertErrors(localizer),
 		Details:          make([]List, 0),
 	}
 
 	if hierarchyIncluded {
 		for _, detail := range e.Details {
-			childList := detail.ToList(true) // recursively include hierarchy
+			childList := detail.ToLocalizeList(localizer, true) // recursively include hierarchy
 			list.Details = append(list.Details, *childList)
 		}
 	} else {
-		e.flattenDetailsToList(list, e.Details) // flat structure
+		e.flattenDetailsToList(localizer, list, e.Details) // flat structure
 	}
 
 	return list
 }
 
-func (e *EvaluationResult) flattenDetailsToList(list *List, details []*EvaluationResult) {
+func (e *EvaluationResult) flattenDetailsToList(localizer *i18n.Localizer, list *List, details []*EvaluationResult) {
 	for _, detail := range details {
 		flatDetail := List{
 			Valid:            detail.Valid,
@@ -215,21 +221,21 @@ func (e *EvaluationResult) flattenDetailsToList(list *List, details []*Evaluatio
 			SchemaLocation:   detail.SchemaLocation,
 			InstanceLocation: detail.InstanceLocation,
 			Annotations:      detail.Annotations,
-			Errors:           detail.convertErrors(),
+			Errors:           detail.convertErrors(localizer),
 		}
 		list.Details = append(list.Details, flatDetail)
 
 		if len(detail.Details) > 0 {
-			e.flattenDetailsToList(list, detail.Details)
+			e.flattenDetailsToList(localizer, list, detail.Details)
 		}
 	}
 }
 
-func (e *EvaluationResult) convertErrors() map[string]string {
+func (e *EvaluationResult) convertErrors(localizer *i18n.Localizer) map[string]string {
 	errors := make(map[string]string)
 	for key, err := range e.Errors {
-		if e.localizer != nil {
-			errors[key] = err.Localize(e.localizer)
+		if localizer != nil {
+			errors[key] = err.Localize(localizer)
 		} else {
 			errors[key] = err.Error()
 		}

@@ -48,7 +48,7 @@ func evaluateUnevaluatedProperties(schema *Schema, data interface{}, evaluatedPr
 	}
 
 	if len(invalid_properties) == 1 {
-		return results, NewEvaluationError("properties", "unevaluated_property_mismatch", "Unevaluated property {property} does not match the schema", map[string]interface{}{
+		return results, NewEvaluationError("properties", "unevaluated_property_mismatch", "Property {property} does not match the unevaluatedProperties schema", map[string]interface{}{
 			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
 		})
 	} else if len(invalid_properties) > 1 {
@@ -56,7 +56,7 @@ func evaluateUnevaluatedProperties(schema *Schema, data interface{}, evaluatedPr
 		for i, prop := range invalid_properties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
-		return results, NewEvaluationError("properties", "unevaluated_properties_mismatch", "Unevaluated properties {properties} do not match the schema", map[string]interface{}{
+		return results, NewEvaluationError("properties", "unevaluated_properties_mismatch", "Properties {properties} do not match the unevaluatedProperties schema", map[string]interface{}{
 			"properties": strings.Join(quotedProperties, ", "),
 		})
 	}

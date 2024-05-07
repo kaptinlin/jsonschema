@@ -44,16 +44,16 @@ func evaluatePropertyNames(schema *Schema, object map[string]interface{}, evalua
 	}
 
 	if len(invalid_properties) == 1 {
-		return results, NewEvaluationError("properties", "invalid_property_name", "Property name {property_name} does not match the schema", map[string]interface{}{
-			"property_name": fmt.Sprintf("'%s'", invalid_properties[0]),
+		return results, NewEvaluationError("propertyNames", "property_name_mismatch", "Property name {property} does not match the schema", map[string]interface{}{
+			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
 		})
 	} else if len(invalid_properties) > 1 {
 		quotedProperties := make([]string, len(invalid_properties))
 		for i, prop := range invalid_properties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
-		return results, NewEvaluationError("properties", "invalid_property_names", "Property names {property_names} do not match the schema", map[string]interface{}{
-			"property_names": strings.Join(quotedProperties, ", "),
+		return results, NewEvaluationError("propertyNames", "property_names_mismatch", "Property names {properties} do not match the schema", map[string]interface{}{
+			"properties": strings.Join(quotedProperties, ", "),
 		})
 	}
 

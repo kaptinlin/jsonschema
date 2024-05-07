@@ -17,7 +17,7 @@ import (
 // If any array element does not conform, it returns a EvaluationError detailing the issue.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-items
-func evaluateItems(schema *Schema, data []interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateItems(schema *Schema, array []interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.Items == nil {
 		return nil, nil // // No 'items' constraints to validate against
 	}
@@ -30,9 +30,9 @@ func evaluateItems(schema *Schema, data []interface{}, evaluatedProps map[string
 
 	// Check if the general 'items' schema is available and proceed with validation if it's not explicitly false
 	if schema.Items != nil {
-		// Ensure that we only access indices within the range of existing data elements
-		for i := startIndex; i < len(data); i++ {
-			item := data[i]
+		// Ensure that we only access indices within the range of existing array elements
+		for i := startIndex; i < len(array); i++ {
+			item := array[i]
 			result, _, _ := schema.Items.evaluate(item, DynamicScope)
 			if result != nil {
 				result.SetEvaluationPath(fmt.Sprintf("/items/%d", i)).

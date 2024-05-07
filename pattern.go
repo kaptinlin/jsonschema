@@ -12,22 +12,23 @@ import "regexp"
 // If the instance does not match the pattern, it returns a EvaluationError detailing the expected pattern and the actual string.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-pattern
-func evaluatePattern(schema *Schema, value string) *EvaluationError {
+func evaluatePattern(schema *Schema, instance string) *EvaluationError {
 	if schema.Pattern != nil {
 		// Compile the regular expression from the pattern.
 		regExp, err := regexp.Compile(*schema.Pattern)
 		if err != nil {
 			// Handle regular expression compilation errors.
-			return NewEvaluationError("pattern", "invalid_pattern", "invalid regular expression pattern {pattern}", map[string]interface{}{
+			return NewEvaluationError("pattern", "invalid_pattern", "Invalid regular expression pattern {pattern}", map[string]interface{}{
 				"pattern": *schema.Pattern,
 			})
 		}
 
 		// Check if the regular expression matches the string value.
-		if !regExp.MatchString(value) {
+		if !regExp.MatchString(instance) {
 			// Data does not match the pattern.
 			return NewEvaluationError("pattern", "pattern_mismatch", "Value does not match the required pattern {pattern}", map[string]interface{}{
 				"pattern": *schema.Pattern,
+				"value":   instance,
 			})
 		}
 	}

@@ -11,14 +11,14 @@ package jsonschema
 // This function serves as a central feature for conditional logic application in JSON Schema validation.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-if
-func evaluateConditional(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateConditional(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.If == nil {
 		// If there's no 'if' condition defined, nothing to validate conditionally.
 		return nil, nil
 	}
 
 	// Evaluate the 'if' condition
-	ifResult, ifEvaluatedProps, ifEvaluatedItems := schema.If.evaluate(data, DynamicScope)
+	ifResult, ifEvaluatedProps, ifEvaluatedItems := schema.If.evaluate(instance, DynamicScope)
 
 	results := []*EvaluationResult{}
 
@@ -35,7 +35,7 @@ func evaluateConditional(schema *Schema, data interface{}, evaluatedProps map[st
 			mergeIntMaps(evaluatedItems, ifEvaluatedItems)
 
 			if schema.Then != nil {
-				thenResult, thenEvaluatedProps, thenEvaluatedItems := schema.Then.evaluate(data, DynamicScope)
+				thenResult, thenEvaluatedProps, thenEvaluatedItems := schema.Then.evaluate(instance, DynamicScope)
 
 				if thenResult != nil {
 					thenResult.SetEvaluationPath("/then").
@@ -45,7 +45,7 @@ func evaluateConditional(schema *Schema, data interface{}, evaluatedProps map[st
 					results = append(results, thenResult)
 
 					if !thenResult.IsValid() {
-						return results, NewEvaluationError("then", "if_then_failure",
+						return results, NewEvaluationError("then", "if_then_mismatch",
 							"Value meets the 'if' condition but does not match the 'then' schema")
 					} else {
 						// Merge maps only if 'then' condition is successfully validated
@@ -55,12 +55,12 @@ func evaluateConditional(schema *Schema, data interface{}, evaluatedProps map[st
 				}
 			}
 		} else if schema.Else != nil {
-			elseResult, elseEvaluatedProps, elseEvaluatedItems := schema.Else.evaluate(data, DynamicScope)
+			elseResult, elseEvaluatedProps, elseEvaluatedItems := schema.Else.evaluate(instance, DynamicScope)
 			if elseResult != nil {
 				results = append(results, elseResult)
 
 				if !elseResult.IsValid() {
-					return results, NewEvaluationError("else", "if_else_failure",
+					return results, NewEvaluationError("else", "if_else_mismatch",
 						"Value fails the 'if' condition and does not match the 'else' schema")
 				} else {
 					// Merge maps only if 'else' condition is successfully validated

@@ -14,22 +14,22 @@ import (
 // If the instance fails to conform to any dependent schema when the associated property is present, it returns a EvaluationError.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-dependentschemas
-func evaluateDependentSchemas(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateDependentSchemas(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.DependentSchemas == nil || len(schema.DependentSchemas) == 0 {
 		return nil, nil // No dependentSchemas constraints to validate against.
 	}
 
-	objData, ok := data.(map[string]interface{})
+	object, ok := instance.(map[string]interface{})
 	if !ok {
-		return nil, nil // Data is not an object, dependentSchemas do not apply.
+		return nil, nil // instance is not an object, dependentSchemas do not apply.
 	}
 	invalid_properties := []string{}
 	results := []*EvaluationResult{}
 
 	for propName, depSchema := range schema.DependentSchemas {
-		if _, exists := objData[propName]; exists {
+		if _, exists := object[propName]; exists {
 			if depSchema != nil {
-				result, schemaEvaluatedProps, schemaEvaluatedItems := depSchema.evaluate(objData, DynamicScope)
+				result, schemaEvaluatedProps, schemaEvaluatedItems := depSchema.evaluate(object, DynamicScope)
 				if result != nil {
 					result.SetEvaluationPath(fmt.Sprintf("/dependentSchemas/%s", propName)).
 						SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/dependentSchemas/%s", propName))).
@@ -48,7 +48,7 @@ func evaluateDependentSchemas(schema *Schema, data interface{}, evaluatedProps m
 	}
 
 	if len(invalid_properties) == 1 {
-		return results, NewEvaluationError("dependentSchemas", "dependent_schema_mismatch", "Property {property} does not meet the schema requirements dependent on it", map[string]interface{}{
+		return results, NewEvaluationError("dependentSchemas", "dependent_schema_mismatch", "Property {property} does not match the dependent schema", map[string]interface{}{
 			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
 		})
 	} else if len(invalid_properties) > 1 {
@@ -56,7 +56,7 @@ func evaluateDependentSchemas(schema *Schema, data interface{}, evaluatedProps m
 		for i, prop := range invalid_properties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
-		return results, NewEvaluationError("dependentSchemas", "dependent_schemas_mismatch", "Properties {properties} do not meet the schema requirements dependent on them", map[string]interface{}{
+		return results, NewEvaluationError("dependentSchemas", "dependent_schemas_mismatch", "Properties {properties} do not match the dependent schemas", map[string]interface{}{
 			"properties": strings.Join(quotedProperties, ", "),
 		})
 	}

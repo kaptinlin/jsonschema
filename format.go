@@ -22,7 +22,7 @@ func evaluateFormat(schema *Schema, value interface{}) *EvaluationError {
 			// If the format is not recognized, the behavior depends on the implementation
 			// configurations: it can ignore the unknown format (annotation behavior) or
 			// consider it an error (assertion behavior).
-			return NewEvaluationError("format", "format_unsupported", "Format {format} is not supported", map[string]interface{}{
+			return NewEvaluationError("format", "unsupported_format", "Format {format} is not supported", map[string]interface{}{
 				"format": *schema.Format,
 			})
 		}
@@ -31,7 +31,7 @@ func evaluateFormat(schema *Schema, value interface{}) *EvaluationError {
 	// Execute the format validation function
 	if !formatFunc(value) {
 		if schema.compiler != nil && schema.compiler.AssertFormat {
-			return NewEvaluationError("format", "format_invalid", "Value does not match format {format}", map[string]interface{}{
+			return NewEvaluationError("format", "format_mismatch", "Value does not match format {format}", map[string]interface{}{
 				"format": *schema.Format,
 			})
 		}

@@ -18,10 +18,12 @@ import (
 func evaluateMinLength(schema *Schema, value string) *EvaluationError {
 	if schema.MinLength != nil {
 		// Use utf8.RuneCountInString to correctly count the number of graphemes in the string
-		if utf8.RuneCountInString(value) < int(*schema.MinLength) {
+		length := utf8.RuneCountInString(value)
+		if length < int(*schema.MinLength) {
 			// String does not meet the minimum length.
 			return NewEvaluationError("minLength", "string_too_short", "Value should be at least {min_length} characters", map[string]interface{}{
 				"min_length": *schema.MinLength,
+				"length":     length,
 			})
 		}
 	}

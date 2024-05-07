@@ -1,12 +1,12 @@
 # JsonSchema Validator for Go
 
-This library provides a robust JSON Schema validation for Go applications, designed to support the latest specifications of JSON Schema. This validator is specifically aligned with JSON Schema Draft 2020-12, implementing a modern approach to JSON schema validation.
+This library provides robust JSON Schema validation for Go applications, designed to support the latest specifications of JSON Schema. This validator aligns with JSON Schema Draft 2020-12, implementing a modern approach to JSON schema validation.
 
 ## Features
 
 - **Latest JSON Schema Support**: Compliant with JSON Schema Draft 2020-12. This library does not support earlier versions of JSON Schema.
 - **Passed All JSON Schema Test Suite Cases**: Successfully passes all the [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite) cases for Draft 2020-12, except those involving vocabulary.
-- **Internationalization Support**: Includes capabilities for internationalized validation messages.
+- **Internationalization Support**: Includes capabilities for internationalized validation messages. Supports multiple languages including English (en), German (de-DE), Spanish (es-ES), French (fr-FR), Japanese (ja-JP), Korean (ko-KR), Portuguese (pt-BR), Simplified Chinese (zh-Hans), and Traditional Chinese (zh-Hant).
 - **Enhanced Validation Output**: Implements [enhanced output](https://json-schema.org/blog/posts/fixing-json-schema-output) for validation errors as proposed in recent JSON Schema updates.
 - **Performance Enhancement**: Uses [github.com/goccy/go-json](https://github.com/goccy/go-json) instead of `encoding/json` to improve performance.
 
@@ -31,22 +31,22 @@ import (
 )
 
 func main() {
-    schemaJSON := `{
-        "type": "object",
-        "properties": {
-            "name": {"type": "string"},
-            "age": {"type": "integer", "minimum":20}
-        },
-        "required": ["name", "age"]
-    }`
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"age": {"type": "integer", "minimum":20}
+		},
+		"required": ["name", "age"]
+	}`
 
-    compiler := jsonschema.NewCompiler()
-    schema, err := compiler.Compile([]byte(schemaJSON))
-    if err != nil {
-        log.Fatalf("Failed to compile schema: %v", err)
-    }
+	compiler := jsonschema.NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	if err != nil {
+		log.Fatalf("Failed to compile schema: %v", err)
+	}
 
-    instance := map[string]interface{}{
+	instance := map[string]interface{}{
 		"name": "John Doe",
 		"age":  19,
 	}
@@ -104,6 +104,53 @@ The library supports three output formats:
   result.ToList(false)
   ```
 
+### Multilingual Support
+
+The library uses `github.com/kaptinlin/go-i18n` to support multilingual error messages. Users can extend their own languages as follows:
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/goccy/go-json"
+	"github.com/kaptinlin/jsonschema"
+)
+
+func main() {
+	i18n := jsonschema.GetI18n()
+	localizer := i18n.NewLocalizer("zh-Hans")
+
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"age": {"type": "integer", "minimum":20}
+		},
+		"required": ["name", "age"]
+	}`
+
+	compiler := jsonschema.NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	if err != nil {
+		log.Fatalf("Failed to compile schema: %v", err)
+	}
+
+	instance := map[string]interface{}{
+		"name": "John Doe",
+		"age":  19,
+	}
+	result := schema.Validate(instance)
+
+	if !result.IsValid() {
+		details, _ := json.MarshalIndent(result.ToLocalizeList(localizer), "", "  ")
+		fmt.Println(string(details))
+	}
+}
+```
+
 ## How to Contribute
 
 Contributions to the `jsonschema` package are welcome. If you'd like to contribute, please follow the [contribution guidelines](CONTRIBUTING.md).
@@ -121,4 +168,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Credits
 
 Special thanks to the creators of [jsonschema by santhosh-tekuri](https://github.com/santhosh-tekuri/jsonschema) and [Json-Everything](https://json-everything.net/) for inspiring and supporting the development of this library.
-```

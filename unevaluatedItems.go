@@ -50,11 +50,11 @@ func evaluateUnevaluatedItems(schema *Schema, data interface{}, evaluatedProps m
 	}
 
 	if len(invalid_indexs) == 1 {
-		return results, NewEvaluationError("unevaluatedItems", "unevaluated_item_mismatch", "Item at index {index} does not match the schema", map[string]interface{}{
+		return results, NewEvaluationError("unevaluatedItems", "unevaluated_item_mismatch", "Item at index {index} does not match the unevaluatedItems schema", map[string]interface{}{
 			"index": invalid_indexs[0],
 		})
 	} else if len(invalid_indexs) > 1 {
-		return results, NewEvaluationError("unevaluatedItems", "unevaluated_items_mismatch", "Items at index {indexs} does not match the schema", map[string]interface{}{
+		return results, NewEvaluationError("unevaluatedItems", "unevaluated_items_mismatch", "Items at index {indexs} do not match the unevaluatedItems schema", map[string]interface{}{
 			"indexs": strings.Join(invalid_indexs, ", "),
 		})
 	}

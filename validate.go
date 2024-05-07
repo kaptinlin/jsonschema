@@ -42,7 +42,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 				if !refResult.IsValid() {
 					result.AddError(
-						NewEvaluationError("$ref", "ref_validation_failed", "Value failed validation against the resolved reference"),
+						NewEvaluationError("$ref", "ref_mismatch", "Value does not match the reference schema"),
 					)
 				}
 			}
@@ -69,7 +69,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 				if !dynamicRefResult.IsValid() {
 					result.AddError(
-						NewEvaluationError("$dynamicRef", "dynamic_ref_validation_failed", "Value failed validation against the resolved dynamic reference"),
+						NewEvaluationError("$dynamicRef", "dynamic_ref_mismatch", "Value does not match the dynamic reference schema"),
 					)
 				}
 			}
@@ -278,7 +278,7 @@ func (s *Schema) evaluateBoolean(instance interface{}, evaluatedProps map[string
 		}
 		return nil // No error, validation passes as the schema is true
 	} else {
-		return NewEvaluationError("schema", "validation_always_fails", "All values fail against the false schema")
+		return NewEvaluationError("schema", "false_schema_mismatch", "No values are allowed because the schema is set to 'false'")
 	}
 }
 
@@ -381,7 +381,7 @@ func evaluateNumeric(schema *Schema, data interface{}) []*EvaluationError {
 	value := NewRat(data)
 	if value == nil {
 		// If the type conversion fails, the data might not be a number.
-		errors = append(errors, NewEvaluationError("type", "invalid_numberic", "Expected a numeric value but found {actual_type}", map[string]interface{}{
+		errors = append(errors, NewEvaluationError("type", "invalid_numberic", "Value is {received} but should be numeric", map[string]interface{}{
 			"actual_type": dataType,
 		}))
 

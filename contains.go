@@ -48,7 +48,7 @@ func evaluateContains(schema *Schema, data []interface{}, evaluatedProps map[str
 	if minContains == 0 && validCount == 0 {
 		// Valid scenario when minContains is 0. Still need to check maxContains.
 	} else if validCount < minContains {
-		return results, NewEvaluationError("minContains", "contains_too_few_elements", "Value should contain at least {min_contains} matching items", map[string]interface{}{
+		return results, NewEvaluationError("minContains", "contains_too_few_items", "Value should contain at least {min_contains} matching items", map[string]interface{}{
 			"min_contains": minContains,
 			"count":        validCount,
 		})
@@ -56,7 +56,7 @@ func evaluateContains(schema *Schema, data []interface{}, evaluatedProps map[str
 
 	// Handle 'maxContains' logic
 	if schema.MaxContains != nil && validCount > int(*schema.MaxContains) {
-		return results, NewEvaluationError("maxContains", "contains_too_many_elements", "Value should contain no more than {max_contains} matching items", map[string]interface{}{
+		return results, NewEvaluationError("maxContains", "contains_too_many_items", "Value should contain no more than {max_contains} matching items", map[string]interface{}{
 			"max_contains": *schema.MaxContains,
 			"count":        validCount,
 		})

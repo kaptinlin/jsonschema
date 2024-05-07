@@ -13,9 +13,9 @@ import "math/big"
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-multipleof
 func evaluateMultipleOf(schema *Schema, value *Rat) *EvaluationError {
 	if schema.MultipleOf != nil {
-		if schema.MultipleOf.Sign() == 0 {
+		if schema.MultipleOf.Sign() == 0 || schema.MultipleOf.Sign() < 0 {
 			// If the divisor is 0, return an error.
-			return NewEvaluationError("multipleOf", "invalid_divisor", "The divisor value must be greater than 0", map[string]interface{}{
+			return NewEvaluationError("multipleOf", "invalid_multiple_of", "Multiple of {multiple_of} should be greater than 0", map[string]interface{}{
 				"divisor": FormatRat(schema.MultipleOf),
 			})
 		}
@@ -24,7 +24,7 @@ func evaluateMultipleOf(schema *Schema, value *Rat) *EvaluationError {
 		resultRat := new(big.Rat).Quo(value.Rat, schema.MultipleOf.Rat)
 		if !resultRat.IsInt() {
 			// If the division result is not an integer, construct and return an error.
-			return NewEvaluationError("multipleOf", "not_multiple_of", "{value} should be a multiple of {divisor}", map[string]interface{}{
+			return NewEvaluationError("multipleOf", "not_multiple_of", "{value} should be a multiple of {multiple_of}", map[string]interface{}{
 				"divisor": FormatRat(schema.MultipleOf),
 				"value":   FormatRat(value),
 			})
