@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/goccy/go-json"
@@ -29,8 +28,11 @@ func main() {
 		"age":  19,
 	}
 	result := schema.Validate(instance)
-	if !result.IsValid() {
+	if result.IsValid() {
+		log.Println("The schema is valid.")
+	} else {
+		log.Println("The schema is not valid. See errors:")
 		details, _ := json.MarshalIndent(result.ToList(), "", "  ")
-		fmt.Println(string(details))
+		log.Println(string(details))
 	}
 }

@@ -2,6 +2,16 @@
 
 This library provides robust JSON Schema validation for Go applications, designed to support the latest specifications of JSON Schema. This validator aligns with JSON Schema Draft 2020-12, implementing a modern approach to JSON schema validation.
 
+## Table of Contents
+- [Features](#features)
+- [Installation](#installation)
+- [Quickstart](#quickstart)
+- [Output Formats](#output-formats)
+- [Loading Schema from URI](#loading-schema-from-uri)
+- [Multilingual Error Messages](#multilingual-error-messages)
+- [How to Contribute](#how-to-contribute)
+- [License](#license)
+
 ## Features
 
 - **Latest JSON Schema Support**: Compliant with JSON Schema Draft 2020-12. This library does not support earlier versions of JSON Schema.
@@ -10,9 +20,7 @@ This library provides robust JSON Schema validation for Go applications, designe
 - **Enhanced Validation Output**: Implements [enhanced output](https://json-schema.org/blog/posts/fixing-json-schema-output) for validation errors as proposed in recent JSON Schema updates.
 - **Performance Enhancement**: Uses [github.com/goccy/go-json](https://github.com/goccy/go-json) instead of `encoding/json` to improve performance.
 
-## Getting Started
-
-### Installation
+## Installation
 
 Ensure your Go environment is set up (requires Go version 1.21.1 or higher) and install the library:
 
@@ -20,7 +28,7 @@ Ensure your Go environment is set up (requires Go version 1.21.1 or higher) and 
 go get github.com/kaptinlin/jsonschema
 ```
 
-### Usage
+## Quickstart
 
 Here is a simple example to demonstrate compiling a schema and validating an instance:
 
@@ -88,7 +96,7 @@ This example will output the following:
 }
 ```
 
-### Output Formats
+## Output Formats
 
 The library supports three output formats:
 - **Flag**: Provides a simple boolean indicating whether the validation was successful.
@@ -104,50 +112,29 @@ The library supports three output formats:
   result.ToList(false)
   ```
 
-### Multilingual Support
+## Loading Schema from URI
 
-The library uses `github.com/kaptinlin/go-i18n` to support multilingual error messages. Users can extend their own languages as follows:
+The `compiler.GetSchema` method allows loading a JSON Schema directly from a URI, which is especially useful for utilizing shared or standard schemas:
 
 ```go
-package main
+metaSchema, err := compiler.GetSchema("https://json-schema.org/draft/2020-12/schema")
+if err != nil {
+    log.Fatalf("Failed to load meta-schema: %v", err)
+}
+```
 
-import (
-	"fmt"
-	"log"
+## Multilingual Error Messages
 
-	"github.com/goccy/go-json"
-	"github.com/kaptinlin/jsonschema"
-)
+The library supports multilingual error messages through the integration with `github.com/kaptinlin/go-i18n`. Users can customize the localizer to support additional languages:
 
-func main() {
-	i18n := jsonschema.GetI18n()
-	localizer := i18n.NewLocalizer("zh-Hans")
+```go
+i18n := jsonschema.GetI18n()
+localizer := i18n.NewLocalizer("zh-Hans")
 
-	schemaJSON := `{
-		"type": "object",
-		"properties": {
-			"name": {"type": "string"},
-			"age": {"type": "integer", "minimum":20}
-		},
-		"required": ["name", "age"]
-	}`
-
-	compiler := jsonschema.NewCompiler()
-	schema, err := compiler.Compile([]byte(schemaJSON))
-	if err != nil {
-		log.Fatalf("Failed to compile schema: %v", err)
-	}
-
-	instance := map[string]interface{}{
-		"name": "John Doe",
-		"age":  19,
-	}
-	result := schema.Validate(instance)
-
-	if !result.IsValid() {
-		details, _ := json.MarshalIndent(result.ToLocalizeList(localizer), "", "  ")
-		fmt.Println(string(details))
-	}
+result := schema.Validate(instance)
+if !result.IsValid() {
+    details, _ := json.MarshalIndent(result.ToLocalizeList(localizer), "", "  ")
+    log.Println(string(details))
 }
 ```
 
