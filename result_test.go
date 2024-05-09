@@ -187,3 +187,34 @@ func TestToList(t *testing.T) {
 	}
 
 }
+
+// TestToFlag tests the ToFlag method of the EvaluationResult struct.
+func TestToFlag(t *testing.T) {
+	// Test case 1: Valid result
+	evaluationResultValid := &EvaluationResult{
+		Valid: true,
+	}
+
+	// Call ToFlag method for valid result
+	flagValid := evaluationResultValid.ToFlag()
+
+	// Verify that the returned flag is not nil
+	assert.NotNil(t, flagValid, "ToFlag should return a non-nil flag for a valid result")
+
+	// Verify the validity of the returned flag
+	assert.Equal(t, true, flagValid.Valid, "Expected validity of flag to match EvaluationResult validity for a valid result")
+
+	// Test case 2: Invalid result
+	evaluationResultInvalid := &EvaluationResult{
+		Valid: false,
+	}
+
+	// Call ToFlag method for invalid result
+	flagInvalid := evaluationResultInvalid.ToFlag()
+
+	// Verify that the returned flag is not nil
+	assert.NotNil(t, flagInvalid, "ToFlag should return a non-nil flag for an invalid result")
+
+	// Verify the validity of the returned flag
+	assert.Equal(t, false, flagInvalid.Valid, "Expected validity of flag to match EvaluationResult validity for an invalid result")
+}
