@@ -108,3 +108,82 @@ func TestToLocalizeList(t *testing.T) {
 	// Check if the error message for "minLength" is correctly localized
 	assert.Contains(t, string(details), "值应至少为 3 个字符", "The error message for 'minLength' should be correctly localized and contain the expected substring")
 }
+
+func TestToList(t *testing.T) {
+	// Create a sample EvaluationResult instance
+	evaluationResult := &EvaluationResult{
+		Valid:            true,
+		EvaluationPath:   "/",
+		SchemaLocation:   "http://example.com/schema",
+		InstanceLocation: "http://example.com/instance",
+		Annotations: map[string]interface{}{
+			"key1": "value1",
+			"key2": "value2",
+		},
+		Errors: map[string]*EvaluationError{
+			"error1": {
+				keyword: "required",
+				code:    "ERR_REQUIRED",
+				message: "Field is required",
+				params: map[string]interface{}{
+					"fieldName": "fieldName1",
+				},
+			},
+			"error2": {
+				keyword: "minLength",
+				code:    "ERR_MIN_LENGTH",
+				message: "Field length is too short",
+				params: map[string]interface{}{
+					"fieldName": "fieldName2",
+					"minLength": 5,
+				},
+			},
+		},
+		Details: []*EvaluationResult{
+			{
+				Valid:          false,
+				EvaluationPath: "/property",
+				Errors: map[string]*EvaluationError{
+					"error3": {
+						keyword: "format",
+						code:    "ERR_FORMAT",
+						message: "Field format is invalid",
+						params: map[string]interface{}{
+							"fieldName": "fieldName3",
+							"format":    "email",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Test case 1: Call ToList with default parameters
+	list1 := evaluationResult.ToList()
+
+	// Verify that the returned list is not nil
+	assert.NotNil(t, list1, "ToList should return a non-nil list")
+
+	// Verify the length of the returned list
+	assert.Equal(t, 1, len(list1.Details), "Expected length of list.Details is 1")
+
+	// Verify the validity of each list item
+	for _, item := range list1.Details {
+		assert.Equal(t, false, item.Valid, "Expected validity of list item to match EvaluationResult validity")
+	}
+
+	// Test case 2: Call ToList with includeHierarchy set to false
+	list2 := evaluationResult.ToList(false)
+
+	// Verify that the returned list is not nil
+	assert.NotNil(t, list2, "ToList with includeHierarchy=false should return a non-nil list")
+
+	// Verify the length of the returned list
+	assert.Equal(t, 1, len(list2.Details), "Expected length of list.Details is 1")
+
+	// Verify the validity of each list item
+	for _, item := range list2.Details {
+		assert.Equal(t, false, item.Valid, "Expected validity of list item to match EvaluationResult validity")
+	}
+
+}
