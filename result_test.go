@@ -1,7 +1,10 @@
 package jsonschema
 
 import (
+	"encoding/json"
 	"testing"
+
+	"github.com/test-go/testify/assert"
 )
 
 // Define the JSON schema
@@ -65,4 +68,43 @@ func TestValidationOutputs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestToLocalizeList(t *testing.T) {
+	// Initialize localizer for Simplified Chinese
+	i18n := GetI18n()
+	localizer := i18n.NewLocalizer("zh-Hans")
+
+	// Define a schema JSON with multiple constraints
+	schemaJSON := `{
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 3},
+            "age": {"type": "integer", "minimum": 20},
+            "email": {"type": "string", "format": "email"}
+        },
+        "required": ["name", "age", "email"]
+    }`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	assert.Nil(t, err, "Schema compilation should not fail")
+
+	// Test instance with multiple validation errors
+	instance := map[string]interface{}{
+		"name":  "Jo",
+		"age":   18,
+		"email": "not-an-email",
+	}
+	result := schema.Validate(instance)
+
+	// Check if the validation result is as expected
+	assert.False(t, result.IsValid(), "Schema validation should fail for the given instance")
+
+	// Localize and output the validation errors
+	details, err := json.MarshalIndent(result.ToLocalizeList(localizer), "", "  ")
+	assert.Nil(t, err, "Marshaling the localized list should not fail")
+
+	// Check if the error message for "minLength" is correctly localized
+	assert.Contains(t, string(details), "值应至少为 3 个字符", "The error message for 'minLength' should be correctly localized and contain the expected substring")
 }

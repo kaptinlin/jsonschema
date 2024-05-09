@@ -138,6 +138,20 @@ if !result.IsValid() {
 }
 ```
 
+## Setup Test Environment
+
+This library uses a git submodule to include the [official JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite) for thorough validation. Setting up your test environment is simple:
+
+1. **Initialize Submodule:**
+
+   - In your terminal, navigate to your project directory.
+   - Run: `git submodule update --init --recursive`
+
+2. **Run Tests:**
+
+   - Change directory to `tests`: `cd tests`
+   - Run standard Go test command: `go test`
+
 ## How to Contribute
 
 Contributions to the `jsonschema` package are welcome. If you'd like to contribute, please follow the [contribution guidelines](CONTRIBUTING.md).
