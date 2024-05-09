@@ -1,0 +1,57 @@
+run:
+  timeout: 10m
+
+issues:
+  # Print all issues reported by all linters.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  # Don't ignore some of the issues that golangci-lint considers okay.
+  exclude-use-default: false
+
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gochecknoglobals
+        - gosec
+        - funlen
+        - noctx
+        - revive
+
+linters-settings:
+  revive:
+    ignore-generated-header: true
+    rules:
+      - name: unused-parameter
+        disabled: true
+
+linters:
+  enable:
+    # - cyclop # Go linter that checks if the cyclic complexity of a function is acceptable
+    - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
+    - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13.
+    - exhaustive # check exhaustiveness of enum switch statements
+    - exportloopref # checks for pointers to enclosing loop variables
+    # - gochecknoglobals # A global variable is a variable declared in package scope and that can be read and written to by any function within the package.
+    - gocritic # Provides diagnostics that check for bugs, performance and style issues.
+    # - goconst # Inspects source code for security problems
+    # - gocyclo # Computes and checks the cyclomatic complexity of functions
+    - goerr113 # Golang linter to check the errors handling expressions
+    - gofmt # Gofmt checks whether code was gofmt-ed. By default this tool runs with -s option to check for code simplification
+    - goimports # In addition to fixing imports, goimports also formats your code in the same style as gofmt.
+    # - gomnd # An analyzer to detect magic numbers.
+    - goprintffuncname # Checks that printf-like functions are named with f at the end
+    - gosec # Inspects source code for security problems
+    - misspell # Finds commonly misspelled English words in comments
+    - nakedret # Finds naked returns in functions greater than a specified function length
+    - nestif # Reports deeply nested if statements
+    - nilerr # Finds the code that returns nil even if it checks that the error is not nil.
+    - noctx # noctx finds sending http request without context.Context
+    - nolintlint # Reports ill-formed or insufficient nolint directives
+    - prealloc # Finds slice declarations that could potentially be pre-allocated
+    - promlinter # Check Prometheus metrics naming via promlint
+    - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
+    - unconvert # Remove unnecessary type conversions
+    - unparam # Reports unused function parameters
+    - whitespace # Tool for detection of leading and trailing whitespace
