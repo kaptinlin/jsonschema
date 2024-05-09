@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+const (
+	remoteSchemaURL = "https://json-schema.org/draft/2020-12/schema"
+)
+
 func TestCompileWithID(t *testing.T) {
 	compiler := NewCompiler()
 	schemaJSON := createTestSchemaJSON("http://example.com/schema", map[string]string{"name": "string"}, []string{"name"})
@@ -34,6 +38,27 @@ func TestGetSchema(t *testing.T) {
 
 	if schema.ID != "http://example.com/schema" {
 		t.Errorf("Expected to retrieve schema with $id 'http://example.com/schema', got '%s'", schema.ID)
+	}
+}
+
+func TestValidateRemoteSchema(t *testing.T) {
+	compiler := NewCompiler()
+
+	// Load the meta-schema
+	metaSchema, err := compiler.GetSchema(remoteSchemaURL)
+	if err != nil {
+		t.Fatalf("Failed to load meta-schema: %v", err)
+	}
+
+	// Ensure that the schema is not nil
+	if metaSchema == nil {
+		t.Fatal("Meta-schema is nil")
+	}
+
+	// Verify the ID of the retrieved schema
+	expectedID := remoteSchemaURL
+	if metaSchema.ID != expectedID {
+		t.Errorf("Expected schema with ID %s, got %s", expectedID, metaSchema.ID)
 	}
 }
 
