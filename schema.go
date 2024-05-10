@@ -1,7 +1,6 @@
 package jsonschema
 
 import (
-	"fmt"
 	"regexp"
 
 	"github.com/goccy/go-json"
@@ -423,7 +422,7 @@ func (r *SchemaTypes) UnmarshalJSON(data []byte) error {
 	}
 
 	// Return a global error if the data does not conform to either a single or multiple SchemaType formats.
-	return fmt.Errorf("invalid JSON schema type: %s", string(data))
+	return ErrInvalidJSONSchemaType
 }
 
 type ConstValue struct {

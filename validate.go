@@ -221,7 +221,6 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 		// Validation unevaluatedProperties
 		if s.UnevaluatedProperties != nil {
-
 			unevaluatedPropertiesResults, unevaluatedPropertiesError := evaluateUnevaluatedProperties(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
 			for _, unevaluatedPropertiesResult := range unevaluatedPropertiesResults {
 				result.AddDetail(unevaluatedPropertiesResult)

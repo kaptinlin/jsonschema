@@ -183,7 +183,6 @@ func TestToList(t *testing.T) {
 	for _, item := range list2.Details {
 		assert.Equal(t, false, item.Valid, "Expected validity of list item to match EvaluationResult validity")
 	}
-
 }
 
 // TestToFlag tests the ToFlag method of the EvaluationResult struct.

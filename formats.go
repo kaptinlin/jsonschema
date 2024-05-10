@@ -2,7 +2,6 @@
 package jsonschema
 
 import (
-	"errors"
 	"net"
 	"net/mail"
 	"net/url"
@@ -408,10 +407,10 @@ func urlParse(s string) (*url.URL, error) {
 	hostname := u.Hostname()
 	if strings.IndexByte(hostname, ':') != -1 {
 		if strings.IndexByte(u.Host, '[') == -1 || strings.IndexByte(u.Host, ']') == -1 {
-			return nil, errors.New("ipv6 address is not enclosed in brackets")
+			return nil, ErrIPv6AddressNotEnclosed
 		}
 		if !IsIPV6(hostname) {
-			return nil, errors.New("invalid ipv6 address")
+			return nil, ErrInvalidIPv6Address
 		}
 	}
 	return u, nil

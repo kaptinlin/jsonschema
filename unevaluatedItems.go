@@ -22,7 +22,6 @@ import (
 func evaluateUnevaluatedItems(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	items, ok := data.([]interface{})
 	if !ok {
-
 		return nil, nil // If data is not an array, then skip the array-specific validations.
 	}
 
