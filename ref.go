@@ -1,7 +1,6 @@
 package jsonschema
 
 import (
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -53,7 +52,7 @@ func (s *Schema) resolveAnchor(anchorName string) (*Schema, error) {
 func (s *Schema) resolveRefWithFullURL(ref string) (*Schema, error) {
 	// If not found in the current schema or its parents, look for the reference in the compiler
 	if resolved, err := s.compiler.GetSchema(ref); err != nil {
-		return nil, fmt.Errorf("failed to resolve global reference %s: %v", ref, err)
+		return nil, ErrFailedToResolveGlobalReference
 	} else {
 		return resolved, nil
 	}
@@ -72,7 +71,7 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 	for i, segment := range segments {
 		decodedSegment, err := url.PathUnescape(strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~"))
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode segment %s: %v", segment, err)
+			return nil, ErrFailedToDecodeSegment
 		}
 
 		nextSchema, found := findSchemaInSegment(currentSchema, decodedSegment, previousSegment)
@@ -84,7 +83,7 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 
 		if !found && i == len(segments)-1 {
 			// If no schema is found and it's the last segment, throw error
-			return nil, fmt.Errorf("segment '%s' not found in the current schema context", decodedSegment)
+			return nil, ErrSegmentNotFound
 		}
 
 		previousSegment = decodedSegment // Update the context for the next iteration
@@ -126,7 +125,7 @@ func (s *Schema) resolveReferences() error {
 		resolved, err := s.resolveRef(s.Ref) // Resolve against root schema
 
 		if err != nil {
-			return fmt.Errorf("failed to resolve $ref '%s': %v", s.Ref, err)
+			return ErrFailedToResolveDefinitions
 		}
 		s.ResolvedRef = resolved
 	}
@@ -135,26 +134,26 @@ func (s *Schema) resolveReferences() error {
 		resolved, err := s.resolveRef(s.DynamicRef) // Resolve dynamic references against root schema
 
 		if err != nil {
-			return fmt.Errorf("failed to resolve $dynamicRef '%s': %v", s.DynamicRef, err)
+			return ErrFailedToResolveReference
 		}
 		s.ResolvedDynamicRef = resolved
 	}
 
 	// Recursively resolve references within definitions
 	if s.Defs != nil {
-		for key, defSchema := range s.Defs {
+		for _, defSchema := range s.Defs {
 			if err := defSchema.resolveReferences(); err != nil {
-				return fmt.Errorf("failed to resolve definitions in $defs '%s': %v", key, err)
+				return ErrFailedToResolveDefinitions
 			}
 		}
 	}
 
 	// Recursively resolve references in properties
 	if s.Properties != nil {
-		for propName, schema := range *s.Properties {
+		for _, schema := range *s.Properties {
 			if schema != nil {
 				if err := schema.resolveReferences(); err != nil {
-					return fmt.Errorf("failed to resolve reference in property '%s': %v", propName, err)
+					return ErrFailedToResolveReference
 				}
 			}
 		}
@@ -171,7 +170,7 @@ func (s *Schema) resolveReferences() error {
 	}
 	if s.Items != nil {
 		if err := s.Items.resolveReferences(); err != nil {
-			return fmt.Errorf("failed to resolve items: %v", err)
+			return ErrFailedToResolveItems
 		}
 	}
 	if s.PrefixItems != nil {

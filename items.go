@@ -57,7 +57,5 @@ func evaluateItems(schema *Schema, array []interface{}, evaluatedProps map[strin
 			"indexs": strings.Join(invalid_indexs, ", "),
 		})
 	}
-
 	return results, nil
-
 }

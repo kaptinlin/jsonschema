@@ -3,7 +3,6 @@ package jsonschema
 import (
 	"encoding/base64"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -71,7 +70,7 @@ func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
 
 	loader, ok := c.Loaders[getURLScheme(url)]
 	if !ok {
-		return nil, fmt.Errorf("no loader registered for scheme %s", getURLScheme(url))
+		return nil, ErrNoLoaderRegistered
 	}
 
 	body, err := loader(url)
@@ -82,7 +81,7 @@ func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
 
 	data, err := io.ReadAll(body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read data from %s: %v", url, err)
+		return nil, ErrFailedToReadData
 	}
 
 	schema, err := c.Compile(data, id)
@@ -160,7 +159,7 @@ func (c *Compiler) setupMediaTypes() {
 	c.MediaTypes["application/json"] = func(data []byte) (interface{}, error) {
 		var temp interface{}
 		if err := json.Unmarshal(data, &temp); err != nil {
-			return nil, fmt.Errorf("json unmarshal error: %v", err)
+			return nil, ErrJSONUnmarshalError
 		}
 		return temp, nil
 	}
@@ -168,7 +167,7 @@ func (c *Compiler) setupMediaTypes() {
 	c.MediaTypes["application/xml"] = func(data []byte) (interface{}, error) {
 		var temp interface{}
 		if err := xml.Unmarshal(data, &temp); err != nil {
-			return nil, fmt.Errorf("xml unmarshal error: %v", err)
+			return nil, ErrXMLUnmarshalError
 		}
 		return temp, nil
 	}
@@ -176,7 +175,7 @@ func (c *Compiler) setupMediaTypes() {
 	c.MediaTypes["application/yaml"] = func(data []byte) (interface{}, error) {
 		var temp interface{}
 		if err := yaml.Unmarshal(data, &temp); err != nil {
-			return nil, fmt.Errorf("yaml unmarshal error: %v", err)
+			return nil, ErrYAMLUnmarshalError
 		}
 		return temp, nil
 	}
@@ -191,12 +190,12 @@ func (c *Compiler) setupLoaders() {
 	defaultHTTPLoader := func(url string) (io.ReadCloser, error) {
 		resp, err := client.Get(url)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch %s: %v", url, err)
+			return nil, ErrFailedToFetch
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			resp.Body.Close()
-			return nil, fmt.Errorf("%s returned status code %d: %s", url, resp.StatusCode, http.StatusText(resp.StatusCode))
+			return nil, ErrInvalidHTTPStatusCode
 		}
 
 		return resp.Body, nil
