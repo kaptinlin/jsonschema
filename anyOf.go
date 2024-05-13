@@ -13,7 +13,7 @@ import (
 // If the instance fails to conform to all conditions in the array, it returns a EvaluationError detailing the specific failures.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-anyof
-func evaluateAnyOf(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateAnyOf(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.AnyOf == nil || len(schema.AnyOf) == 0 {
 		return nil, nil // No anyOf constraints to validate against.
 	}
@@ -28,7 +28,7 @@ func evaluateAnyOf(schema *Schema, data interface{}, evaluatedProps map[string]b
 				// If the schema is `true`, skip updating evaluated properties and items.
 				skipEval = true
 			}
-			result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(data, DynamicScope)
+			result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(data, dynamicScope)
 
 			if result != nil {
 				results = append(results, result.SetEvaluationPath(fmt.Sprintf("/anyOf/%d", i)).

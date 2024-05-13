@@ -2,14 +2,14 @@ package jsonschema
 
 // Evaluate checks if the given instance conforms to the schema.
 func (s *Schema) Validate(instance interface{}) *EvaluationResult {
-	DynamicScope := NewDynamicScope()
-	result, _, _ := s.evaluate(instance, DynamicScope)
+	dynamicScope := NewDynamicScope()
+	result, _, _ := s.evaluate(instance, dynamicScope)
 
 	return result
 }
 
-func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*EvaluationResult, map[string]bool, map[int]bool) {
-	DynamicScope.Push(s)
+func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*EvaluationResult, map[string]bool, map[int]bool) {
+	dynamicScope.Push(s)
 	result := NewEvaluationResult(s)
 
 	evaluatedProps := make(map[string]bool)
@@ -35,7 +35,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 		// Check if there is a resolved reference and validate against it if present
 		if s.ResolvedRef != nil {
-			refResult, props, items := s.ResolvedRef.evaluate(instance, DynamicScope)
+			refResult, props, items := s.ResolvedRef.evaluate(instance, dynamicScope)
 
 			if refResult != nil {
 				result.AddDetail(refResult)
@@ -57,13 +57,13 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 			if !isJSONPointer(anchor) {
 				dynamicAnchor := s.ResolvedDynamicRef.DynamicAnchor
 				if dynamicAnchor != "" {
-					if schema := DynamicScope.LookupDynamicAnchor(dynamicAnchor); schema != nil {
+					if schema := dynamicScope.LookupDynamicAnchor(dynamicAnchor); schema != nil {
 						anchorSchema = schema
 					}
 				}
 			}
 
-			dynamicRefResult, props, items := anchorSchema.evaluate(instance, DynamicScope)
+			dynamicRefResult, props, items := anchorSchema.evaluate(instance, dynamicScope)
 			if dynamicRefResult != nil {
 				result.AddDetail(dynamicRefResult)
 
@@ -99,7 +99,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 		// Validation keywords for applying subschemas with logical operations
 		if s.AllOf != nil {
-			allOfResults, allOfError := evaluateAllOf(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			allOfResults, allOfError := evaluateAllOf(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, allOfResult := range allOfResults {
 				result.AddDetail(allOfResult)
 			}
@@ -109,7 +109,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 		}
 
 		if s.AnyOf != nil {
-			anyOfResults, anyOfError := evaluateAnyOf(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			anyOfResults, anyOfError := evaluateAnyOf(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, anyOfResult := range anyOfResults {
 				result.AddDetail(anyOfResult)
 			}
@@ -119,7 +119,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 		}
 
 		if s.OneOf != nil {
-			oneOfResults, oneOfError := evaluateOneOf(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			oneOfResults, oneOfError := evaluateOneOf(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, oneOfResult := range oneOfResults {
 				result.AddDetail(oneOfResult)
 			}
@@ -129,7 +129,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 		}
 
 		if s.Not != nil {
-			notResult, notError := evaluateNot(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			notResult, notError := evaluateNot(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			if notResult != nil {
 				result.AddDetail(notResult)
 			}
@@ -140,7 +140,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 		// Validation keywords for applying subschemas with conditional logic
 		if s.If != nil || s.Then != nil || s.Else != nil {
-			conditionalResults, conditionalError := evaluateConditional(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			conditionalResults, conditionalError := evaluateConditional(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, conditionalResult := range conditionalResults {
 				result.AddDetail(conditionalResult)
 			}
@@ -158,7 +158,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 			s.MaxItems != nil ||
 			s.MinItems != nil ||
 			s.UniqueItems != nil {
-			arrayResults, arrayErrors := evaluateArray(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			arrayResults, arrayErrors := evaluateArray(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, arrayResult := range arrayResults {
 				result.AddDetail(arrayResult)
 			}
@@ -199,7 +199,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 			s.MinProperties != nil ||
 			len(s.Required) > 0 ||
 			len(s.DependentRequired) > 0 {
-			objectResults, objectErrors := evaluateObject(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			objectResults, objectErrors := evaluateObject(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, objectResult := range objectResults {
 				result.AddDetail(objectResult)
 			}
@@ -210,7 +210,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 		// Validation dependentSchemas
 		if s.DependentSchemas != nil {
-			dependentSchemasResults, dependentSchemasError := evaluateDependentSchemas(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			dependentSchemasResults, dependentSchemasError := evaluateDependentSchemas(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, dependentSchemasResult := range dependentSchemasResults {
 				result.AddDetail(dependentSchemasResult)
 			}
@@ -221,7 +221,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 		// Validation unevaluatedProperties
 		if s.UnevaluatedProperties != nil {
-			unevaluatedPropertiesResults, unevaluatedPropertiesError := evaluateUnevaluatedProperties(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			unevaluatedPropertiesResults, unevaluatedPropertiesError := evaluateUnevaluatedProperties(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, unevaluatedPropertiesResult := range unevaluatedPropertiesResults {
 				result.AddDetail(unevaluatedPropertiesResult)
 			}
@@ -232,7 +232,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 		// Validation UnevaluatedItems
 		if s.UnevaluatedItems != nil {
-			unevaluatedItemsResults, unevaluatedItemsError := evaluateUnevaluatedItems(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			unevaluatedItemsResults, unevaluatedItemsError := evaluateUnevaluatedItems(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, unevaluatedItemsResult := range unevaluatedItemsResults {
 				result.AddDetail(unevaluatedItemsResult)
 			}
@@ -243,7 +243,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 
 		// Validation Keywords for String-Encoded Data
 		if s.ContentEncoding != nil || s.ContentMediaType != nil || s.ContentSchema != nil {
-			contentResult, contentError := evaluateContent(s, instance, evaluatedProps, evaluatedItems, DynamicScope)
+			contentResult, contentError := evaluateContent(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			if contentError != nil {
 				result.AddDetail(contentResult)
 			}
@@ -254,7 +254,7 @@ func (s *Schema) evaluate(instance interface{}, DynamicScope *DynamicScope) (*Ev
 	}
 
 	// Pop the schema from the dynamic scope
-	DynamicScope.Pop()
+	dynamicScope.Pop()
 
 	return result, evaluatedProps, evaluatedItems
 }
@@ -282,7 +282,7 @@ func (s *Schema) evaluateBoolean(instance interface{}, evaluatedProps map[string
 }
 
 // evaluateObject groups the validation of all object-specific keywords.
-func evaluateObject(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
+func evaluateObject(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
 	object, ok := data.(map[string]interface{})
 	if !ok {
 		// If data is not an object, then skip the object-specific validations.
@@ -294,7 +294,7 @@ func evaluateObject(schema *Schema, data interface{}, evaluatedProps map[string]
 
 	// Validation Keywords for applying subschemas to Objects
 	if schema.Properties != nil {
-		propertiesResults, propertiesError := evaluateProperties(schema, object, evaluatedProps, evaluatedItems, DynamicScope)
+		propertiesResults, propertiesError := evaluateProperties(schema, object, evaluatedProps, evaluatedItems, dynamicScope)
 
 		if propertiesResults != nil {
 			results = append(results, propertiesResults...)
@@ -305,7 +305,7 @@ func evaluateObject(schema *Schema, data interface{}, evaluatedProps map[string]
 	}
 
 	if schema.PatternProperties != nil {
-		patternPropertiesResults, patternPropertiesError := evaluatePatternProperties(schema, object, evaluatedProps, evaluatedItems, DynamicScope)
+		patternPropertiesResults, patternPropertiesError := evaluatePatternProperties(schema, object, evaluatedProps, evaluatedItems, dynamicScope)
 
 		if patternPropertiesResults != nil {
 			results = append(results, patternPropertiesResults...)
@@ -316,7 +316,7 @@ func evaluateObject(schema *Schema, data interface{}, evaluatedProps map[string]
 	}
 
 	if schema.AdditionalProperties != nil {
-		additionalPropertiesResults, additionalPropertiesError := evaluateAdditionalProperties(schema, object, evaluatedProps, evaluatedItems, DynamicScope)
+		additionalPropertiesResults, additionalPropertiesError := evaluateAdditionalProperties(schema, object, evaluatedProps, evaluatedItems, dynamicScope)
 
 		if additionalPropertiesResults != nil {
 			results = append(results, additionalPropertiesResults...)
@@ -327,7 +327,7 @@ func evaluateObject(schema *Schema, data interface{}, evaluatedProps map[string]
 	}
 
 	if schema.PropertyNames != nil {
-		propertyNamesResults, propertyNamesError := evaluatePropertyNames(schema, object, evaluatedProps, evaluatedItems, DynamicScope)
+		propertyNamesResults, propertyNamesError := evaluatePropertyNames(schema, object, evaluatedProps, evaluatedItems, dynamicScope)
 
 		if propertyNamesResults != nil {
 			results = append(results, propertyNamesResults...)
@@ -462,7 +462,7 @@ func evaluateString(schema *Schema, data interface{}) []*EvaluationError {
 }
 
 // validateArray groups the validation of all array-specific keywords.
-func evaluateArray(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
+func evaluateArray(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
 	items, ok := data.([]interface{})
 	if !ok {
 		// If data is not an array, then skip the array-specific validations.
@@ -474,7 +474,7 @@ func evaluateArray(schema *Schema, data interface{}, evaluatedProps map[string]b
 
 	// Validation keywords for applying subschemas to arrays
 	if schema.PrefixItems != nil && len(schema.PrefixItems) > 0 {
-		prefixItemsResults, prefixItemsError := evaluatePrefixItems(schema, items, evaluatedProps, evaluatedItems, DynamicScope)
+		prefixItemsResults, prefixItemsError := evaluatePrefixItems(schema, items, evaluatedProps, evaluatedItems, dynamicScope)
 
 		if prefixItemsResults != nil {
 			results = append(results, prefixItemsResults...)
@@ -485,7 +485,7 @@ func evaluateArray(schema *Schema, data interface{}, evaluatedProps map[string]b
 	}
 
 	if schema.Items != nil {
-		itemsResults, itemsError := evaluateItems(schema, items, evaluatedProps, evaluatedItems, DynamicScope)
+		itemsResults, itemsError := evaluateItems(schema, items, evaluatedProps, evaluatedItems, dynamicScope)
 
 		if itemsResults != nil {
 			results = append(results, itemsResults...)
@@ -496,7 +496,7 @@ func evaluateArray(schema *Schema, data interface{}, evaluatedProps map[string]b
 	}
 
 	if schema.Contains != nil || schema.MaxContains != nil && schema.MinContains != nil {
-		containsResults, containsError := evaluateContains(schema, items, evaluatedProps, evaluatedItems, DynamicScope)
+		containsResults, containsError := evaluateContains(schema, items, evaluatedProps, evaluatedItems, dynamicScope)
 		if containsResults != nil {
 			results = append(results, containsResults...)
 		}

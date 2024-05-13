@@ -9,6 +9,7 @@ This library provides robust JSON Schema validation for Go applications, designe
 - [Output Formats](#output-formats)
 - [Loading Schema from URI](#loading-schema-from-uri)
 - [Multilingual Error Messages](#multilingual-error-messages)
+- [Setup Test Environment](#setup-test-environment)
 - [How to Contribute](#how-to-contribute)
 - [License](#license)
 
@@ -128,7 +129,10 @@ if err != nil {
 The library supports multilingual error messages through the integration with `github.com/kaptinlin/go-i18n`. Users can customize the localizer to support additional languages:
 
 ```go
-i18n := jsonschema.GetI18n()
+i18n, err := jsonschema.GetI18n()
+if err != nil {
+	log.Fatalf("Failed to get i18n: %v", err)
+}
 localizer := i18n.NewLocalizer("zh-Hans")
 
 result := schema.Validate(instance)

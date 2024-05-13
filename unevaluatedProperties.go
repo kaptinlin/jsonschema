@@ -14,7 +14,7 @@ import (
 // - The annotations influence the evaluation order, meaning all related properties and applicators must be processed first.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-unevaluatedproperties
-func evaluateUnevaluatedProperties(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateUnevaluatedProperties(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.UnevaluatedProperties == nil {
 		return nil, nil // If "unevaluatedProperties" is not defined, all properties are considered evaluated.
 	}
@@ -31,7 +31,7 @@ func evaluateUnevaluatedProperties(schema *Schema, data interface{}, evaluatedPr
 	for propName, propValue := range object {
 		if _, evaluated := evaluatedProps[propName]; !evaluated {
 			// If property has not been evaluated, validate it against the "unevaluatedProperties" schema.
-			result, _, _ := schema.UnevaluatedProperties.evaluate(propValue, DynamicScope)
+			result, _, _ := schema.UnevaluatedProperties.evaluate(propValue, dynamicScope)
 			if result != nil {
 				result.SetEvaluationPath("/unevaluatedProperties").
 					SetSchemaLocation(schema.GetSchemaLocation("/unevaluatedProperties")).

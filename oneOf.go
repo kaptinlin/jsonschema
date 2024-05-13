@@ -15,7 +15,7 @@ import (
 // If the instance conforms to more than one or none of the schemas, it returns a EvaluationError detailing the specific failures or the lack of a valid schema.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-oneof
-func evaluateOneOf(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateOneOf(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.OneOf == nil || len(schema.OneOf) == 0 {
 		return nil, nil // No oneOf constraints to validate against.
 	}
@@ -27,7 +27,7 @@ func evaluateOneOf(schema *Schema, instance interface{}, evaluatedProps map[stri
 
 	for i, subSchema := range schema.OneOf {
 		if subSchema != nil {
-			result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(instance, DynamicScope)
+			result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(instance, dynamicScope)
 			if result != nil {
 				results = append(results, result.SetEvaluationPath(fmt.Sprintf("/oneOf/%d", i)).
 					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/oneOf/%d", i))).

@@ -14,7 +14,7 @@ import (
 // If the instance fails to conform to any dependent schema when the associated property is present, it returns a EvaluationError.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-dependentschemas
-func evaluateDependentSchemas(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateDependentSchemas(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.DependentSchemas == nil || len(schema.DependentSchemas) == 0 {
 		return nil, nil // No dependentSchemas constraints to validate against.
 	}
@@ -29,7 +29,7 @@ func evaluateDependentSchemas(schema *Schema, instance interface{}, evaluatedPro
 	for propName, depSchema := range schema.DependentSchemas {
 		if _, exists := object[propName]; exists {
 			if depSchema != nil {
-				result, schemaEvaluatedProps, schemaEvaluatedItems := depSchema.evaluate(object, DynamicScope)
+				result, schemaEvaluatedProps, schemaEvaluatedItems := depSchema.evaluate(object, dynamicScope)
 				if result != nil {
 					result.SetEvaluationPath(fmt.Sprintf("/dependentSchemas/%s", propName)).
 						SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/dependentSchemas/%s", propName))).

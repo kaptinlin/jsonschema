@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -33,7 +34,7 @@ func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusio
 	t.Helper()
 
 	// Read the JSON file containing the test definitions.
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(filePath) //nolint:gosec
 	if err != nil {
 		t.Fatalf("Failed to read test file: %s", err)
 	}
@@ -123,13 +124,14 @@ var (
 func startTestServer() *http.Server {
 	once.Do(func() {
 		server = &http.Server{
-			Addr:    ":1234",
-			Handler: http.FileServer(http.Dir("../testdata/JSON-Schema-Test-Suite/remotes")),
+			Addr:              ":1234",
+			Handler:           http.FileServer(http.Dir("../testdata/JSON-Schema-Test-Suite/remotes")),
+			ReadHeaderTimeout: 1,
 		}
 
 		// Start the server in a new goroutine
 		go func() {
-			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Fatalf("Failed to start server: %v", err)
 			}
 		}()

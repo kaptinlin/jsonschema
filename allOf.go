@@ -15,7 +15,7 @@ import (
 // If the instance fails to conform to any schema or boolean in the array, it returns a EvaluationError detailing the specific failure.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-allof
-func evaluateAllOf(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateAllOf(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.AllOf == nil || len(schema.AllOf) == 0 {
 		return nil, nil // No allOf constraints to validate against.
 	}
@@ -31,7 +31,7 @@ func evaluateAllOf(schema *Schema, instance interface{}, evaluatedProps map[stri
 				skipEval = true
 			}
 
-			result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(instance, DynamicScope)
+			result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(instance, dynamicScope)
 			if !skipEval {
 				mergeStringMaps(evaluatedProps, schemaEvaluatedProps)
 				mergeIntMaps(evaluatedItems, schemaEvaluatedItems)

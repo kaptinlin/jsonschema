@@ -19,7 +19,7 @@ import (
 // If an unevaluated array element does not conform, it returns a EvaluationError detailing the issue.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-unevaluateditems
-func evaluateUnevaluatedItems(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateUnevaluatedItems(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	items, ok := data.([]interface{})
 	if !ok {
 		return nil, nil // If data is not an array, then skip the array-specific validations.
@@ -32,7 +32,7 @@ func evaluateUnevaluatedItems(schema *Schema, data interface{}, evaluatedProps m
 		// Evaluate un-evaluated items against the schema.
 		for i, item := range items {
 			if _, evaluated := evaluatedItems[i]; !evaluated {
-				result, _, _ := schema.UnevaluatedItems.evaluate(item, DynamicScope)
+				result, _, _ := schema.UnevaluatedItems.evaluate(item, dynamicScope)
 				if result != nil {
 					result.SetEvaluationPath(fmt.Sprintf("/unevaluatedItems/%d", i)).
 						SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/unevaluatedItems/%d", i))).

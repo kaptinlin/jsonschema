@@ -72,7 +72,8 @@ func TestValidationOutputs(t *testing.T) {
 
 func TestToLocalizeList(t *testing.T) {
 	// Initialize localizer for Simplified Chinese
-	i18n := GetI18n()
+	i18n, err := GetI18n()
+	assert.Nil(t, err, "Failed to initialize i18n")
 	localizer := i18n.NewLocalizer("zh-Hans")
 
 	// Define a schema JSON with multiple constraints

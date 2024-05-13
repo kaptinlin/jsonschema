@@ -33,7 +33,7 @@ func (s *Schema) compilePatterns() error {
 // This function ensures that properties which match the patterns validate accordingly and aids the behavior of "additionalProperties" and "unevaluatedProperties".
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-patternproperties
-func evaluatePatternProperties(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluatePatternProperties(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.PatternProperties == nil {
 		return nil, nil // No patternProperties defined, nothing to do.
 	}
@@ -62,7 +62,7 @@ func evaluatePatternProperties(schema *Schema, object map[string]interface{}, ev
 				evaluatedProps[propName] = true
 
 				// Evaluate the property value directly using the associated schema or boolean.
-				result, _, _ := patternSchema.evaluate(propValue, DynamicScope)
+				result, _, _ := patternSchema.evaluate(propValue, dynamicScope)
 				if result != nil {
 					result.SetEvaluationPath(fmt.Sprintf("/patternProperties/%s", propName)).
 						SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/patternProperties/%s", propName))).

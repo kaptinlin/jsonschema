@@ -13,7 +13,7 @@ package jsonschema
 //   - https://json-schema.org/draft/2020-12/json-schema-validation#name-contentencoding
 //   - https://json-schema.org/draft/2020-12/json-schema-validation#name-contentmediatype
 //   - https://json-schema.org/draft/2020-12/json-schema-validation#name-contentschema
-func evaluateContent(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) (*EvaluationResult, *EvaluationError) {
+func evaluateContent(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) (*EvaluationResult, *EvaluationError) {
 	value, isString := instance.(string)
 	if !isString {
 		return nil, nil // If instance is not a string, content validation is not applicable.
@@ -63,7 +63,7 @@ func evaluateContent(schema *Schema, instance interface{}, evaluatedProps map[st
 
 	// Evaluate against the content schema if specified and value was decoded
 	if schema.ContentSchema != nil {
-		result, _, _ := schema.ContentSchema.evaluate(parsedValue, DynamicScope)
+		result, _, _ := schema.ContentSchema.evaluate(parsedValue, dynamicScope)
 		if result != nil {
 			result.SetEvaluationPath("/contentSchema").
 				SetSchemaLocation(schema.GetSchemaLocation("/contentSchema")).

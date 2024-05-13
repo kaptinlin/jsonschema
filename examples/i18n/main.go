@@ -8,7 +8,10 @@ import (
 )
 
 func main() {
-	i18n := jsonschema.GetI18n()
+	i18n, err := jsonschema.GetI18n()
+	if err != nil {
+		log.Fatalf("Failed to get i18n: %v", err)
+	}
 	localizer := i18n.NewLocalizer("zh-Hans")
 
 	schemaJSON := `{

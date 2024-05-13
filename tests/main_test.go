@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -14,7 +15,7 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	// Shut down the server
-	if err := server.Shutdown(nil); err != nil {
+	if err := server.Shutdown(context.TODO()); err != nil {
 		log.Fatalf("Failed to shutdown server: %v", err)
 	}
 

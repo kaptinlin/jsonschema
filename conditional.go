@@ -11,14 +11,14 @@ package jsonschema
 // This function serves as a central feature for conditional logic application in JSON Schema validation.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-if
-func evaluateConditional(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateConditional(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.If == nil {
 		// If there's no 'if' condition defined, nothing to validate conditionally.
 		return nil, nil
 	}
 
 	// Evaluate the 'if' condition
-	ifResult, ifEvaluatedProps, ifEvaluatedItems := schema.If.evaluate(instance, DynamicScope)
+	ifResult, ifEvaluatedProps, ifEvaluatedItems := schema.If.evaluate(instance, dynamicScope)
 
 	results := []*EvaluationResult{}
 
@@ -35,7 +35,7 @@ func evaluateConditional(schema *Schema, instance interface{}, evaluatedProps ma
 			mergeIntMaps(evaluatedItems, ifEvaluatedItems)
 
 			if schema.Then != nil {
-				thenResult, thenEvaluatedProps, thenEvaluatedItems := schema.Then.evaluate(instance, DynamicScope)
+				thenResult, thenEvaluatedProps, thenEvaluatedItems := schema.Then.evaluate(instance, dynamicScope)
 
 				if thenResult != nil {
 					thenResult.SetEvaluationPath("/then").
@@ -55,7 +55,7 @@ func evaluateConditional(schema *Schema, instance interface{}, evaluatedProps ma
 				}
 			}
 		} else if schema.Else != nil {
-			elseResult, elseEvaluatedProps, elseEvaluatedItems := schema.Else.evaluate(instance, DynamicScope)
+			elseResult, elseEvaluatedProps, elseEvaluatedItems := schema.Else.evaluate(instance, dynamicScope)
 			if elseResult != nil {
 				results = append(results, elseResult)
 

@@ -15,7 +15,7 @@ import (
 //   - Omitting this keyword implies an empty array behavior, meaning no validation is enforced on the array items.
 //
 // If validation fails, it returns a EvaluationError detailing the index and discrepancy.
-func evaluatePrefixItems(schema *Schema, array []interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, DynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluatePrefixItems(schema *Schema, array []interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.PrefixItems == nil || len(schema.PrefixItems) == 0 {
 		return nil, nil // If no prefixItems are defined, there is nothing to validate against.
 	}
@@ -28,7 +28,7 @@ func evaluatePrefixItems(schema *Schema, array []interface{}, evaluatedProps map
 			break // Stop validation if there are more schemas than array items.
 		}
 
-		result, _, _ := itemSchema.evaluate(array[i], DynamicScope)
+		result, _, _ := itemSchema.evaluate(array[i], dynamicScope)
 		if result != nil {
 			results = append(results, result.SetEvaluationPath(fmt.Sprintf("/prefixItems/%d", i)).
 				SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/prefixItems/%d", i))).
