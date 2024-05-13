@@ -71,7 +71,7 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 	for i, segment := range segments {
 		decodedSegment, err := url.PathUnescape(strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~"))
 		if err != nil {
-			return nil, ErrFailedToDecodeSegment
+			return nil, ErrFailedToDecodeSegmentWithJSONPointer
 		}
 
 		nextSchema, found := findSchemaInSegment(currentSchema, decodedSegment, previousSegment)
@@ -83,7 +83,7 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 
 		if !found && i == len(segments)-1 {
 			// If no schema is found and it's the last segment, throw error
-			return nil, ErrSegmentNotFound
+			return nil, ErrSegmentNotFoundForJSONPointer
 		}
 
 		previousSegment = decodedSegment // Update the context for the next iteration

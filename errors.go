@@ -29,20 +29,20 @@ var ErrIPv6AddressNotEnclosed = errors.New("ipv6 address is not enclosed in brac
 // ErrInvalidIPv6Address is returned when the IPv6 address is invalid.
 var ErrInvalidIPv6Address = errors.New("invalid ipv6 address")
 
-// ErrUnsupportedTypeForConversion is returned when the type is unsupported for conversion to *big.Rat.
-var ErrUnsupportedTypeForConversion = errors.New("unsupported type for conversion to *big.Rat")
+// ErrUnsupportedTypeForRat is returned when the type is unsupported for conversion to *big.Rat.
+var ErrUnsupportedTypeForRat = errors.New("unsupported type for conversion to *big.Rat")
 
-// ErrFailedToStringConversion is returned when a string fails to convert to *big.Rat.
-var ErrFailedToStringConversion = errors.New("failed to convert string to *big.Rat")
+// ErrFailedToConvertToRat is returned when a string fails to convert to *big.Rat.
+var ErrFailedToConvertToRat = errors.New("failed to convert string to *big.Rat")
 
 // ErrFailedToResolveGlobalReference is returned when a global reference cannot be resolved.
 var ErrFailedToResolveGlobalReference = errors.New("failed to resolve global reference")
 
-// ErrFailedToDecodeSegment is returned when a segment cannot be decoded.
-var ErrFailedToDecodeSegment = errors.New("failed to decode segment")
+// ErrFailedToDecodeSegmentWithJSONPointer is returned when a segment cannot be decoded.
+var ErrFailedToDecodeSegmentWithJSONPointer = errors.New("failed to decode segment")
 
-// ErrSegmentNotFound is returned when a segment is not found in the schema context.
-var ErrSegmentNotFound = errors.New("segment not found in the schema context")
+// ErrSegmentNotFoundForJSONPointer is returned when a segment is not found in the schema context.
+var ErrSegmentNotFoundForJSONPointer = errors.New("segment not found in the schema context")
 
 // ErrFailedToResolveReference is returned when a reference cannot be resolved.
 var ErrFailedToResolveReference = errors.New("failed to resolve reference")
