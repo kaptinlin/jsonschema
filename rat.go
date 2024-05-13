@@ -49,12 +49,12 @@ func convertToBigRat(data interface{}) (*big.Rat, error) {
 	case string:
 		str = v
 	default:
-		return nil, ErrUnsupportedTypeForConversion
+		return nil, ErrUnsupportedTypeForRat
 	}
 
 	numRat := new(big.Rat)
 	if _, ok := numRat.SetString(str); !ok {
-		return nil, ErrFailedToStringConversion
+		return nil, ErrFailedToConvertToRat
 	}
 	return numRat, nil
 }
