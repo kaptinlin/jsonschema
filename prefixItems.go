@@ -43,10 +43,6 @@ func evaluatePrefixItems(schema *Schema, array []interface{}, evaluatedProps map
 		}
 	}
 
-	if len(invalid_indexs) == 0 {
-
-	}
-
 	if len(invalid_indexs) == 1 {
 		return results, NewEvaluationError("prefixItems", "prefix_item_mismatch", "Item at index {index} does not match the prefixItems schema", map[string]interface{}{
 			"index": invalid_indexs[0],

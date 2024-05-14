@@ -13,11 +13,9 @@ import (
 
 // replace substitutes placeholders in a template string with actual parameter values.
 func replace(template string, params map[string]interface{}) string {
-	if params != nil {
-		for key, value := range params {
-			placeholder := "{" + key + "}"
-			template = strings.ReplaceAll(template, placeholder, fmt.Sprint(value))
-		}
+	for key, value := range params {
+		placeholder := "{" + key + "}"
+		template = strings.ReplaceAll(template, placeholder, fmt.Sprint(value))
 	}
 
 	return template
@@ -77,14 +75,6 @@ func getDataType(v interface{}) string {
 		return "unknown"
 	}
 	return "unknown"
-}
-
-// getFullURIWithAnchor appends an anchor to a URI, if provided.
-func getFullURIWithAnchor(uri, anchor string) string {
-	if anchor == "" {
-		return uri
-	}
-	return uri + "#" + anchor
 }
 
 // getURLScheme extracts the scheme component of a URL string.
@@ -156,16 +146,6 @@ func splitRef(ref string) (baseURI string, anchor string) {
 		return parts[0], parts[1]
 	}
 	return ref, ""
-}
-
-// getCurrentPathSegment extracts the last segment of a URI path.
-func getCurrentPathSegment(id string) string {
-	if strings.HasSuffix(id, "/") {
-		return ""
-	} else {
-		_, last := path.Split(id)
-		return last
-	}
 }
 
 // isJSONPointer checks if a string is a JSON Pointer.

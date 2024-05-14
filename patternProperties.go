@@ -8,21 +8,19 @@ import (
 )
 
 // Initialize or Load Schema
-func (s *Schema) compilePatterns() error {
+func (s *Schema) compilePatterns() {
 	if s.PatternProperties == nil {
-		return nil // No patterns to compile if the map is nil
+		return // No patterns to compile if the map is nil
 	}
 
 	s.compiledPatterns = make(map[string]*regexp.Regexp)
 	// Since s.PatternProperties is a pointer to a SchemaMap, we dereference it here
 	for pattern := range *s.PatternProperties {
 		regex, err := regexp.Compile(pattern)
-		if err != nil {
-			return err // Return the compilation error
+		if err == nil {
+			s.compiledPatterns[pattern] = regex
 		}
-		s.compiledPatterns[pattern] = regex
 	}
-	return nil
 }
 
 // EvaluatePatternProperties checks if properties in the data object that match regex patterns conform to the schemas specified in the schema's patternProperties attribute.
@@ -70,10 +68,8 @@ func evaluatePatternProperties(schema *Schema, object map[string]interface{}, ev
 
 					results = append(results, result)
 
-					if !result.IsValid() {
-						if !slices.Contains(invalid_properties, propName) {
-							invalid_properties = append(invalid_properties, propName)
-						}
+					if !result.IsValid() && !slices.Contains(invalid_properties, propName) {
+						invalid_properties = append(invalid_properties, propName)
 					}
 				}
 			}

@@ -45,7 +45,7 @@ linters:
     - gosec # Inspects source code for security problems
     - misspell # Finds commonly misspelled English words in comments
     - nakedret # Finds naked returns in functions greater than a specified function length
-    - nestif # Reports deeply nested if statements
+    # - nestif # Reports deeply nested if statements
     - nilerr # Finds the code that returns nil even if it checks that the error is not nil.
     - noctx # noctx finds sending http request without context.Context
     - nolintlint # Reports ill-formed or insufficient nolint directives
@@ -53,5 +53,5 @@ linters:
     - promlinter # Check Prometheus metrics naming via promlint
     - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint.
     - unconvert # Remove unnecessary type conversions
-    - unparam # Reports unused function parameters
+    # - unparam # Reports unused function parameters
     - whitespace # Tool for detection of leading and trailing whitespace

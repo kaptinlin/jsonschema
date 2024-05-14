@@ -1,6 +1,7 @@
 package jsonschema
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/xml"
 	"io"
@@ -37,15 +38,15 @@ func NewCompiler() *Compiler {
 }
 
 // Compile compiles a JSON schema and caches it. If an URI is provided, it uses that as the key; otherwise, it generates a hash.
-func (c *Compiler) Compile(jsonSchema []byte, URIs ...string) (*Schema, error) {
+func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 	schema, err := newSchema(jsonSchema)
 	if err != nil {
 		return nil, err
 	}
 
 	uri := schema.ID
-	if uri == "" && len(URIs) > 0 {
-		uri = URIs[0]
+	if uri == "" && len(uris) > 0 {
+		uri = uris[0]
 	}
 
 	if uri != "" && isValidURI(uri) {
@@ -77,7 +78,7 @@ func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer body.Close()
+	defer body.Close() //nolint:errcheck
 
 	data, err := io.ReadAll(body)
 	if err != nil {
@@ -188,13 +189,21 @@ func (c *Compiler) setupLoaders() {
 	}
 
 	defaultHTTPLoader := func(url string) (io.ReadCloser, error) {
-		resp, err := client.Get(url)
+		req, err := http.NewRequestWithContext(context.Background(), "GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := client.Do(req)
 		if err != nil {
 			return nil, ErrFailedToFetch
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
+			err = resp.Body.Close()
+			if err != nil {
+				return nil, err
+			}
 			return nil, ErrInvalidHTTPStatusCode
 		}
 

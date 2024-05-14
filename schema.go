@@ -314,16 +314,6 @@ func (s *Schema) getRootSchema() *Schema {
 	return s
 }
 
-// getParents returns a list of all parent schemas leading up to the current schema.
-// It traverses up the schema hierarchy collecting each parent until no further parents are found.
-func (s *Schema) getParents() []*Schema {
-	var parents []*Schema
-	for current := s; current != nil; current = current.parent {
-		parents = append(parents, current)
-	}
-	return parents
-}
-
 // getParentBaseURI returns the base URI from the nearest parent schema that has one defined,
 // or an empty string if none of the parents up to the root define a base URI.
 func (s *Schema) getParentBaseURI() string {

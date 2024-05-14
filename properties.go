@@ -40,21 +40,19 @@ func evaluateProperties(schema *Schema, object map[string]interface{}, evaluated
 					invalid_properties = append(invalid_properties, propName)
 				}
 			}
-		} else {
-			if isRequired(schema, propName) && !defaultIsSpecified(propSchema) {
-				// Handle properties that are expected but not provided
-				result, _, _ := propSchema.evaluate(nil, dynamicScope)
+		} else if isRequired(schema, propName) && !defaultIsSpecified(propSchema) {
+			// Handle properties that are expected but not provided
+			result, _, _ := propSchema.evaluate(nil, dynamicScope)
 
-				if result != nil {
-					result.SetEvaluationPath(fmt.Sprintf("/properties/%s", propName)).
-						SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/properties/%s", propName))).
-						SetInstanceLocation(fmt.Sprintf("/%s", propName))
+			if result != nil {
+				result.SetEvaluationPath(fmt.Sprintf("/properties/%s", propName)).
+					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/properties/%s", propName))).
+					SetInstanceLocation(fmt.Sprintf("/%s", propName))
 
-					results = append(results, result)
+				results = append(results, result)
 
-					if !result.IsValid() {
-						invalid_properties = append(invalid_properties, propName)
-					}
+				if !result.IsValid() {
+					invalid_properties = append(invalid_properties, propName)
 				}
 			}
 		}
