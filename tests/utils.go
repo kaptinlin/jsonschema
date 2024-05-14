@@ -1,13 +1,14 @@
 package tests
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"testing"
+	"time"
 
 	"github.com/goccy/go-json"
 
@@ -24,14 +25,39 @@ func ptrString(v string) *string {
 	return &v
 }
 
-// // Helper function to create *uint64
-// func ptrUint64(v uint64) *uint64 {
-// 	return &v
-// }
+// startTestServer starts an HTTP server for serving remote schemas.
+func startTestServer() *http.Server {
+	server := &http.Server{
+		Addr:              ":1234",
+		Handler:           http.FileServer(http.Dir("../testdata/JSON-Schema-Test-Suite/remotes")),
+		ReadHeaderTimeout: 1 * time.Second,
+	}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
+
+	// Give the server a moment to start
+	time.Sleep(100 * time.Millisecond)
+	return server
+}
+
+// stopTestServer stops the given HTTP server.
+func stopTestServer(server *http.Server) {
+	if err := server.Shutdown(context.TODO()); err != nil {
+		log.Fatalf("Failed to shutdown server: %v", err)
+	}
+}
 
 // TestJSONSchemaTestSuiteWithFilePath runs schema validation tests from a JSON file against the ForTestSuiteschema implementation.
 func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusions ...string) {
 	t.Helper()
+
+	// Start the server
+	server := startTestServer()
+	defer stopTestServer(server)
 
 	// Read the JSON file containing the test definitions.
 	data, err := os.ReadFile(filePath) //nolint:gosec
@@ -112,32 +138,4 @@ func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusio
 			}
 		})
 	}
-}
-
-// Declare a global instance of sync.Once to ensure the server starts only once.
-var (
-	once   sync.Once
-	server *http.Server
-)
-
-// startTestServer starts an HTTP server for serving remote schemas and ensures it only starts once.
-func startTestServer() *http.Server {
-	once.Do(func() {
-		server = &http.Server{
-			Addr:              ":1234",
-			Handler:           http.FileServer(http.Dir("../testdata/JSON-Schema-Test-Suite/remotes")),
-			ReadHeaderTimeout: 1,
-		}
-
-		// Start the server in a new goroutine
-		go func() {
-			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				log.Fatalf("Failed to start server: %v", err)
-			}
-		}()
-
-		log.Println("Serving JSON Schema Test Suite remotes on http://localhost:1234")
-	})
-
-	return server
 }
