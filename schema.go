@@ -160,13 +160,13 @@ func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
 		s.setDynamicAnchor(s.DynamicAnchor)
 	}
 
-	// Initialize nested schemas...
-	initializeNestedSchemas(s, compiler)
-
 	// Register the schema in the compiler's schema map with its resolved ID
 	if s.uri != "" && isValidURI(s.uri) {
 		compiler.SetSchema(s.uri, s)
 	}
+
+	// Initialize nested schemas...
+	initializeNestedSchemas(s, compiler)
 
 	s.resolveReferences()
 }

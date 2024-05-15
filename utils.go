@@ -97,11 +97,8 @@ func resolveRelativeURI(baseURI, relativeURL string) string {
 	if isAbsoluteURI(relativeURL) {
 		return relativeURL
 	}
-	if baseURI == "" {
-		return relativeURL
-	}
 	base, err := url.Parse(baseURI)
-	if err != nil {
+	if err != nil || base.Scheme == "" || base.Host == "" {
 		return relativeURL // Return the original if there's a base URL parsing error
 	}
 	rel, err := url.Parse(relativeURL)
@@ -130,6 +127,9 @@ func getBaseURI(id string) string {
 		return u.String()
 	}
 	u.Path = path.Dir(u.Path)
+	if u.Path == "." {
+		u.Path = "/"
+	}
 	if u.Path != "/" && !strings.HasSuffix(u.Path, "/") {
 		u.Path += "/"
 	}
