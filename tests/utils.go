@@ -127,7 +127,7 @@ func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusio
 					// Check if the test should pass or fail.
 					if test.Valid {
 						if !result.IsValid() {
-							t.Errorf("Expected data to be valid, but got error: %v", result)
+							t.Errorf("Expected data to be valid, but got error: %v", result.ToList())
 						}
 					} else {
 						if result.IsValid() {

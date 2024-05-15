@@ -16,6 +16,7 @@ type Schema struct {
 	baseURI          string                    // Base URI for resolving relative references within the schema.
 	anchors          map[string]*Schema        // Anchors for quick lookup of internal schema references.
 	dynamicAnchors   map[string]*Schema        // Dynamic anchors for more flexible schema references.
+	schemas          map[string]*Schema        // Cache of compiled schemas.
 
 	ID     string  `json:"$id,omitempty"`     // Public identifier for the schema.
 	Schema string  `json:"$schema,omitempty"` // URI indicating the specification the schema conforms to.
@@ -125,24 +126,20 @@ func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
 	s.parent = parent
 
 	parentBaseURI := s.getParentBaseURI()
+	if parentBaseURI == "" {
+		parentBaseURI = compiler.DefaultBaseURI
+	}
 	if s.ID != "" {
 		if isValidURI(s.ID) {
 			s.uri = s.ID
 			s.baseURI = getBaseURI(s.ID)
 		} else {
-			// Resolve the relative ID against the parent's base URL or the compiler's default base URL
 			resolvedURL := resolveRelativeURI(parentBaseURI, s.ID)
 			s.uri = resolvedURL
 			s.baseURI = getBaseURI(resolvedURL)
 		}
-		s.parent = nil
 	} else {
-		// Use the parent's base URL or the compiler's default if no ID is provided
-		if parentBaseURI != "" {
-			s.baseURI = parentBaseURI
-		} else {
-			s.baseURI = compiler.DefaultBaseURI
-		}
+		s.baseURI = parentBaseURI
 	}
 
 	if s.baseURI == "" {
@@ -151,7 +148,6 @@ func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
 		}
 	}
 
-	// Handle anchors
 	if s.Anchor != "" {
 		s.setAnchor(s.Anchor)
 	}
@@ -160,14 +156,12 @@ func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
 		s.setDynamicAnchor(s.DynamicAnchor)
 	}
 
-	// Register the schema in the compiler's schema map with its resolved ID
 	if s.uri != "" && isValidURI(s.uri) {
-		compiler.SetSchema(s.uri, s)
+		root := s.getRootSchema()
+		root.setSchema(s.uri, s)
 	}
 
-	// Initialize nested schemas...
 	initializeNestedSchemas(s, compiler)
-
 	s.resolveReferences()
 }
 
@@ -267,14 +261,37 @@ func (s *Schema) setDynamicAnchor(anchor string) {
 		s.dynamicAnchors[anchor] = s
 	}
 
-	root := s.getRootSchema()
-	if root.dynamicAnchors == nil {
-		root.dynamicAnchors = make(map[string]*Schema)
+	scope := s.getScopeSchema()
+	if scope.dynamicAnchors == nil {
+		scope.dynamicAnchors = make(map[string]*Schema)
 	}
 
-	if _, ok := root.dynamicAnchors[anchor]; !ok {
-		root.dynamicAnchors[anchor] = s
+	if _, ok := scope.dynamicAnchors[anchor]; !ok {
+		scope.dynamicAnchors[anchor] = s
 	}
+}
+
+// setSchema adds a schema to the internal schema cache, using the provided URI as the key.
+func (s *Schema) setSchema(uri string, schema *Schema) *Schema {
+	if s.schemas == nil {
+		s.schemas = make(map[string]*Schema)
+	}
+
+	s.schemas[uri] = schema
+	return s
+}
+
+func (s *Schema) getSchema(ref string) (*Schema, error) {
+	baseURI, anchor := splitRef(ref)
+
+	if schema, exists := s.schemas[baseURI]; exists {
+		if baseURI == ref {
+			return schema, nil
+		}
+		return schema.resolveAnchor(anchor)
+	}
+
+	return nil, ErrFailedToResolveReference
 }
 
 // initializeSchemas iteratively initializes a list of nested schemas.
@@ -309,6 +326,16 @@ func (s *Schema) GetSchemaLocation(anchor string) string {
 func (s *Schema) getRootSchema() *Schema {
 	if s.parent != nil {
 		return s.parent.getRootSchema()
+	}
+
+	return s
+}
+
+func (s *Schema) getScopeSchema() *Schema {
+	if s.ID != "" {
+		return s
+	} else if s.parent != nil {
+		return s.parent.getScopeSchema()
 	}
 
 	return s

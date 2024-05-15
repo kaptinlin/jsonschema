@@ -59,6 +59,10 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 
 	schema.initializeSchema(c, nil)
 
+	if schema.uri != "" && isValidURI(schema.uri) {
+		c.SetSchema(schema.uri, schema)
+	}
+
 	return schema, nil
 }
 

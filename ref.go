@@ -50,6 +50,11 @@ func (s *Schema) resolveAnchor(anchorName string) (*Schema, error) {
 
 // resolveRefWithFullURL resolves a full URL reference to another schema.
 func (s *Schema) resolveRefWithFullURL(ref string) (*Schema, error) {
+	root := s.getRootSchema()
+	if resolved, err := root.getSchema(ref); err == nil {
+		return resolved, nil
+	}
+
 	// If not found in the current schema or its parents, look for the reference in the compiler
 	if resolved, err := s.compiler.GetSchema(ref); err != nil {
 		return nil, ErrFailedToResolveGlobalReference
