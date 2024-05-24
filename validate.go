@@ -79,7 +79,7 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		}
 
 		// Validation keywords for any instance type
-		if s.Types != nil {
+		if s.Type != nil {
 			if err := evaluateType(s, instance); err != nil {
 				result.AddError(err)
 			}

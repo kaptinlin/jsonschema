@@ -41,7 +41,7 @@ func TestSchemaWithExclusiveMaximum(t *testing.T) {
 			require.NoError(t, err, "Unmarshalling failed unexpectedly")
 			assert.Equal(t, tc.expectedSchema.ID, schema.ID)
 			assert.Equal(t, tc.expectedSchema.Schema, schema.Schema)
-			assert.Equal(t, tc.expectedSchema.Types, schema.Types)
+			assert.Equal(t, tc.expectedSchema.Type, schema.Type)
 
 			// Now test marshaling back to JSON
 			marshaledJSON, err := json.Marshal(schema)

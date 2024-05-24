@@ -31,7 +31,7 @@ func TestSchemaWithID(t *testing.T) {
 			expectedSchema: jsonschema.Schema{
 				ID:     "http://yourdomain.com/schemas/myschema.json",
 				Schema: "https://json-schema.org/draft/2020-12/schema",
-				Types:  jsonschema.SchemaTypes{"object"},
+				Type:   jsonschema.SchemaType{"object"},
 			},
 		},
 		{
@@ -47,10 +47,10 @@ func TestSchemaWithID(t *testing.T) {
 			expectedSchema: jsonschema.Schema{
 				ID:     "http://yourdomain.com/schemas/nested.json",
 				Schema: "https://json-schema.org/draft/2020-12/schema",
-				Types:  jsonschema.SchemaTypes{"object"},
+				Type:   jsonschema.SchemaType{"object"},
 				Properties: &jsonschema.SchemaMap{
 					"name": &jsonschema.Schema{
-						Types: jsonschema.SchemaTypes{"string"},
+						Type: jsonschema.SchemaType{"string"},
 					},
 				},
 			},
@@ -64,7 +64,7 @@ func TestSchemaWithID(t *testing.T) {
 			require.NoError(t, err, "Unmarshalling failed unexpectedly")
 			assert.Equal(t, tc.expectedSchema.ID, schema.ID)
 			assert.Equal(t, tc.expectedSchema.Schema, schema.Schema)
-			assert.Equal(t, tc.expectedSchema.Types, schema.Types)
+			assert.Equal(t, tc.expectedSchema.Type, schema.Type)
 
 			// Now test marshaling back to JSON
 			marshaledJSON, err := json.Marshal(schema)

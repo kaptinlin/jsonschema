@@ -18,13 +18,13 @@ import (
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-type
 func evaluateType(schema *Schema, instance interface{}) *EvaluationError {
 	// Evaluate only if type constraints are specified in the schema
-	if len(schema.Types) == 0 {
+	if len(schema.Type) == 0 {
 		return nil // No type constraints, so no validation needed
 	}
 
 	instanceType := getDataType(instance) // Determine the type of the provided instance
 
-	for _, schemaType := range schema.Types {
+	for _, schemaType := range schema.Type {
 		if schemaType == "number" && instanceType == "integer" {
 			// Special case: integers are valid numbers per JSON Schema specification
 			return nil
@@ -36,7 +36,7 @@ func evaluateType(schema *Schema, instance interface{}) *EvaluationError {
 
 	// If no valid type match is found, generate a EvaluationResult
 	return NewEvaluationError("type", "type_mismatch", "Value is {received} but should be {expected}", map[string]interface{}{
-		"expected": strings.Join(schema.Types, ", "), // Expected types
-		"received": instanceType,                     // Actual type of the input data
+		"expected": strings.Join(schema.Type, ", "), // Expected types
+		"received": instanceType,                    // Actual type of the input data
 	})
 }

@@ -23,7 +23,7 @@ func TestSchemaWithMinLength(t *testing.T) {
 				"minLength": 2
 			}`,
 			expectedSchema: jsonschema.Schema{
-				Types:     jsonschema.SchemaTypes{"string"},
+				Type:      jsonschema.SchemaType{"string"},
 				MinLength: ptrFloat64(2),
 			},
 		},
@@ -34,7 +34,7 @@ func TestSchemaWithMinLength(t *testing.T) {
 				"minLength": 2.0
 			}`,
 			expectedSchema: jsonschema.Schema{
-				Types:     jsonschema.SchemaTypes{"string"},
+				Type:      jsonschema.SchemaType{"string"},
 				MinLength: ptrFloat64(2.0),
 			},
 		},
@@ -47,7 +47,7 @@ func TestSchemaWithMinLength(t *testing.T) {
 			require.NoError(t, err, "Unmarshalling failed unexpectedly")
 			assert.Equal(t, tc.expectedSchema.ID, schema.ID)
 			assert.Equal(t, tc.expectedSchema.Schema, schema.Schema)
-			assert.Equal(t, tc.expectedSchema.Types, schema.Types)
+			assert.Equal(t, tc.expectedSchema.Type, schema.Type)
 
 			// Now test marshaling back to JSON
 			marshaledJSON, err := json.Marshal(schema)

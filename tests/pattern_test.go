@@ -35,7 +35,7 @@ func TestSchemaWithPattern(t *testing.T) {
 			}`,
 			expectedSchema: jsonschema.Schema{
 				Schema:  "https://json-schema.org/draft/2020-12/schema",
-				Types:   jsonschema.SchemaTypes{"string"},
+				Type:    jsonschema.SchemaType{"string"},
 				Pattern: ptrString("^a*$"),
 			},
 		},
@@ -48,7 +48,7 @@ func TestSchemaWithPattern(t *testing.T) {
 			}`,
 			expectedSchema: jsonschema.Schema{
 				Schema:  "https://json-schema.org/draft/2020-12/schema",
-				Types:   jsonschema.SchemaTypes{"string"},
+				Type:    jsonschema.SchemaType{"string"},
 				Pattern: ptrString("^[a-zA-Z0-9]+$"),
 			},
 		},
@@ -60,7 +60,7 @@ func TestSchemaWithPattern(t *testing.T) {
 			err := json.Unmarshal([]byte(tc.schemaJSON), &schema)
 			require.NoError(t, err, "Unmarshalling failed unexpectedly")
 			assert.Equal(t, tc.expectedSchema.Schema, schema.Schema)
-			assert.Equal(t, tc.expectedSchema.Types, schema.Types)
+			assert.Equal(t, tc.expectedSchema.Type, schema.Type)
 			assert.Equal(t, *tc.expectedSchema.Pattern, *schema.Pattern)
 
 			// Now test marshaling back to JSON

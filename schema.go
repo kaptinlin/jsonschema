@@ -58,7 +58,7 @@ type Schema struct {
 	PropertyNames        *Schema    `json:"propertyNames,omitempty"`        // Can be a boolean or a schema, controls property names validation.
 
 	// Any validation keywords, see https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1
-	Types SchemaTypes   `json:"type,omitempty"`  // Can be a single type or an array of types.
+	Type  SchemaType    `json:"type,omitempty"`  // Can be a single type or an array of types.
 	Enum  []interface{} `json:"enum,omitempty"`  // Enumerated values for the property.
 	Const *ConstValue   `json:"const,omitempty"` // Constant value for the property.
 
@@ -99,13 +99,13 @@ type Schema struct {
 	ContentSchema    *Schema `json:"contentSchema,omitempty"`    // Schema for validating the content.
 
 	// Meta-data for schema and instance description, see https://json-schema.org/draft/2020-12/json-schema-validation#name-a-vocabulary-for-basic-meta
-	Title       *string           `json:"title,omitempty"`       // A short summary of the schema.
-	Description *string           `json:"description,omitempty"` // A detailed description of the purpose of the schema.
-	Default     *json.RawMessage  `json:"default,omitempty"`     // Default value of the instance.
-	Deprecated  *bool             `json:"deprecated,omitempty"`  // Indicates that the schema is deprecated.
-	ReadOnly    *bool             `json:"readOnly,omitempty"`    // Indicates that the property is read-only.
-	WriteOnly   *bool             `json:"writeOnly,omitempty"`   // Indicates that the property is write-only.
-	Examples    []json.RawMessage `json:"examples,omitempty"`    // Examples of the instance data that validates against this schema.
+	Title       *string       `json:"title,omitempty"`       // A short summary of the schema.
+	Description *string       `json:"description,omitempty"` // A detailed description of the purpose of the schema.
+	Default     interface{}   `json:"default,omitempty"`     // Default value of the instance.
+	Deprecated  *bool         `json:"deprecated,omitempty"`  // Indicates that the schema is deprecated.
+	ReadOnly    *bool         `json:"readOnly,omitempty"`    // Indicates that the property is read-only.
+	WriteOnly   *bool         `json:"writeOnly,omitempty"`   // Indicates that the property is write-only.
+	Examples    []interface{} `json:"examples,omitempty"`    // Examples of the instance data that validates against this schema.
 }
 
 // newSchema parses JSON schema data and returns a Schema object.
@@ -409,11 +409,11 @@ func (sm *SchemaMap) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*map[string]*Schema)(sm))
 }
 
-// SchemaTypes holds a set of SchemaType values, accommodating complex schema definitions that permit multiple types.
-type SchemaTypes []string
+// SchemaType holds a set of SchemaType values, accommodating complex schema definitions that permit multiple types.
+type SchemaType []string
 
-// MarshalJSON customizes the JSON serialization of SchemaTypes.
-func (r SchemaTypes) MarshalJSON() ([]byte, error) {
+// MarshalJSON customizes the JSON serialization of SchemaType.
+func (r SchemaType) MarshalJSON() ([]byte, error) {
 	if len(r) == 1 {
 		// Serialize a single type as a simple JSON string if only one type is present.
 		return json.Marshal(r[0])
@@ -422,19 +422,19 @@ func (r SchemaTypes) MarshalJSON() ([]byte, error) {
 	return json.Marshal([]string(r))
 }
 
-// UnmarshalJSON customizes the JSON deserialization into SchemaTypes.
-func (r *SchemaTypes) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON customizes the JSON deserialization into SchemaType.
+func (r *SchemaType) UnmarshalJSON(data []byte) error {
 	var singleType string
 	// Attempt to unmarshal the data as a single SchemaType.
 	if err := json.Unmarshal(data, &singleType); err == nil {
-		*r = SchemaTypes{singleType}
+		*r = SchemaType{singleType}
 		return nil
 	}
 
 	var multiType []string
-	// Attempt to unmarshal the data as an array of SchemaTypes.
+	// Attempt to unmarshal the data as an array of SchemaType.
 	if err := json.Unmarshal(data, &multiType); err == nil {
-		*r = SchemaTypes(multiType)
+		*r = SchemaType(multiType)
 		return nil
 	}
 

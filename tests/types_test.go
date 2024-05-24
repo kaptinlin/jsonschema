@@ -26,14 +26,14 @@ func TestSchemaWithType(t *testing.T) {
 			name:       "Single Type - String",
 			schemaJSON: `{"type": "string"}`,
 			expectedSchema: jsonschema.Schema{
-				Types: jsonschema.SchemaTypes{"string"},
+				Type: jsonschema.SchemaType{"string"},
 			},
 		},
 		{
 			name:       "Multiple Types",
 			schemaJSON: `{"type": ["integer", "string"]}`,
 			expectedSchema: jsonschema.Schema{
-				Types: jsonschema.SchemaTypes{"integer", "string"},
+				Type: jsonschema.SchemaType{"integer", "string"},
 			},
 		},
 	}
@@ -44,7 +44,7 @@ func TestSchemaWithType(t *testing.T) {
 			err := json.Unmarshal([]byte(tc.schemaJSON), &schema)
 			require.NoError(t, err, "Unmarshalling failed unexpectedly")
 			assert.Equal(t, tc.expectedSchema.Schema, schema.Schema)
-			assert.Equal(t, tc.expectedSchema.Types, schema.Types)
+			assert.Equal(t, tc.expectedSchema.Type, schema.Type)
 
 			// Now test marshaling back to JSON
 			marshaledJSON, err := json.Marshal(schema)
