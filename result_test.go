@@ -123,18 +123,18 @@ func TestToList(t *testing.T) {
 		},
 		Errors: map[string]*EvaluationError{
 			"required": {
-				keyword: "required",
-				code:    "missing_required_property",
-				message: "Required property {property} is missing",
-				params: map[string]interface{}{
+				Keyword: "required",
+				Code:    "missing_required_property",
+				Message: "Required property {property} is missing",
+				Params: map[string]interface{}{
 					"property": "fieldName1",
 				},
 			},
 			"minLength": {
-				keyword: "minLength",
-				code:    "string_too_short",
-				message: "Value should be at least {min_length} characters",
-				params: map[string]interface{}{
+				Keyword: "minLength",
+				Code:    "string_too_short",
+				Message: "Value should be at least {min_length} characters",
+				Params: map[string]interface{}{
 					"minLength": 5,
 				},
 			},
@@ -145,10 +145,10 @@ func TestToList(t *testing.T) {
 				EvaluationPath: "/property",
 				Errors: map[string]*EvaluationError{
 					"format": {
-						keyword: "format",
-						code:    "format_mismatch",
-						message: "Value does not match format {format}",
-						params: map[string]interface{}{
+						Keyword: "format",
+						Code:    "format_mismatch",
+						Message: "Value does not match format {format}",
+						Params: map[string]interface{}{
 							"format": "email",
 						},
 					},
