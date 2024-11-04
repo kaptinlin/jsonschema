@@ -3,36 +3,36 @@ package jsonschema
 import "github.com/kaptinlin/go-i18n"
 
 type EvaluationError struct {
-	keyword string                 `json:"-"`
-	code    string                 `json:"-"`
-	message string                 `json:"-"`
-	params  map[string]interface{} `json:"-"`
+	Keyword string                 `json:"keyword"`
+	Code    string                 `json:"code"`
+	Message string                 `json:"message"`
+	Params  map[string]interface{} `json:"params"`
 }
 
 func NewEvaluationError(keyword string, code string, message string, params ...map[string]interface{}) *EvaluationError {
 	if len(params) > 0 {
 		return &EvaluationError{
-			keyword: keyword,
-			code:    code,
-			message: message,
-			params:  params[0],
+			Keyword: keyword,
+			Code:    code,
+			Message: message,
+			Params:  params[0],
 		}
 	} else {
 		return &EvaluationError{
-			keyword: keyword,
-			code:    code,
-			message: message,
+			Keyword: keyword,
+			Code:    code,
+			Message: message,
 		}
 	}
 }
 
 func (e *EvaluationError) Error() string {
-	return replace(e.message, e.params)
+	return replace(e.Message, e.Params)
 }
 
 func (e *EvaluationError) Localize(localizer *i18n.Localizer) string {
 	if localizer != nil {
-		return localizer.Get(e.code, i18n.Vars(e.params))
+		return localizer.Get(e.Code, i18n.Vars(e.Params))
 	} else {
 		return e.Error()
 	}
@@ -80,6 +80,10 @@ func (e *EvaluationResult) SetEvaluationPath(evaluationPath string) *EvaluationR
 	return e
 }
 
+func (e *EvaluationResult) Error() string {
+	return "evaluation failed"
+}
+
 func (e *EvaluationResult) SetSchemaLocation(location string) *EvaluationResult {
 	e.SchemaLocation = location
 
@@ -111,7 +115,7 @@ func (e *EvaluationResult) AddError(err *EvaluationError) *EvaluationResult {
 		e.Valid = false
 	}
 
-	e.Errors[err.keyword] = err
+	e.Errors[err.Keyword] = err
 	return e
 }
 
