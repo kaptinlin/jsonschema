@@ -16,7 +16,7 @@ import (
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-oneof
 func evaluateOneOf(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
-	if schema.OneOf == nil || len(schema.OneOf) == 0 {
+	if len(schema.OneOf) == 0 {
 		return nil, nil // No oneOf constraints to validate against.
 	}
 

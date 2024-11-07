@@ -18,6 +18,7 @@ func evaluateNot(schema *Schema, instance interface{}, evaluatedProps map[string
 	result, _, _ := schema.Not.evaluate(instance, dynamicScope)
 
 	if result != nil {
+		//nolint:errcheck
 		result.SetEvaluationPath("/oneOf").
 			SetSchemaLocation(schema.GetSchemaLocation("/oneOf")).
 			SetInstanceLocation("")

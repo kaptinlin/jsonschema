@@ -16,7 +16,7 @@ import (
 //
 // If validation fails, it returns a EvaluationError detailing the index and discrepancy.
 func evaluatePrefixItems(schema *Schema, array []interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
-	if schema.PrefixItems == nil || len(schema.PrefixItems) == 0 {
+	if len(schema.PrefixItems) == 0 {
 		return nil, nil // If no prefixItems are defined, there is nothing to validate against.
 	}
 

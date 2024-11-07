@@ -14,7 +14,7 @@ import "reflect"
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-enum
 func evaluateEnum(schema *Schema, instance interface{}) *EvaluationError {
-	if schema.Enum != nil && len(schema.Enum) > 0 {
+	if len(schema.Enum) > 0 {
 		for _, enumValue := range schema.Enum {
 			if reflect.DeepEqual(instance, enumValue) {
 				return nil // Match found.

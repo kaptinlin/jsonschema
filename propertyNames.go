@@ -30,6 +30,7 @@ func evaluatePropertyNames(schema *Schema, object map[string]interface{}, evalua
 			result, _, _ := schema.PropertyNames.evaluate(propName, dynamicScope)
 
 			if result != nil {
+				//nolint:errcheck
 				result.SetEvaluationPath(fmt.Sprintf("/propertyNames/%s", propName)).
 					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/propertyNames/%s", propName))).
 					SetInstanceLocation(fmt.Sprintf("/%s", propName))
