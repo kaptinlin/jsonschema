@@ -30,6 +30,7 @@ func evaluateProperties(schema *Schema, object map[string]interface{}, evaluated
 		if exists {
 			result, _, _ := propSchema.evaluate(propValue, dynamicScope)
 			if result != nil {
+				//nolint:errcheck
 				result.SetEvaluationPath(fmt.Sprintf("/properties/%s", propName)).
 					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/properties/%s", propName))).
 					SetInstanceLocation(fmt.Sprintf("/%s", propName))
@@ -45,6 +46,7 @@ func evaluateProperties(schema *Schema, object map[string]interface{}, evaluated
 			result, _, _ := propSchema.evaluate(nil, dynamicScope)
 
 			if result != nil {
+				//nolint:errcheck
 				result.SetEvaluationPath(fmt.Sprintf("/properties/%s", propName)).
 					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/properties/%s", propName))).
 					SetInstanceLocation(fmt.Sprintf("/%s", propName))

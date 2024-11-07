@@ -34,6 +34,7 @@ func evaluateUnevaluatedItems(schema *Schema, data interface{}, evaluatedProps m
 			if _, evaluated := evaluatedItems[i]; !evaluated {
 				result, _, _ := schema.UnevaluatedItems.evaluate(item, dynamicScope)
 				if result != nil {
+					//nolint:errcheck
 					result.SetEvaluationPath(fmt.Sprintf("/unevaluatedItems/%d", i)).
 						SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/unevaluatedItems/%d", i))).
 						SetInstanceLocation(fmt.Sprintf("/%d", i))
