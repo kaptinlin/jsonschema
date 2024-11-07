@@ -68,7 +68,7 @@ func NewEvaluationResult(schema *Schema) *EvaluationResult {
 		schema: schema,
 		Valid:  true,
 	}
-
+	//nolint:errcheck
 	e.CollectAnnotations()
 
 	return e

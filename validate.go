@@ -18,6 +18,7 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 	if s.Boolean != nil {
 		// Check if the schema is a boolean
 		if err := s.evaluateBoolean(instance, evaluatedProps, evaluatedItems); err != nil {
+			//nolint:errcheck
 			result.AddError(err)
 		}
 	} else {
@@ -38,9 +39,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 			refResult, props, items := s.ResolvedRef.evaluate(instance, dynamicScope)
 
 			if refResult != nil {
+				//nolint:errcheck
 				result.AddDetail(refResult)
 
 				if !refResult.IsValid() {
+					//nolint:errcheck
 					result.AddError(
 						NewEvaluationError("$ref", "ref_mismatch", "Value does not match the reference schema"),
 					)
@@ -65,9 +68,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 
 			dynamicRefResult, props, items := anchorSchema.evaluate(instance, dynamicScope)
 			if dynamicRefResult != nil {
+				//nolint:errcheck
 				result.AddDetail(dynamicRefResult)
 
 				if !dynamicRefResult.IsValid() {
+					//nolint:errcheck
 					result.AddError(
 						NewEvaluationError("$dynamicRef", "dynamic_ref_mismatch", "Value does not match the dynamic reference schema"),
 					)
@@ -81,18 +86,21 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		// Validation keywords for any instance type
 		if s.Type != nil {
 			if err := evaluateType(s, instance); err != nil {
+				//nolint:errcheck
 				result.AddError(err)
 			}
 		}
 
 		if s.Enum != nil {
 			if err := evaluateEnum(s, instance); err != nil {
+				//nolint:errcheck
 				result.AddError(err)
 			}
 		}
 
 		if s.Const != nil {
 			if err := evaluateConst(s, instance); err != nil {
+				//nolint:errcheck
 				result.AddError(err)
 			}
 		}
@@ -101,9 +109,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.AllOf != nil {
 			allOfResults, allOfError := evaluateAllOf(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, allOfResult := range allOfResults {
+				//nolint:errcheck
 				result.AddDetail(allOfResult)
 			}
 			if allOfError != nil {
+				//nolint:errcheck
 				result.AddError(allOfError)
 			}
 		}
@@ -111,9 +121,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.AnyOf != nil {
 			anyOfResults, anyOfError := evaluateAnyOf(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, anyOfResult := range anyOfResults {
+				//nolint:errcheck
 				result.AddDetail(anyOfResult)
 			}
 			if anyOfError != nil {
+				//nolint:errcheck
 				result.AddError(anyOfError)
 			}
 		}
@@ -121,9 +133,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.OneOf != nil {
 			oneOfResults, oneOfError := evaluateOneOf(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, oneOfResult := range oneOfResults {
+				//nolint:errcheck
 				result.AddDetail(oneOfResult)
 			}
 			if oneOfError != nil {
+				//nolint:errcheck
 				result.AddError(oneOfError)
 			}
 		}
@@ -131,9 +145,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.Not != nil {
 			notResult, notError := evaluateNot(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			if notResult != nil {
+				//nolint:errcheck
 				result.AddDetail(notResult)
 			}
 			if notError != nil {
+				//nolint:errcheck
 				result.AddError(notError)
 			}
 		}
@@ -142,15 +158,17 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.If != nil || s.Then != nil || s.Else != nil {
 			conditionalResults, conditionalError := evaluateConditional(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, conditionalResult := range conditionalResults {
+				//nolint:errcheck
 				result.AddDetail(conditionalResult)
 			}
 			if conditionalError != nil {
+				//nolint:errcheck
 				result.AddError(conditionalError)
 			}
 		}
 
 		// Validation keywords for applying subschemas to arrays
-		if s.PrefixItems != nil && len(s.PrefixItems) > 0 ||
+		if len(s.PrefixItems) > 0 ||
 			s.Items != nil ||
 			s.Contains != nil ||
 			s.MaxContains != nil ||
@@ -160,9 +178,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 			s.UniqueItems != nil {
 			arrayResults, arrayErrors := evaluateArray(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, arrayResult := range arrayResults {
+				//nolint:errcheck
 				result.AddDetail(arrayResult)
 			}
 			for _, arrayError := range arrayErrors {
+				//nolint:errcheck
 				result.AddError(arrayError)
 			}
 		}
@@ -171,6 +191,7 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.MultipleOf != nil || s.Maximum != nil || s.ExclusiveMaximum != nil || s.Minimum != nil || s.ExclusiveMinimum != nil {
 			numericErrors := evaluateNumeric(s, instance)
 			for _, numericError := range numericErrors {
+				//nolint:errcheck
 				result.AddError(numericError)
 			}
 		}
@@ -179,6 +200,7 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.MaxLength != nil || s.MinLength != nil || s.Pattern != nil {
 			stringErrors := evaluateString(s, instance)
 			for _, stringError := range stringErrors {
+				//nolint:errcheck
 				result.AddError(stringError)
 			}
 		}
@@ -186,6 +208,7 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.Format != nil {
 			formatError := evaluateFormat(s, instance)
 			if formatError != nil {
+				//nolint:errcheck
 				result.AddError(formatError)
 			}
 		}
@@ -201,9 +224,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 			len(s.DependentRequired) > 0 {
 			objectResults, objectErrors := evaluateObject(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, objectResult := range objectResults {
+				//nolint:errcheck
 				result.AddDetail(objectResult)
 			}
 			for _, objectError := range objectErrors {
+				//nolint:errcheck
 				result.AddError(objectError)
 			}
 		}
@@ -212,9 +237,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.DependentSchemas != nil {
 			dependentSchemasResults, dependentSchemasError := evaluateDependentSchemas(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, dependentSchemasResult := range dependentSchemasResults {
+				//nolint:errcheck
 				result.AddDetail(dependentSchemasResult)
 			}
 			if dependentSchemasError != nil {
+				//nolint:errcheck
 				result.AddError(dependentSchemasError)
 			}
 		}
@@ -223,9 +250,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.UnevaluatedProperties != nil {
 			unevaluatedPropertiesResults, unevaluatedPropertiesError := evaluateUnevaluatedProperties(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, unevaluatedPropertiesResult := range unevaluatedPropertiesResults {
+				//nolint:errcheck
 				result.AddDetail(unevaluatedPropertiesResult)
 			}
 			if unevaluatedPropertiesError != nil {
+				//nolint:errcheck
 				result.AddError(unevaluatedPropertiesError)
 			}
 		}
@@ -234,9 +263,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.UnevaluatedItems != nil {
 			unevaluatedItemsResults, unevaluatedItemsError := evaluateUnevaluatedItems(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			for _, unevaluatedItemsResult := range unevaluatedItemsResults {
+				//nolint:errcheck
 				result.AddDetail(unevaluatedItemsResult)
 			}
 			if unevaluatedItemsError != nil {
+				//nolint:errcheck
 				result.AddError(unevaluatedItemsError)
 			}
 		}
@@ -245,9 +276,11 @@ func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*Ev
 		if s.ContentEncoding != nil || s.ContentMediaType != nil || s.ContentSchema != nil {
 			contentResult, contentError := evaluateContent(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 			if contentError != nil {
+				//nolint:errcheck
 				result.AddDetail(contentResult)
 			}
 			if contentError != nil {
+				//nolint:errcheck
 				result.AddError(contentError)
 			}
 		}
@@ -473,7 +506,7 @@ func evaluateArray(schema *Schema, data interface{}, evaluatedProps map[string]b
 	errors := []*EvaluationError{}
 
 	// Validation keywords for applying subschemas to arrays
-	if schema.PrefixItems != nil && len(schema.PrefixItems) > 0 {
+	if len(schema.PrefixItems) > 0 {
 		prefixItemsResults, prefixItemsError := evaluatePrefixItems(schema, items, evaluatedProps, evaluatedItems, dynamicScope)
 
 		if prefixItemsResults != nil {

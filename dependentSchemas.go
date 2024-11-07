@@ -15,7 +15,7 @@ import (
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-dependentschemas
 func evaluateDependentSchemas(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
-	if schema.DependentSchemas == nil || len(schema.DependentSchemas) == 0 {
+	if len(schema.DependentSchemas) == 0 {
 		return nil, nil // No dependentSchemas constraints to validate against.
 	}
 
@@ -31,6 +31,7 @@ func evaluateDependentSchemas(schema *Schema, instance interface{}, evaluatedPro
 			if depSchema != nil {
 				result, schemaEvaluatedProps, schemaEvaluatedItems := depSchema.evaluate(object, dynamicScope)
 				if result != nil {
+					//nolint:errcheck
 					result.SetEvaluationPath(fmt.Sprintf("/dependentSchemas/%s", propName)).
 						SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/dependentSchemas/%s", propName))).
 						SetInstanceLocation(fmt.Sprintf("/%s", propName))

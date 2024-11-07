@@ -16,7 +16,7 @@ import (
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-allof
 func evaluateAllOf(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
-	if schema.AllOf == nil || len(schema.AllOf) == 0 {
+	if len(schema.AllOf) == 0 {
 		return nil, nil // No allOf constraints to validate against.
 	}
 
