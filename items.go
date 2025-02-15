@@ -43,6 +43,7 @@ func evaluateItems(schema *Schema, array []interface{}, evaluatedProps map[strin
 				if result.IsValid() {
 					evaluatedItems[i] = true // Mark the item as evaluated if it passes schema validation.
 				} else {
+					results = append(results, result)
 					invalid_indexs = append(invalid_indexs, strconv.Itoa(i))
 				}
 			}
