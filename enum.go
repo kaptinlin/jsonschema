@@ -1,6 +1,10 @@
 package jsonschema
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+	"strings"
+)
 
 // EvaluateEnum checks if the data's value matches one of the enumerated values specified in the schema.
 // According to the JSON Schema Draft 2020-12:
@@ -14,14 +18,23 @@ import "reflect"
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-enum
 func evaluateEnum(schema *Schema, instance interface{}) *EvaluationError {
-	if len(schema.Enum) > 0 {
-		for _, enumValue := range schema.Enum {
-			if reflect.DeepEqual(instance, enumValue) {
-				return nil // Match found.
-			}
-		}
-		// No match found.
-		return NewEvaluationError("enum", "value_not_in_enum", "Value should match one of the values specified by the enum")
+	if len(schema.Enum) == 0 {
+		return nil // No enum values, so no validation needed
 	}
-	return nil
+
+	allowed := make([]string, 0, len(schema.Enum))
+
+	for _, enumValue := range schema.Enum {
+		if reflect.DeepEqual(instance, enumValue) {
+			return nil // Match found.
+		}
+
+		allowed = append(allowed, fmt.Sprintf("%v", enumValue))
+	}
+
+	// No match found.
+	return NewEvaluationError("enum", "value_not_in_enum", "Value {received} should be one of the allowed values: {expected}", map[string]interface{}{
+		"expected": strings.Join(allowed, ", "),
+		"received": instance,
+	})
 }
