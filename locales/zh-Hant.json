@@ -17,7 +17,7 @@
   "dependent_property_required":     "缺少一些必需的屬性依賴：{missing_properties}",
   "dependent_schema_mismatch":       "屬性 {property} 不符合依賴模式",
   "dependent_schemas_mismatch":      "屬性 {properties} 不符合依賴模式",
-  "value_not_in_enum":               "值應匹配枚舉中指定的一個值",
+  "value_not_in_enum":               "值 {received} 應該是以下允許值之一: {expected}",
   "exclusive_maximum_mismatch":      "{value} 應小於 {exclusive_maximum}",
   "exclusive_minimum_mismatch":      "{value} 應大於 {exclusive_minimum}",
   "unsupported_format":              "不支持的格式 {format}",

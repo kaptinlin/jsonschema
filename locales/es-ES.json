@@ -17,7 +17,7 @@
   "dependent_property_required": "Faltan algunas dependencias de propiedades requeridas: {missing_properties}",
   "dependent_schema_mismatch": "La propiedad {property} no coincide con el esquema dependiente",
   "dependent_schemas_mismatch": "Las propiedades {properties} no coinciden con el esquema dependiente",
-  "value_not_in_enum": "El valor debe coincidir con uno de los valores especificados por el enum",
+  "value_not_in_enum": "El valor {received} debería ser uno de los valores permitidos: {expected}",
   "exclusive_maximum_mismatch": "{value} debe ser menor que {exclusive_maximum}",
   "exclusive_minimum_mismatch": "{value} debe ser mayor que {exclusive_minimum}",
   "unsupported_format": "El formato {format} no es compatible",

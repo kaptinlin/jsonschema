@@ -17,7 +17,7 @@
   "dependent_property_required":     "いくつかの必要なプロパティ依存関係が欠けています：{missing_properties}",
   "dependent_schema_mismatch":       "プロパティ {property} が依存スキーマに一致しません",
   "dependent_schemas_mismatch":      "プロパティ {properties} が依存スキーマに一致しません",
-  "value_not_in_enum":               "値は列挙によって指定された値のいずれかに一致すべきです",
+  "value_not_in_enum":               "{received} は許可された値のいずれかである必要があります: {expected}",
   "exclusive_maximum_mismatch":      "{value} は {exclusive_maximum} 未満であるべきです",
   "exclusive_minimum_mismatch":      "{value} は {exclusive_minimum} より大きいべきです",
   "unsupported_format":              "フォーマット {format} はサポートされていません",

@@ -17,7 +17,7 @@
   "dependent_property_required":     "필요한 속성 의존성이 누락되었습니다: {missing_properties}",
   "dependent_schema_mismatch":       "속성 {property}이(가) 의존 스키마와 일치하지 않습니다",
   "dependent_schemas_mismatch":      "속성 {properties}이(가) 의존 스키마와 일치하지 않습니다",
-  "value_not_in_enum":               "값은 열거에 명시된 값 중 하나와 일치해야 합니다",
+  "value_not_in_enum":               "{received} 값은 허용된 값 중 하나여야 합니다: {expected}",
   "exclusive_maximum_mismatch":      "{value}은(는) {exclusive_maximum}보다 작아야 합니다",
   "exclusive_minimum_mismatch":      "{value}은(는) {exclusive_minimum}보다 커야 합니다",
   "unsupported_format":              "포맷 {format}이(가) 지원되지 않습니다",
