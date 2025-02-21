@@ -3,8 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/goccy/go-json"
-
+	"github.com/bytedance/sonic"
 	"github.com/kaptinlin/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,19 +47,19 @@ func TestSchemaWithMaximum(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var schema jsonschema.Schema
-			err := json.Unmarshal([]byte(tc.schemaJSON), &schema)
+			err := sonic.Unmarshal([]byte(tc.schemaJSON), &schema)
 			require.NoError(t, err, "Unmarshalling failed unexpectedly")
 			assert.Equal(t, tc.expectedSchema.ID, schema.ID)
 			assert.Equal(t, tc.expectedSchema.Schema, schema.Schema)
 			assert.Equal(t, tc.expectedSchema.Type, schema.Type)
 
 			// Now test marshaling back to JSON
-			marshaledJSON, err := json.Marshal(schema)
+			marshaledJSON, err := sonic.Marshal(schema)
 			require.NoError(t, err, "Marshalling failed unexpectedly")
 
 			// Unmarshal marshaled JSON to verify it matches the original schema object
 			var reUnmarshaledSchema jsonschema.Schema
-			err = json.Unmarshal(marshaledJSON, &reUnmarshaledSchema)
+			err = sonic.Unmarshal(marshaledJSON, &reUnmarshaledSchema)
 			require.NoError(t, err, "Unmarshalling the marshaled JSON failed")
 			assert.Equal(t, schema, reUnmarshaledSchema, "Re-unmarshaled schema does not match the original")
 

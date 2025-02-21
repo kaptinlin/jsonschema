@@ -19,7 +19,7 @@ This library provides robust JSON Schema validation for Go applications, designe
 - **Passed All JSON Schema Test Suite Cases**: Successfully passes all the [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite) cases for Draft 2020-12, except those involving vocabulary.
 - **Internationalization Support**: Includes capabilities for internationalized validation messages. Supports multiple languages including English (en), German (de-DE), Spanish (es-ES), French (fr-FR), Japanese (ja-JP), Korean (ko-KR), Portuguese (pt-BR), Simplified Chinese (zh-Hans), and Traditional Chinese (zh-Hant).
 - **Enhanced Validation Output**: Implements [enhanced output](https://json-schema.org/blog/posts/fixing-json-schema-output) for validation errors as proposed in recent JSON Schema updates.
-- **Performance Enhancement**: Uses [github.com/goccy/go-json](https://github.com/goccy/go-json) instead of `encoding/json` to improve performance.
+- **Performance Enhancement**: Uses [github.com/bytedance/sonic](https://github.com/bytedance/sonic) instead of `encoding/json` to improve performance.
 
 ## Installation
 
@@ -36,7 +36,7 @@ Here is a simple example to demonstrate compiling a schema and validating an ins
 ```go
 import (
     "github.com/kaptinlin/jsonschema"
-    "github.com/goccy/go-json"
+    "github.com/bytedance/sonic"
 )
 
 func main() {

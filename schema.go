@@ -3,7 +3,7 @@ package jsonschema
 import (
 	"regexp"
 
-	"github.com/goccy/go-json"
+	"github.com/bytedance/sonic"
 )
 
 // Schema represents a JSON Schema as per the 2020-12 draft, containing all
@@ -111,7 +111,7 @@ type Schema struct {
 // newSchema parses JSON schema data and returns a Schema object.
 func newSchema(jsonSchema []byte) (*Schema, error) {
 	var schema Schema
-	err := json.Unmarshal(jsonSchema, &schema)
+	err := sonic.Unmarshal(jsonSchema, &schema)
 	if err != nil {
 		return &schema, err
 	}
@@ -356,7 +356,7 @@ func (s *Schema) getParentBaseURI() string {
 // particularly handling the 'const' keyword to manage null values and avoid recursion issues.
 func (s *Schema) UnmarshalJSON(data []byte) error {
 	var boolVal bool
-	if err := json.Unmarshal(data, &boolVal); err == nil {
+	if err := sonic.Unmarshal(data, &boolVal); err == nil {
 		s.Boolean = &boolVal
 		return nil
 	}
@@ -364,18 +364,18 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	type Alias Schema
 	aux := struct {
 		*Alias
-		RawConst json.RawMessage `json:"const,omitempty"` // Manually parse 'const' to handle specific edge cases.
+		RawConst sonic.NoCopyRawMessage `json:"const,omitempty"` // Manually parse 'const' to handle specific edge cases.
 	}{
 		Alias: (*Alias)(s),
 	}
 
-	if err := json.Unmarshal(data, &aux); err != nil {
+	if err := sonic.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 
 	if aux.RawConst != nil {
 		s.Const = &ConstValue{IsSet: true}
-		if err := json.Unmarshal(aux.RawConst, &s.Const.Value); err != nil {
+		if err := sonic.Unmarshal(aux.RawConst, &s.Const.Value); err != nil {
 			return err
 		}
 	}
@@ -385,10 +385,10 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 // MarshalJSON ensures that Schema instances serialize correctly, particularly handling boolean schemas directly.
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	if s.Boolean != nil {
-		return json.Marshal(s.Boolean)
+		return sonic.Marshal(s.Boolean)
 	}
 	type Alias Schema
-	return json.Marshal(&struct {
+	return sonic.Marshal(&struct {
 		*Alias
 	}{
 		Alias: (*Alias)(s),
@@ -400,13 +400,13 @@ type SchemaMap map[string]*Schema
 
 // MarshalJSON ensures that SchemaMap serializes properly as a JSON object.
 func (sm SchemaMap) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]*Schema(sm))
+	return sonic.Marshal(map[string]*Schema(sm))
 }
 
 // UnmarshalJSON ensures that JSON objects are correctly parsed into SchemaMap,
 // supporting the detailed structure required for nested schema definitions.
 func (sm *SchemaMap) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, (*map[string]*Schema)(sm))
+	return sonic.Unmarshal(data, (*map[string]*Schema)(sm))
 }
 
 // SchemaType holds a set of SchemaType values, accommodating complex schema definitions that permit multiple types.
@@ -416,24 +416,24 @@ type SchemaType []string
 func (r SchemaType) MarshalJSON() ([]byte, error) {
 	if len(r) == 1 {
 		// Serialize a single type as a simple JSON string if only one type is present.
-		return json.Marshal(r[0])
+		return sonic.Marshal(r[0])
 	}
 	// Serialize multiple types as a JSON array of strings.
-	return json.Marshal([]string(r))
+	return sonic.Marshal([]string(r))
 }
 
 // UnmarshalJSON customizes the JSON deserialization into SchemaType.
 func (r *SchemaType) UnmarshalJSON(data []byte) error {
 	var singleType string
 	// Attempt to unmarshal the data as a single SchemaType.
-	if err := json.Unmarshal(data, &singleType); err == nil {
+	if err := sonic.Unmarshal(data, &singleType); err == nil {
 		*r = SchemaType{singleType}
 		return nil
 	}
 
 	var multiType []string
 	// Attempt to unmarshal the data as an array of SchemaType.
-	if err := json.Unmarshal(data, &multiType); err == nil {
+	if err := sonic.Unmarshal(data, &multiType); err == nil {
 		*r = SchemaType(multiType)
 		return nil
 	}
@@ -450,7 +450,7 @@ type ConstValue struct {
 // UnmarshalJSON handles unmarshaling a JSON value into the ConstValue type.
 func (cv *ConstValue) UnmarshalJSON(data []byte) error {
 	cv.IsSet = true // If UnmarshalJSON is called, the 'const' was set in JSON.
-	return json.Unmarshal(data, &cv.Value)
+	return sonic.Unmarshal(data, &cv.Value)
 }
 
 // MarshalJSON handles marshaling the ConstValue type back to JSON.
@@ -459,5 +459,5 @@ func (cv ConstValue) MarshalJSON() ([]byte, error) {
 		return nil, nil
 	}
 	// Otherwise, marshal the value as normal
-	return json.Marshal(cv.Value)
+	return sonic.Marshal(cv.Value)
 }

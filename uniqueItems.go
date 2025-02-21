@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goccy/go-json"
+	"github.com/bytedance/sonic"
 )
 
 // EvaluateUniqueItems checks if all elements in the array are unique when the "uniqueItems" property is set to true.
@@ -26,7 +26,7 @@ func evaluateUniqueItems(schema *Schema, data []interface{}) *EvaluationError {
 	// Using a map to track all indices of each item using serialized strings as keys.
 	seen := make(map[string][]int)
 	for index, item := range data {
-		itemBytes, err := json.Marshal(item)
+		itemBytes, err := sonic.Marshal(item)
 		if err != nil {
 			// Handle serialization error
 			return NewEvaluationError("uniqueItems", "item_serialization_error", "Error serializing item at index {index}", map[string]interface{}{

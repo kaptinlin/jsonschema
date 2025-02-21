@@ -1,14 +1,13 @@
 package jsonschema
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/url"
 	"path"
 	"reflect"
 	"strings"
-
-	"github.com/goccy/go-json"
 )
 
 // replace substitutes placeholders in a template string with actual parameter values.

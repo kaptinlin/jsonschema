@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/goccy/go-json"
+	"github.com/bytedance/sonic"
 	"github.com/kaptinlin/jsonschema"
 )
 
@@ -39,7 +39,7 @@ func main() {
 		log.Println("The schema is valid.")
 	} else {
 		log.Println("The schema is not valid. See errors:")
-		details, _ := json.MarshalIndent(result.ToLocalizeList(localizer), "", "  ")
+		details, _ := sonic.MarshalIndent(result.ToLocalizeList(localizer), "", "  ")
 		log.Println(string(details))
 	}
 }

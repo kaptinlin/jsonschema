@@ -1,6 +1,6 @@
 package jsonschema
 
-import "github.com/goccy/go-json"
+import "github.com/bytedance/sonic"
 
 // EvaluateDependentRequired checks that if a specified property is present, all its dependent properties are also present.
 // According to the JSON Schema Draft 2020-12:
@@ -35,7 +35,7 @@ func evaluateDependentRequired(schema *Schema, object map[string]interface{}) *E
 	}
 
 	if len(dependentMissingProps) > 0 {
-		missingPropsJSON, _ := json.Marshal(dependentMissingProps)
+		missingPropsJSON, _ := sonic.Marshal(dependentMissingProps)
 		return NewEvaluationError("dependentRequired", "dependent_property_required", "Some required property dependencies are missing: {missing_properties}", map[string]interface{}{
 			"missing_properties": string(missingPropsJSON),
 		})

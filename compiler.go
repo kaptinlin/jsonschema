@@ -8,8 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/goccy/go-json"
-
+	"github.com/bytedance/sonic"
 	"github.com/goccy/go-yaml"
 )
 
@@ -163,7 +162,7 @@ func (c *Compiler) initDefaults() {
 func (c *Compiler) setupMediaTypes() {
 	c.MediaTypes["application/json"] = func(data []byte) (interface{}, error) {
 		var temp interface{}
-		if err := json.Unmarshal(data, &temp); err != nil {
+		if err := sonic.Unmarshal(data, &temp); err != nil {
 			return nil, ErrJSONUnmarshalError
 		}
 		return temp, nil

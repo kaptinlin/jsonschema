@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/goccy/go-json"
+	"github.com/bytedance/sonic"
 )
 
 // Rat wraps a big.Rat to enable custom JSON marshaling and unmarshaling.
@@ -16,7 +16,7 @@ type Rat struct {
 // UnmarshalJSON implements the json.Unmarshaler interface for Rat.
 func (r *Rat) UnmarshalJSON(data []byte) error {
 	var tmp interface{}
-	if err := json.Unmarshal(data, &tmp); err != nil {
+	if err := sonic.Unmarshal(data, &tmp); err != nil {
 		return err
 	}
 
@@ -34,7 +34,7 @@ func (r *Rat) MarshalJSON() ([]byte, error) {
 	formattedValue := FormatRat(r)
 	if strings.Contains(formattedValue, "/") {
 		// Output as a JSON string if it still contains a fraction
-		return json.Marshal(formattedValue)
+		return sonic.Marshal(formattedValue)
 	}
 	// Output as a JSON number
 	return []byte(formattedValue), nil
