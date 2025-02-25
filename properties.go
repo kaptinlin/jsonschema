@@ -2,6 +2,7 @@ package jsonschema
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -65,6 +66,7 @@ func evaluateProperties(schema *Schema, object map[string]interface{}, evaluated
 			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
 		})
 	} else if len(invalid_properties) > 1 {
+		slices.Sort(invalid_properties)
 		quotedProperties := make([]string, len(invalid_properties))
 		for i, prop := range invalid_properties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
