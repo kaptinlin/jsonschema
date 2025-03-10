@@ -3,13 +3,13 @@ module github.com/kaptinlin/jsonschema
 go 1.23.0
 
 require (
-	github.com/bytedance/sonic v1.12.10
+	github.com/bytedance/sonic v1.13.1
 	github.com/kaptinlin/go-i18n v0.1.3
 	github.com/stretchr/testify v1.10.0
 )
 
 require (
-	github.com/bytedance/sonic/loader v0.2.2 // indirect
+	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
