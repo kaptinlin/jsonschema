@@ -11,7 +11,7 @@ Listed below are the rules that we followed to merge two json-schema to make a n
 - **title, description**: Could combine with text like "Superset of Schema A and Schema B" or choose one.
 - **format**: If the formats conflict, omit from the merged schema to be more permissive.
 - **examples**: Include examples from both schemas.
-- **default**: Choose one or omit if they conflict.
+- **default**: Choose the latest one if exists otherwise the old one.
 - **deprecated, readOnly, writeOnly**: Use the less restrictive option (false over true).
 
 #### 1.2 Boolean Schemas
