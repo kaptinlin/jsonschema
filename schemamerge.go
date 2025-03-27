@@ -137,6 +137,9 @@ func MergeSchemas(root *Schema, newSchema *Schema) *Schema {
 	// Array items - create superset
 	mergedSchema.Items = mergeItems(root.Items, newSchema.Items)
 
+	// Array uniqueItems - create superset
+	mergedSchema.UniqueItems = mergeArrayUniqueItems(root.UniqueItems, newSchema.UniqueItems)
+
 	// Prefix items - special handling
 	mergedSchema.PrefixItems = mergePrefixItems(root.PrefixItems, newSchema.PrefixItems)
 
@@ -210,6 +213,28 @@ func mergeDefault(d1, d2 interface{}) interface{} {
 		}
 	}
 	return nil
+}
+
+// mergeArrayUniqueItems merges two uniqueItems constraints
+func mergeArrayUniqueItems(u1, u2 *bool) *bool {
+	if u1 == nil && u2 == nil {
+		return nil
+	}
+	if u1 == nil {
+		return u2
+	}
+	if u2 == nil {
+		return u1
+	}
+
+	// if both are true, return true
+	if *u1 && *u2 {
+		return u1
+	}
+
+	// if both are false, return false
+	f := false
+	return &f
 }
 
 // mergeBooleanPointers merges two boolean pointers with a specified strategy

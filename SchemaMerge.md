@@ -47,7 +47,7 @@ We can ommit the logical check from the new schema.
 
 #### 4.2 String Validation
 - **minLength, maxLength**: Use the less restrictive values (lower min, higher max).
-- **pattern**: This is tricky for a superset - might need to use `anyOf` with both patterns or create a new regex that is the union.
+- **pattern**: Not supported for now - might need to use `anyOf` with both patterns or create a new regex that is the union.
 
 #### 4.3 Numeric Validation
 - **minimum, exclusiveMinimum**: Use the lower value of the two schemas.
