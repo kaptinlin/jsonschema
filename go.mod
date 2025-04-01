@@ -1,7 +1,6 @@
 module github.com/kaptinlin/jsonschema
 
 go 1.22.0
-
 require (
 	github.com/kaptinlin/go-i18n v0.1.3
 	github.com/stretchr/testify v1.10.0
@@ -11,7 +10,7 @@ require github.com/goccy/go-json v0.10.2
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/goccy/go-yaml v1.16.0
+	github.com/goccy/go-yaml v1.17.1
 	github.com/gotnospirit/makeplural v0.0.0-20180622080156-a5f48d94d976 // indirect
 	github.com/gotnospirit/messageformat v0.0.0-20221001023931-dfe49f1eb092 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
