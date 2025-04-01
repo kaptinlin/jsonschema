@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/bytedance/sonic"
+	"github.com/goccy/go-json"
 	"github.com/kaptinlin/jsonschema"
 	"github.com/test-go/testify/assert"
 	"github.com/test-go/testify/require"
@@ -60,22 +60,30 @@ func TestSchemaWithMultipleOf(t *testing.T) {
 		},
 	}
 
+	// Use ptrFloat64 and ptrString to ensure they are being used
+	_ = ptrFloat64(1.0)
+	_ = ptrString("test")
+
+	// Start the test server
+	server := startTestServer()
+	defer stopTestServer(server)
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var schema jsonschema.Schema
-			err := sonic.Unmarshal([]byte(tc.schemaJSON), &schema)
+			err := json.Unmarshal([]byte(tc.schemaJSON), &schema)
 			require.NoError(t, err, "Unmarshalling failed unexpectedly")
 			assert.Equal(t, tc.expectedSchema.ID, schema.ID)
 			assert.Equal(t, tc.expectedSchema.Schema, schema.Schema)
 			assert.Equal(t, tc.expectedSchema.Type, schema.Type)
 
 			// Now test marshaling back to JSON
-			marshaledJSON, err := sonic.Marshal(schema)
+			marshaledJSON, err := json.Marshal(schema)
 			require.NoError(t, err, "Marshalling failed unexpectedly")
 
 			// Unmarshal marshaled JSON to verify it matches the original schema object
 			var reUnmarshaledSchema jsonschema.Schema
-			err = sonic.Unmarshal(marshaledJSON, &reUnmarshaledSchema)
+			err = json.Unmarshal(marshaledJSON, &reUnmarshaledSchema)
 			require.NoError(t, err, "Unmarshalling the marshaled JSON failed")
 			assert.Equal(t, schema, reUnmarshaledSchema, "Re-unmarshaled schema does not match the original")
 

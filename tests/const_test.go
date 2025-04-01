@@ -1,13 +1,13 @@
 package tests
 
 import (
-	"encoding/json"
 	"reflect"
 	"testing"
 
-	"github.com/bytedance/sonic"
-
+	"github.com/goccy/go-json"
 	"github.com/kaptinlin/jsonschema"
+	"github.com/test-go/testify/assert"
+	"github.com/test-go/testify/require"
 )
 
 // TestConstForTestSuite executes the const validation tests for Schema Test Suite.
@@ -93,13 +93,88 @@ func TestUnmarshalJSON(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var schema jsonschema.Schema
-			err := sonic.Unmarshal([]byte(tt.jsonStr), &schema)
+			err := json.Unmarshal([]byte(tt.jsonStr), &schema)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !reflect.DeepEqual(&schema, tt.expected) {
 				t.Errorf("UnmarshalJSON() got = %v, want %v", schema, tt.expected)
 			}
+		})
+	}
+}
+
+func TestConstValidation(t *testing.T) {
+	testCases := []struct {
+		name           string
+		schemaJSON     string
+		expectedSchema jsonschema.Schema
+	}{
+		{
+			name: "Const string",
+			schemaJSON: `{
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"const": "test"
+			}`,
+			expectedSchema: jsonschema.Schema{
+				Schema: "https://json-schema.org/draft/2020-12/schema",
+				Const: &jsonschema.ConstValue{
+					Value: "test",
+					IsSet: true,
+				},
+			},
+		},
+		{
+			name: "Const number",
+			schemaJSON: `{
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"const": 42
+			}`,
+			expectedSchema: jsonschema.Schema{
+				Schema: "https://json-schema.org/draft/2020-12/schema",
+				Const: &jsonschema.ConstValue{
+					Value: float64(42),
+					IsSet: true,
+				},
+			},
+		},
+		{
+			name: "Const null",
+			schemaJSON: `{
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"const": null
+			}`,
+			expectedSchema: jsonschema.Schema{
+				Schema: "https://json-schema.org/draft/2020-12/schema",
+				Const: &jsonschema.ConstValue{
+					Value: nil,
+					IsSet: true,
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var schema jsonschema.Schema
+			err := json.Unmarshal([]byte(tc.schemaJSON), &schema)
+			require.NoError(t, err, "Unmarshalling failed unexpectedly")
+			assert.Equal(t, tc.expectedSchema.ID, schema.ID)
+			assert.Equal(t, tc.expectedSchema.Schema, schema.Schema)
+			assert.Equal(t, tc.expectedSchema.Const, schema.Const)
+
+			// Now test marshaling back to JSON
+			marshaledJSON, err := json.Marshal(schema)
+			require.NoError(t, err, "Marshalling failed unexpectedly")
+
+			// Unmarshal marshaled JSON to verify it matches the original schema object
+			var reUnmarshaledSchema jsonschema.Schema
+			err = json.Unmarshal(marshaledJSON, &reUnmarshaledSchema)
+			require.NoError(t, err, "Unmarshalling the marshaled JSON failed")
+			assert.Equal(t, schema, reUnmarshaledSchema, "Re-unmarshaled schema does not match the original")
+
+			// Check if the marshaled JSON matches the original JSON input
+			assert.JSONEq(t, tc.schemaJSON, string(marshaledJSON), "The marshaled JSON should match the original input JSON")
 		})
 	}
 }

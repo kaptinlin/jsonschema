@@ -10,8 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bytedance/sonic"
-
+	"github.com/goccy/go-json"
 	"github.com/kaptinlin/jsonschema"
 )
 
@@ -78,7 +77,7 @@ func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusio
 	var testCases []TestCase
 
 	// Unmarshal the JSON into the test cases struct.
-	if err := sonic.Unmarshal(data, &testCases); err != nil {
+	if err := json.Unmarshal(data, &testCases); err != nil {
 		t.Fatalf("Failed to unmarshal test cases: %v", err)
 	}
 
@@ -95,7 +94,7 @@ func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusio
 			}
 
 			// Convert schema data into JSON bytes and compile it into a Schema object.
-			schemaJSON, err := sonic.Marshal(tc.SchemaData)
+			schemaJSON, err := json.Marshal(tc.SchemaData)
 			if err != nil {
 				t.Fatalf("Failed to marshal schema data: %v", err)
 			}

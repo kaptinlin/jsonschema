@@ -15,7 +15,7 @@ import (
 //   - Omitting this keyword implies an empty array behavior, meaning no validation is enforced on the array items.
 //
 // If validation fails, it returns a EvaluationError detailing the index and discrepancy.
-func evaluatePrefixItems(schema *Schema, array []interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluatePrefixItems(schema *Schema, array []interface{}, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if len(schema.PrefixItems) == 0 {
 		return nil, nil // If no prefixItems are defined, there is nothing to validate against.
 	}

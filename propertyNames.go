@@ -16,7 +16,7 @@ import (
 // If a property name does not conform, it returns a EvaluationError detailing the issue with that specific property name.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-propertynames
-func evaluatePropertyNames(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluatePropertyNames(schema *Schema, object map[string]interface{}, _ map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.PropertyNames == nil {
 		// No propertyNames schema defined, equivalent to an empty schema, which means all property names are valid.
 		return nil, nil

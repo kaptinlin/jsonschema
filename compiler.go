@@ -3,16 +3,17 @@ package jsonschema
 import (
 	"context"
 	"encoding/base64"
+
 	"encoding/xml"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/bytedance/sonic"
+	"github.com/goccy/go-json"
 	"github.com/goccy/go-yaml"
 )
 
-// Compiler is a structure that manages schema compilation and validation.
+// Compiler represents a JSON Schema compiler that manages schema compilation and caching.
 type Compiler struct {
 	schemas        map[string]*Schema                                 // Cache of compiled schemas.
 	Decoders       map[string]func(string) ([]byte, error)            // Decoders for various encoding formats.
@@ -20,6 +21,10 @@ type Compiler struct {
 	Loaders        map[string]func(url string) (io.ReadCloser, error) // Functions to load schemas from URLs.
 	DefaultBaseURI string                                             // Base URI used to resolve relative references.
 	AssertFormat   bool                                               // Flag to enforce format validation.
+
+	// JSON encoder/decoder configuration
+	JSONEncoder func(v interface{}) ([]byte, error)
+	JSONDecoder func(data []byte, v interface{}) error
 }
 
 // NewCompiler creates a new Compiler instance and initializes it with default settings.
@@ -31,9 +36,25 @@ func NewCompiler() *Compiler {
 		Loaders:        make(map[string]func(url string) (io.ReadCloser, error)),
 		DefaultBaseURI: "",
 		AssertFormat:   false,
+
+		// Default to standard library JSON implementation
+		JSONEncoder: json.Marshal,
+		JSONDecoder: json.Unmarshal,
 	}
 	compiler.initDefaults()
 	return compiler
+}
+
+// WithEncoderJSON configures custom JSON encoder implementation
+func (c *Compiler) WithEncoderJSON(encoder func(v interface{}) ([]byte, error)) *Compiler {
+	c.JSONEncoder = encoder
+	return c
+}
+
+// WithDecoderJSON configures custom JSON decoder implementation
+func (c *Compiler) WithDecoderJSON(decoder func(data []byte, v interface{}) error) *Compiler {
+	c.JSONDecoder = decoder
+	return c
 }
 
 // Compile compiles a JSON schema and caches it. If an URI is provided, it uses that as the key; otherwise, it generates a hash.
@@ -162,7 +183,7 @@ func (c *Compiler) initDefaults() {
 func (c *Compiler) setupMediaTypes() {
 	c.MediaTypes["application/json"] = func(data []byte) (interface{}, error) {
 		var temp interface{}
-		if err := sonic.Unmarshal(data, &temp); err != nil {
+		if err := json.Unmarshal(data, &temp); err != nil {
 			return nil, ErrJSONUnmarshalError
 		}
 		return temp, nil

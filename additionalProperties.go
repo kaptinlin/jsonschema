@@ -15,7 +15,7 @@ import (
 // This function ensures that all properties not explicitly mentioned or matched are validated according to a default schema or constraints.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-additionalproperties
-func evaluateAdditionalProperties(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateAdditionalProperties(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	results := []*EvaluationResult{}
 	invalid_properties := []string{}
 

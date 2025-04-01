@@ -1,30 +1,14 @@
 package jsonschema
 
 import (
-	"encoding/json"
 	"testing"
 
+	"github.com/goccy/go-json"
 	"github.com/test-go/testify/assert"
 )
 
 // Define the JSON schema
-const schemaJSON = `{
-	"$schema": "https://json-schema.org/draft/2020-12/schema",
-	"$id": "example-schema",
-	"type": "object",
-	"title": "foo object schema",
-	"properties": {
-	  "foo": {
-		"title": "foo's title",
-		"description": "foo's description",
-		"type": "string",
-		"pattern": "^foo ",
-		"minLength": 10
-	  }
-	},
-	"required": [ "foo" ],
-	"additionalProperties": false
-}`
+const schemaJSON = `{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"example-schema","type":"object","title":"foo object schema","properties":{"foo":{"title":"foo's title","description":"foo's description","type":"string","pattern":"^foo ","minLength":10}},"required":["foo"],"additionalProperties":false}`
 
 func TestValidationOutputs(t *testing.T) {
 	compiler := NewCompiler()

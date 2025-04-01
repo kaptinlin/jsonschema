@@ -16,7 +16,7 @@ import (
 // If a property does not conform, it returns a EvaluationError detailing the issue with that property.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-properties
-func evaluateProperties(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateProperties(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.Properties == nil {
 		return nil, nil // No properties defined, nothing to do.
 	}

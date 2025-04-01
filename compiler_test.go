@@ -1,7 +1,11 @@
 package jsonschema
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 	"testing"
 )
 
@@ -158,6 +162,83 @@ func TestResolveReferencesCorrectly(t *testing.T) {
 	}
 }
 
+func TestSetDefaultBaseURI(t *testing.T) {
+	compiler := NewCompiler()
+	baseURI := "http://example.com/schemas/"
+	compiler.SetDefaultBaseURI(baseURI)
+
+	schemaJSON := createTestSchemaJSON("schema", map[string]string{"name": "string"}, []string{"name"})
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("Failed to compile schema: %s", err)
+	}
+
+	expectedURI := baseURI + "schema"
+	if schema.uri != expectedURI {
+		t.Errorf("Expected schema URI to be '%s', got '%s'", expectedURI, schema.uri)
+	}
+}
+
+func TestSetAssertFormat(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.SetAssertFormat(true)
+
+	schemaJSON := `{
+		"type": "string",
+		"format": "email"
+	}`
+
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	if err != nil {
+		t.Fatalf("Failed to compile schema: %s", err)
+	}
+
+	if !compiler.AssertFormat {
+		t.Error("Expected AssertFormat to be true")
+	}
+
+	result := schema.Validate("not-an-email")
+	if result.IsValid() {
+		t.Error("Expected validation to fail for invalid email format")
+	}
+}
+
+func TestRegisterDecoder(t *testing.T) {
+	compiler := NewCompiler()
+	testDecoder := func(data string) ([]byte, error) {
+		return []byte(strings.ToUpper(data)), nil
+	}
+	compiler.RegisterDecoder("test", testDecoder)
+
+	if _, exists := compiler.Decoders["test"]; !exists {
+		t.Error("Expected decoder to be registered")
+	}
+}
+
+func TestRegisterMediaType(t *testing.T) {
+	compiler := NewCompiler()
+	testUnmarshaler := func(data []byte) (interface{}, error) {
+		return string(data), nil
+	}
+	compiler.RegisterMediaType("test/type", testUnmarshaler)
+
+	if _, exists := compiler.MediaTypes["test/type"]; !exists {
+		t.Error("Expected media type handler to be registered")
+	}
+}
+
+func TestRegisterLoader(t *testing.T) {
+	compiler := NewCompiler()
+	testLoader := func(url string) (io.ReadCloser, error) {
+		return io.NopCloser(strings.NewReader(`{"type": "string"}`)), nil
+	}
+	compiler.RegisterLoader("test", testLoader)
+
+	if _, exists := compiler.Loaders["test"]; !exists {
+		t.Error("Expected loader to be registered")
+	}
+}
+
 // createTestSchemaJSON simplifies creating JSON schema strings for testing.
 func createTestSchemaJSON(id string, properties map[string]string, required []string) string {
 	propsStr := ""
@@ -183,4 +264,68 @@ func createTestSchemaJSON(id string, properties map[string]string, required []st
 		"properties": {%s},
 		"required": %s
 	}`, id, propsStr, reqStr)
+}
+
+// TestWithEncoderJSON tests the WithEncoderJSON method of the Compiler struct.
+func TestWithEncoderJSON(t *testing.T) {
+	compiler := NewCompiler()
+
+	// Custom JSON encoder
+	customEncoder := func(v interface{}) ([]byte, error) {
+		// Add an encoder with a custom prefix
+		defaultBytes, err := json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		return append([]byte("custom:"), defaultBytes...), nil
+	}
+
+	// Set the custom encoder
+	compiler.WithEncoderJSON(customEncoder)
+
+	// Test data
+	testData := map[string]string{"test": "value"}
+
+	// Use the custom encoder to encode
+	encoded, err := compiler.JSONEncoder(testData)
+	if err != nil {
+		t.Fatalf("Failed to encode: %v", err)
+	}
+
+	// Verify the result
+	if !strings.HasPrefix(string(encoded), "custom:") {
+		t.Errorf("Expected encoded result to start with 'custom:', got: %s", string(encoded))
+	}
+}
+
+func TestWithDecoderJSON(t *testing.T) {
+	compiler := NewCompiler()
+
+	// Custom JSON decoder
+	customDecoder := func(data []byte, v interface{}) error {
+		// Remove the custom prefix
+		if bytes.HasPrefix(data, []byte("custom:")) {
+			data = bytes.TrimPrefix(data, []byte("custom:"))
+		}
+		return json.Unmarshal(data, v)
+	}
+
+	// Set the custom decoder
+	compiler.WithDecoderJSON(customDecoder)
+
+	// Test data
+	inputJSON := []byte(`custom:{"test":"value"}`)
+	var result map[string]string
+
+	// Use the custom decoder to decode
+	err := compiler.JSONDecoder(inputJSON, &result)
+	if err != nil {
+		t.Fatalf("Failed to decode: %v", err)
+	}
+
+	// Verify the result
+	expectedValue := "value"
+	if result["test"] != expectedValue {
+		t.Errorf("Expected decoded result to be %s, got: %s", expectedValue, result["test"])
+	}
 }

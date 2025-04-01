@@ -14,16 +14,47 @@ import (
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-const
 func evaluateConst(schema *Schema, instance interface{}) *EvaluationError {
-	if schema.Const == nil {
+	if schema.Const == nil || !schema.Const.IsSet {
 		return nil
 	}
 
+	// Special handling for null value comparison
 	if schema.Const.Value == nil {
 		if instance != nil {
-			return NewEvaluationError("const", "const_mismatch_null", "Value does not match constant null value")
+			return NewEvaluationError("const", "const_mismatch_null", "Value should be null")
 		}
+		return nil
 	}
 
+	// Handle numeric type comparisons
+	switch constVal := schema.Const.Value.(type) {
+	case float64:
+		switch instVal := instance.(type) {
+		case float64:
+			if constVal == instVal {
+				return nil
+			}
+		case int:
+			if constVal == float64(instVal) {
+				return nil
+			}
+		}
+		return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value")
+	case int:
+		switch instVal := instance.(type) {
+		case float64:
+			if float64(constVal) == instVal {
+				return nil
+			}
+		case int:
+			if constVal == instVal {
+				return nil
+			}
+		}
+		return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value")
+	}
+
+	// Use deep comparison for other types
 	if !reflect.DeepEqual(instance, schema.Const.Value) {
 		return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value")
 	}

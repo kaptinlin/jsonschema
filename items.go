@@ -17,7 +17,7 @@ import (
 // If any array element does not conform, it returns a EvaluationError detailing the issue.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-items
-func evaluateItems(schema *Schema, array []interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateItems(schema *Schema, array []interface{}, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.Items == nil {
 		return nil, nil // // No 'items' constraints to validate against
 	}

@@ -15,7 +15,7 @@ import "fmt"
 // This function provides detailed feedback on element validation and gathers comprehensive annotations.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-contains
-func evaluateContains(schema *Schema, data []interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateContains(schema *Schema, data []interface{}, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.Contains == nil {
 		// No 'contains' constraint is defined, skip further checks.
 		return nil, nil

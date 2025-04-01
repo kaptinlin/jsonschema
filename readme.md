@@ -19,7 +19,7 @@ This library provides robust JSON Schema validation for Go applications, designe
 - **Passed All JSON Schema Test Suite Cases**: Successfully passes all the [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite) cases for Draft 2020-12, except those involving vocabulary.
 - **Internationalization Support**: Includes capabilities for internationalized validation messages. Supports multiple languages including English (en), German (de-DE), Spanish (es-ES), French (fr-FR), Japanese (ja-JP), Korean (ko-KR), Portuguese (pt-BR), Simplified Chinese (zh-Hans), and Traditional Chinese (zh-Hant).
 - **Enhanced Validation Output**: Implements [enhanced output](https://json-schema.org/blog/posts/fixing-json-schema-output) for validation errors as proposed in recent JSON Schema updates.
-- **Performance Enhancement**: Uses [github.com/bytedance/sonic](https://github.com/bytedance/sonic) instead of `encoding/json` to improve performance.
+- **Flexible JSON Encoding/Decoding**: Uses standard library `github.com/goccy/go-json` by default, with the ability to configure any custom JSON encoder/decoder, including high-performance options like [github.com/bytedance/sonic](https://github.com/bytedance/sonic).
 
 ## Installation
 
@@ -35,8 +35,10 @@ Here is a simple example to demonstrate compiling a schema and validating an ins
 
 ```go
 import (
+    "fmt"
+    "log"
+    "github.com/goccy/go-json"
     "github.com/kaptinlin/jsonschema"
-    "github.com/bytedance/sonic"
 )
 
 func main() {
@@ -95,6 +97,23 @@ This example will output the following:
     }
   ]
 }
+```
+
+## Custom JSON Encoder/Decoder
+
+By default, this library uses Go's standard `github.com/goccy/go-json` package. However, you can configure custom JSON encoder/decoder implementations for better performance or specialized functionality:
+
+```go
+// Using bytedance/sonic for high performance
+import (
+    "github.com/bytedance/sonic"
+    "github.com/kaptinlin/jsonschema"
+)
+
+compiler := jsonschema.NewCompiler()
+
+compiler.WithEncoderJSON(sonic.Marshal)
+compiler.WithDecoderJSON(sonic.Unmarshal)
 ```
 
 ## Output Formats

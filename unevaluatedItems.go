@@ -19,43 +19,75 @@ import (
 // If an unevaluated array element does not conform, it returns a EvaluationError detailing the issue.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-unevaluateditems
-func evaluateUnevaluatedItems(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateUnevaluatedItems(schema *Schema, data interface{}, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	items, ok := data.([]interface{})
 	if !ok {
 		return nil, nil // If data is not an array, then skip the array-specific validations.
 	}
 
-	invalid_indexs := []string{}
-	results := []*EvaluationResult{}
+	// If UnevaluatedItems is not set, all items are considered evaluated
+	if schema.UnevaluatedItems == nil {
+		return nil, nil
+	}
 
-	if schema.UnevaluatedItems != nil {
-		// Evaluate un-evaluated items against the schema.
-		for i, item := range items {
-			if _, evaluated := evaluatedItems[i]; !evaluated {
-				result, _, _ := schema.UnevaluatedItems.evaluate(item, dynamicScope)
-				if result != nil {
-					//nolint:errcheck
-					result.SetEvaluationPath(fmt.Sprintf("/unevaluatedItems/%d", i)).
-						SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/unevaluatedItems/%d", i))).
-						SetInstanceLocation(fmt.Sprintf("/%d", i))
-
-					if !result.IsValid() {
-						invalid_indexs = append(invalid_indexs, strconv.Itoa(i))
-					}
-				}
-
+	// If UnevaluatedItems is a boolean type
+	if schema.UnevaluatedItems.Boolean != nil {
+		if *schema.UnevaluatedItems.Boolean {
+			// If true, all unevaluated items are valid
+			for i := range items {
 				evaluatedItems[i] = true
+			}
+			return nil, nil
+		}
+		// If false, any unevaluated item is invalid
+		var unevaluatedIndexes []string
+		for i := range items {
+			if _, evaluated := evaluatedItems[i]; !evaluated {
+				unevaluatedIndexes = append(unevaluatedIndexes, strconv.Itoa(i))
+			}
+		}
+		if len(unevaluatedIndexes) > 0 {
+			return nil, NewEvaluationError("unevaluatedItems", "unevaluated_items_not_allowed", "Unevaluated items are not allowed at indexes: {indexes}", map[string]interface{}{
+				"indexes": strings.Join(unevaluatedIndexes, ", "),
+			})
+		}
+		return nil, nil
+	}
+
+	results := []*EvaluationResult{}
+	invalid_indexes := []string{}
+
+	// Evaluate unevaluated items
+	for i, item := range items {
+		if _, evaluated := evaluatedItems[i]; !evaluated {
+			result, _, evaluatedMap := schema.UnevaluatedItems.evaluate(item, dynamicScope)
+			if result != nil {
+				//nolint:errcheck
+				result.SetEvaluationPath(fmt.Sprintf("/unevaluatedItems/%d", i)).
+					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/unevaluatedItems/%d", i))).
+					SetInstanceLocation(fmt.Sprintf("/%d", i))
+
+				results = append(results, result)
+				if result.IsValid() {
+					evaluatedItems[i] = true
+				} else {
+					invalid_indexes = append(invalid_indexes, strconv.Itoa(i))
+				}
+			}
+			// Merge evaluation states
+			for k, v := range evaluatedMap {
+				evaluatedItems[k] = v
 			}
 		}
 	}
 
-	if len(invalid_indexs) == 1 {
+	if len(invalid_indexes) == 1 {
 		return results, NewEvaluationError("unevaluatedItems", "unevaluated_item_mismatch", "Item at index {index} does not match the unevaluatedItems schema", map[string]interface{}{
-			"index": invalid_indexs[0],
+			"index": invalid_indexes[0],
 		})
-	} else if len(invalid_indexs) > 1 {
-		return results, NewEvaluationError("unevaluatedItems", "unevaluated_items_mismatch", "Items at index {indexs} do not match the unevaluatedItems schema", map[string]interface{}{
-			"indexs": strings.Join(invalid_indexs, ", "),
+	} else if len(invalid_indexes) > 1 {
+		return results, NewEvaluationError("unevaluatedItems", "unevaluated_items_mismatch", "Items at indexes {indexes} do not match the unevaluatedItems schema", map[string]interface{}{
+			"indexes": strings.Join(invalid_indexes, ", "),
 		})
 	}
 
