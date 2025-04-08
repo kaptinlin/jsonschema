@@ -287,7 +287,7 @@ func TestWithEncoderJSON(t *testing.T) {
 	testData := map[string]string{"test": "value"}
 
 	// Use the custom encoder to encode
-	encoded, err := compiler.JSONEncoder(testData)
+	encoded, err := compiler.jsonEncoder(testData)
 	if err != nil {
 		t.Fatalf("Failed to encode: %v", err)
 	}
@@ -318,7 +318,7 @@ func TestWithDecoderJSON(t *testing.T) {
 	var result map[string]string
 
 	// Use the custom decoder to decode
-	err := compiler.JSONDecoder(inputJSON, &result)
+	err := compiler.jsonDecoder(inputJSON, &result)
 	if err != nil {
 		t.Fatalf("Failed to decode: %v", err)
 	}

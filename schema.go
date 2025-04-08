@@ -353,12 +353,14 @@ func (s *Schema) getParentBaseURI() string {
 	return ""
 }
 
-// MarshalJSON handles marshaling the Schema type to JSON.
+// MarshalJSON implements json.Marshaler
 func (s *Schema) MarshalJSON() ([]byte, error) {
-	type Alias Schema
-	if s.compiler != nil && s.compiler.JSONEncoder != nil {
-		return s.compiler.JSONEncoder((*Alias)(s))
+	if s.Boolean != nil {
+		return json.Marshal(s.Boolean)
 	}
+
+	// Marshal as a normal struct
+	type Alias Schema
 	return json.Marshal((*Alias)(s))
 }
 

@@ -23,8 +23,8 @@ type Compiler struct {
 	AssertFormat   bool                                               // Flag to enforce format validation.
 
 	// JSON encoder/decoder configuration
-	JSONEncoder func(v interface{}) ([]byte, error)
-	JSONDecoder func(data []byte, v interface{}) error
+	jsonEncoder func(v interface{}) ([]byte, error)
+	jsonDecoder func(data []byte, v interface{}) error
 }
 
 // NewCompiler creates a new Compiler instance and initializes it with default settings.
@@ -38,8 +38,8 @@ func NewCompiler() *Compiler {
 		AssertFormat:   false,
 
 		// Default to standard library JSON implementation
-		JSONEncoder: json.Marshal,
-		JSONDecoder: json.Unmarshal,
+		jsonEncoder: json.Marshal,
+		jsonDecoder: json.Unmarshal,
 	}
 	compiler.initDefaults()
 	return compiler
@@ -47,13 +47,13 @@ func NewCompiler() *Compiler {
 
 // WithEncoderJSON configures custom JSON encoder implementation
 func (c *Compiler) WithEncoderJSON(encoder func(v interface{}) ([]byte, error)) *Compiler {
-	c.JSONEncoder = encoder
+	c.jsonEncoder = encoder
 	return c
 }
 
 // WithDecoderJSON configures custom JSON decoder implementation
 func (c *Compiler) WithDecoderJSON(decoder func(data []byte, v interface{}) error) *Compiler {
-	c.JSONDecoder = decoder
+	c.jsonDecoder = decoder
 	return c
 }
 
@@ -183,7 +183,7 @@ func (c *Compiler) initDefaults() {
 func (c *Compiler) setupMediaTypes() {
 	c.MediaTypes["application/json"] = func(data []byte) (interface{}, error) {
 		var temp interface{}
-		if err := json.Unmarshal(data, &temp); err != nil {
+		if err := c.jsonDecoder(data, &temp); err != nil {
 			return nil, ErrJSONUnmarshalError
 		}
 		return temp, nil
