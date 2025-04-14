@@ -9,14 +9,15 @@ import (
 // Schema represents a JSON Schema as per the 2020-12 draft, containing all
 // necessary metadata and validation properties defined by the specification.
 type Schema struct {
-	compiledPatterns map[string]*regexp.Regexp // Cached compiled regular expressions for pattern properties.
-	compiler         *Compiler                 // Reference to the associated Compiler instance.
-	parent           *Schema                   // Parent schema for hierarchical resolution.
-	uri              string                    // Internal schema identifier resolved during compilation.
-	baseURI          string                    // Base URI for resolving relative references within the schema.
-	anchors          map[string]*Schema        // Anchors for quick lookup of internal schema references.
-	dynamicAnchors   map[string]*Schema        // Dynamic anchors for more flexible schema references.
-	schemas          map[string]*Schema        // Cache of compiled schemas.
+	compiledPatterns      map[string]*regexp.Regexp // Cached compiled regular expressions for pattern properties.
+	compiler              *Compiler                 // Reference to the associated Compiler instance.
+	parent                *Schema                   // Parent schema for hierarchical resolution.
+	uri                   string                    // Internal schema identifier resolved during compilation.
+	baseURI               string                    // Base URI for resolving relative references within the schema.
+	anchors               map[string]*Schema        // Anchors for quick lookup of internal schema references.
+	dynamicAnchors        map[string]*Schema        // Dynamic anchors for more flexible schema references.
+	schemas               map[string]*Schema        // Cache of compiled schemas.
+	compiledStringPattern *regexp.Regexp            // Cached compiled regular expressions for string patterns.
 
 	ID     string  `json:"$id,omitempty"`     // Public identifier for the schema.
 	Schema string  `json:"$schema,omitempty"` // URI indicating the specification the schema conforms to.
