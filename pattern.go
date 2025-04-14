@@ -14,8 +14,8 @@ import "regexp"
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-pattern
 func evaluatePattern(schema *Schema, instance string) *EvaluationError {
 	if schema.Pattern != nil {
-		// Compile the regular expression from the pattern.
-		regExp, err := regexp.Compile(*schema.Pattern)
+		// Gets a compiled regular expression, or compiles and caches it if not already present.
+		regExp, err := getCompiledPattern(schema)
 		if err != nil {
 			// Handle regular expression compilation errors.
 			return NewEvaluationError("pattern", "invalid_pattern", "Invalid regular expression pattern {pattern}", map[string]interface{}{
@@ -33,4 +33,16 @@ func evaluatePattern(schema *Schema, instance string) *EvaluationError {
 		}
 	}
 	return nil
+}
+
+func getCompiledPattern(schema *Schema) (*regexp.Regexp, error) {
+	if schema.compiledStringPattern == nil {
+		regExp, err := regexp.Compile(*schema.Pattern)
+		if err != nil {
+			return nil, err
+		}
+		schema.compiledStringPattern = regExp
+	}
+
+	return schema.compiledStringPattern, nil
 }
