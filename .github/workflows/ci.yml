@@ -44,7 +44,7 @@ jobs:
         id: golangci-version
         run: echo "GOLANGCI_VERSION=$(cat .golangci.version)" > $GITHUB_OUTPUT
 
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v8
         name: Install and run golangci-lint
         with:
           version: v${{ steps.golangci-version.outputs.GOLANGCI_VERSION }}
