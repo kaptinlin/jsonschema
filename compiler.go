@@ -3,6 +3,7 @@ package jsonschema
 import (
 	"context"
 	"encoding/base64"
+	"sync"
 
 	"encoding/xml"
 	"io"
@@ -15,6 +16,7 @@ import (
 
 // Compiler represents a JSON Schema compiler that manages schema compilation and caching.
 type Compiler struct {
+	mu             sync.RWMutex                                       // Protects concurrent access to schemas map
 	schemas        map[string]*Schema                                 // Cache of compiled schemas.
 	Decoders       map[string]func(string) ([]byte, error)            // Decoders for various encoding formats.
 	MediaTypes     map[string]func([]byte) (interface{}, error)       // Media type handlers for unmarshalling data.
@@ -72,7 +74,11 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 	if uri != "" && isValidURI(uri) {
 		schema.uri = uri
 
-		if existingSchema, exists := c.schemas[uri]; exists {
+		c.mu.RLock()
+		existingSchema, exists := c.schemas[uri]
+		c.mu.RUnlock()
+
+		if exists {
 			return existingSchema, nil
 		}
 	}
@@ -89,7 +95,12 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 // resolveSchemaURL attempts to fetch and compile a schema from a URL.
 func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
 	id, anchor := splitRef(url)
-	if schema, exists := c.schemas[id]; exists {
+
+	c.mu.RLock()
+	schema, exists := c.schemas[id]
+	c.mu.RUnlock()
+
+	if exists {
 		return schema, nil // Return cached schema if available
 	}
 
@@ -109,22 +120,24 @@ func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
 		return nil, ErrFailedToReadData
 	}
 
-	schema, err := c.Compile(data, id)
+	compiledSchema, err := c.Compile(data, id)
 
 	if err != nil {
 		return nil, err
 	}
 
 	if anchor != "" {
-		return schema.resolveAnchor(anchor)
+		return compiledSchema.resolveAnchor(anchor)
 	}
 
-	return schema, nil
+	return compiledSchema, nil
 }
 
 // SetSchema associates a specific schema with a URI.
 func (c *Compiler) SetSchema(uri string, schema *Schema) *Compiler {
+	c.mu.Lock()
 	c.schemas[uri] = schema
+	c.mu.Unlock()
 	return c
 }
 
@@ -132,7 +145,11 @@ func (c *Compiler) SetSchema(uri string, schema *Schema) *Compiler {
 func (c *Compiler) GetSchema(ref string) (*Schema, error) {
 	baseURI, anchor := splitRef(ref)
 
-	if schema, exists := c.schemas[baseURI]; exists {
+	c.mu.RLock()
+	schema, exists := c.schemas[baseURI]
+	c.mu.RUnlock()
+
+	if exists {
 		if baseURI == ref {
 			return schema, nil
 		}
