@@ -3,7 +3,7 @@ package jsonschema
 import (
 	"testing"
 
-	"github.com/test-go/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetRootSchema(t *testing.T) {

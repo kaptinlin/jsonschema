@@ -7,6 +7,9 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -18,31 +21,21 @@ func TestCompileWithID(t *testing.T) {
 	schemaJSON := createTestSchemaJSON("http://example.com/schema", map[string]string{"name": "string"}, []string{"name"})
 
 	schema, err := compiler.Compile([]byte(schemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to compile schema with $id: %s", err)
-	}
+	require.NoError(t, err, "Failed to compile schema with $id")
 
-	if schema.ID != "http://example.com/schema" {
-		t.Errorf("Expected $id to be 'http://example.com/schema', got '%s'", schema.ID)
-	}
+	assert.Equal(t, "http://example.com/schema", schema.ID, "Expected $id to be 'http://example.com/schema'")
 }
 
 func TestGetSchema(t *testing.T) {
 	compiler := NewCompiler()
 	schemaJSON := createTestSchemaJSON("http://example.com/schema", map[string]string{"name": "string"}, []string{"name"})
 	_, err := compiler.Compile([]byte(schemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to compile schema: %s", err)
-	}
+	require.NoError(t, err, "Failed to compile schema")
 
 	schema, err := compiler.GetSchema("http://example.com/schema")
-	if err != nil {
-		t.Fatalf("Failed to retrieve compiled schema: %s", err)
-	}
+	require.NoError(t, err, "Failed to retrieve compiled schema")
 
-	if schema.ID != "http://example.com/schema" {
-		t.Errorf("Expected to retrieve schema with $id 'http://example.com/schema', got '%s'", schema.ID)
-	}
+	assert.Equal(t, "http://example.com/schema", schema.ID, "Expected to retrieve schema with $id 'http://example.com/schema'")
 }
 
 func TestValidateRemoteSchema(t *testing.T) {
@@ -50,39 +43,27 @@ func TestValidateRemoteSchema(t *testing.T) {
 
 	// Load the meta-schema
 	metaSchema, err := compiler.GetSchema(remoteSchemaURL)
-	if err != nil {
-		t.Fatalf("Failed to load meta-schema: %v", err)
-	}
+	require.NoError(t, err, "Failed to load meta-schema")
 
 	// Ensure that the schema is not nil
-	if metaSchema == nil {
-		t.Fatal("Meta-schema is nil")
-	}
+	require.NotNil(t, metaSchema, "Meta-schema is nil")
 
 	// Verify the ID of the retrieved schema
 	expectedID := remoteSchemaURL
-	if metaSchema.ID != expectedID {
-		t.Errorf("Expected schema with ID %s, got %s", expectedID, metaSchema.ID)
-	}
+	assert.Equal(t, expectedID, metaSchema.ID, "Expected schema with ID %s", expectedID)
 }
 
 func TestCompileCache(t *testing.T) {
 	compiler := NewCompiler()
 	schemaJSON := createTestSchemaJSON("http://example.com/schema", map[string]string{"name": "string"}, []string{"name"})
 	_, err := compiler.Compile([]byte(schemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to compile schema: %s", err)
-	}
+	require.NoError(t, err, "Failed to compile schema")
 
 	// Attempt to compile the same schema again
 	_, err = compiler.Compile([]byte(schemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to compile schema a second time: %s", err)
-	}
+	require.NoError(t, err, "Failed to compile schema a second time")
 
-	if len(compiler.schemas) != 1 {
-		t.Errorf("Schema should be compiled once and cached, found %d entries in cache", len(compiler.schemas))
-	}
+	assert.Len(t, compiler.schemas, 1, "Schema should be compiled once and cached")
 }
 
 func TestResolveReferences(t *testing.T) {
@@ -90,9 +71,7 @@ func TestResolveReferences(t *testing.T) {
 	// Assuming this schema is already compiled and cached
 	baseSchemaJSON := createTestSchemaJSON("http://example.com/base", map[string]string{"age": "integer"}, nil)
 	_, err := compiler.Compile([]byte(baseSchemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to compile base schema: %s", err)
-	}
+	require.NoError(t, err, "Failed to compile base schema")
 
 	refSchemaJSON := `{
 		"$id": "http://example.com/ref",
@@ -103,9 +82,7 @@ func TestResolveReferences(t *testing.T) {
 	}`
 
 	_, err = compiler.Compile([]byte(refSchemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to resolve reference: %s", err)
-	}
+	require.NoError(t, err, "Failed to resolve reference")
 }
 
 func TestResolveReferencesCorrectly(t *testing.T) {
@@ -121,15 +98,12 @@ func TestResolveReferencesCorrectly(t *testing.T) {
         "required": ["age"]
     }`
 	baseSchema, err := compiler.Compile([]byte(baseSchemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to compile base schema: %s", err)
-	}
+	require.NoError(t, err, "Failed to compile base schema")
 
 	// Print base schema ID and check if cached correctly
 	cachedBaseSchema, cacheErr := compiler.GetSchema("http://example.com/base")
-	if cacheErr != nil || cachedBaseSchema == nil {
-		t.Fatalf("Base schema not cached correctly or cache retrieval failed: %s", cacheErr)
-	}
+	require.NoError(t, cacheErr, "Base schema cache retrieval failed")
+	require.NotNil(t, cachedBaseSchema, "Base schema not cached correctly")
 
 	// Compile another schema that references the base schema.
 	refSchemaJSON := `{
@@ -141,25 +115,18 @@ func TestResolveReferencesCorrectly(t *testing.T) {
     }`
 
 	refSchema, err := compiler.Compile([]byte(refSchemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to compile schema with $ref: %s", err)
-	}
+	require.NoError(t, err, "Failed to compile schema with $ref")
 
 	// Verify that the $ref in refSchema is correctly resolved to the base schema.
-	if refSchema.Properties == nil {
-		t.Fatal("Properties map should not be nil")
-	}
+	require.NotNil(t, refSchema.Properties, "Properties map should not be nil")
+
 	userInfoProp, exists := (*refSchema.Properties)["userInfo"]
-	if !exists || userInfoProp == nil {
-		t.Fatalf("userInfo property should exist and have a non-nil Schema")
-	}
+	require.True(t, exists, "userInfo property should exist")
+	require.NotNil(t, userInfoProp, "userInfo property should have a non-nil Schema")
 
 	// Assert that ResolvedRef is not nil and correctly points to the base schema
-	if userInfoProp.ResolvedRef == nil {
-		t.Fatalf("ResolvedRef for userInfo should not be nil, got nil instead")
-	} else if userInfoProp.ResolvedRef != baseSchema {
-		t.Fatalf("ResolvedRef for userInfo does not match the base schema")
-	}
+	require.NotNil(t, userInfoProp.ResolvedRef, "ResolvedRef for userInfo should not be nil")
+	assert.Same(t, baseSchema, userInfoProp.ResolvedRef, "ResolvedRef for userInfo does not match the base schema")
 }
 
 func TestSetDefaultBaseURI(t *testing.T) {
@@ -169,14 +136,10 @@ func TestSetDefaultBaseURI(t *testing.T) {
 
 	schemaJSON := createTestSchemaJSON("schema", map[string]string{"name": "string"}, []string{"name"})
 	schema, err := compiler.Compile([]byte(schemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to compile schema: %s", err)
-	}
+	require.NoError(t, err, "Failed to compile schema")
 
 	expectedURI := baseURI + "schema"
-	if schema.uri != expectedURI {
-		t.Errorf("Expected schema URI to be '%s', got '%s'", expectedURI, schema.uri)
-	}
+	assert.Equal(t, expectedURI, schema.uri, "Expected schema URI to be '%s'", expectedURI)
 }
 
 func TestSetAssertFormat(t *testing.T) {
@@ -189,18 +152,12 @@ func TestSetAssertFormat(t *testing.T) {
 	}`
 
 	schema, err := compiler.Compile([]byte(schemaJSON))
-	if err != nil {
-		t.Fatalf("Failed to compile schema: %s", err)
-	}
+	require.NoError(t, err, "Failed to compile schema")
 
-	if !compiler.AssertFormat {
-		t.Error("Expected AssertFormat to be true")
-	}
+	assert.True(t, compiler.AssertFormat, "Expected AssertFormat to be true")
 
 	result := schema.Validate("not-an-email")
-	if result.IsValid() {
-		t.Error("Expected validation to fail for invalid email format")
-	}
+	assert.False(t, result.IsValid(), "Expected validation to fail for invalid email format")
 }
 
 func TestRegisterDecoder(t *testing.T) {
@@ -210,9 +167,8 @@ func TestRegisterDecoder(t *testing.T) {
 	}
 	compiler.RegisterDecoder("test", testDecoder)
 
-	if _, exists := compiler.Decoders["test"]; !exists {
-		t.Error("Expected decoder to be registered")
-	}
+	_, exists := compiler.Decoders["test"]
+	assert.True(t, exists, "Expected decoder to be registered")
 }
 
 func TestRegisterMediaType(t *testing.T) {
@@ -222,9 +178,8 @@ func TestRegisterMediaType(t *testing.T) {
 	}
 	compiler.RegisterMediaType("test/type", testUnmarshaler)
 
-	if _, exists := compiler.MediaTypes["test/type"]; !exists {
-		t.Error("Expected media type handler to be registered")
-	}
+	_, exists := compiler.MediaTypes["test/type"]
+	assert.True(t, exists, "Expected media type handler to be registered")
 }
 
 func TestRegisterLoader(t *testing.T) {
@@ -234,9 +189,8 @@ func TestRegisterLoader(t *testing.T) {
 	}
 	compiler.RegisterLoader("test", testLoader)
 
-	if _, exists := compiler.Loaders["test"]; !exists {
-		t.Error("Expected loader to be registered")
-	}
+	_, exists := compiler.Loaders["test"]
+	assert.True(t, exists, "Expected loader to be registered")
 }
 
 // createTestSchemaJSON simplifies creating JSON schema strings for testing.
@@ -288,14 +242,10 @@ func TestWithEncoderJSON(t *testing.T) {
 
 	// Use the custom encoder to encode
 	encoded, err := compiler.jsonEncoder(testData)
-	if err != nil {
-		t.Fatalf("Failed to encode: %v", err)
-	}
+	require.NoError(t, err, "Failed to encode")
 
 	// Verify the result
-	if !strings.HasPrefix(string(encoded), "custom:") {
-		t.Errorf("Expected encoded result to start with 'custom:', got: %s", string(encoded))
-	}
+	assert.True(t, strings.HasPrefix(string(encoded), "custom:"), "Expected encoded result to start with 'custom:', got: %s", string(encoded))
 }
 
 func TestWithDecoderJSON(t *testing.T) {
@@ -319,13 +269,9 @@ func TestWithDecoderJSON(t *testing.T) {
 
 	// Use the custom decoder to decode
 	err := compiler.jsonDecoder(inputJSON, &result)
-	if err != nil {
-		t.Fatalf("Failed to decode: %v", err)
-	}
+	require.NoError(t, err, "Failed to decode")
 
 	// Verify the result
 	expectedValue := "value"
-	if result["test"] != expectedValue {
-		t.Errorf("Expected decoded result to be %s, got: %s", expectedValue, result["test"])
-	}
+	assert.Equal(t, expectedValue, result["test"], "Expected decoded result to be %s", expectedValue)
 }

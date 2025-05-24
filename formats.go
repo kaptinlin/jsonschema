@@ -197,10 +197,7 @@ func IsDuration(v interface{}) bool {
 	parseUnits := func() (units string, ok bool) {
 		for len(s) > 0 && s[0] != 'T' {
 			digits := false
-			for {
-				if len(s) == 0 {
-					break
-				}
+			for len(s) != 0 {
 				if s[0] < '0' || s[0] > '9' {
 					break
 				}

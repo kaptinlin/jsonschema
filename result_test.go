@@ -3,8 +3,9 @@ package jsonschema
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/goccy/go-json"
-	"github.com/test-go/testify/assert"
 )
 
 // Define the JSON schema

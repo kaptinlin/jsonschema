@@ -4,10 +4,11 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/goccy/go-json"
 	"github.com/kaptinlin/jsonschema"
-	"github.com/test-go/testify/assert"
-	"github.com/test-go/testify/require"
 )
 
 // TestConstForTestSuite executes the const validation tests for Schema Test Suite.

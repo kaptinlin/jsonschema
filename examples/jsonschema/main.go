@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/goccy/go-json"
 	"log"
+
+	"github.com/goccy/go-json"
 
 	"github.com/kaptinlin/jsonschema"
 )
