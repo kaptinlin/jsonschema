@@ -1,5 +1,9 @@
 package jsonschema
 
+import (
+	"reflect"
+)
+
 // Evaluate checks if the given instance conforms to the schema.
 func (s *Schema) Validate(instance interface{}) *EvaluationResult {
 	dynamicScope := NewDynamicScope()
@@ -316,12 +320,39 @@ func (s *Schema) evaluateBoolean(instance interface{}, evaluatedProps map[string
 
 // evaluateObject groups the validation of all object-specific keywords.
 func evaluateObject(schema *Schema, data interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
-	object, ok := data.(map[string]interface{})
-	if !ok {
-		// If data is not an object, then skip the object-specific validations.
-		return nil, nil
+	// Fast path: direct map[string]interface{} type
+	if object, ok := data.(map[string]interface{}); ok {
+		return evaluateObjectMap(schema, object, evaluatedProps, evaluatedItems, dynamicScope)
 	}
 
+	// Reflection path: handle structs and other object types
+	rv := reflect.ValueOf(data)
+	for rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return nil, nil
+		}
+		rv = rv.Elem()
+	}
+
+	switch rv.Kind() {
+	case reflect.Struct:
+		return evaluateObjectStruct(schema, rv, evaluatedProps, evaluatedItems, dynamicScope)
+	case reflect.Map:
+		if rv.Type().Key().Kind() == reflect.String {
+			return evaluateObjectReflectMap(schema, rv, evaluatedProps, evaluatedItems, dynamicScope)
+		}
+	case reflect.Invalid, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128, reflect.Array,
+		reflect.Chan, reflect.Func, reflect.Interface, reflect.Ptr, reflect.Slice, reflect.String, reflect.UnsafePointer:
+		// These types don't represent objects in JSON schema context
+	}
+
+	return nil, nil
+}
+
+// evaluateObjectMap handles validation for map[string]interface{} (original implementation)
+func evaluateObjectMap(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
 	results := []*EvaluationResult{}
 	errors := []*EvaluationError{}
 
