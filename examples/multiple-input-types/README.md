@@ -1,31 +1,30 @@
 # Multiple Input Types Example
 
-This example shows how the JSON Schema validator handles different types of input data and how to use the `Unmarshal` functionality to apply default values.
+Shows how to validate different input types with the same schema.
 
-## Features
+## What it shows
 
-### 1. Input Type Validation
-The validator supports the following input types:
-- **JSON Bytes** (`[]byte`) - Standard JSON byte array
-- **Go Struct** - Go structure validation
-- **Map Data** - `map[string]interface{}` validation
-- **JSON String** - JSON strings converted to `[]byte`
+- Validate JSON bytes, structs, and maps
+- Auto-detection with `Validate()` method
+- Type-specific methods: `ValidateJSON()`, `ValidateStruct()`, `ValidateMap()`
 
-### 2. Unmarshal with Defaults
-The `Unmarshal` method provides:
-- Data validation
-- Default value application from schema
-- Unmarshaling to Go structures
-
-### 3. Best Practices
-Usage guidelines:
-- JSON string handling
-- Error handling patterns
-- Default value usage
-- Validation failure handling
-
-## Running the Example
+## Run
 
 ```bash
 go run main.go
+```
+
+## Output
+
+```
+Multiple Input Types Demo
+========================
+JSON bytes: ✅ Valid
+Go struct: ✅ Valid
+Map data: ✅ Valid
+
+Type-specific methods:
+ValidateJSON: ✅ Valid
+ValidateStruct: ✅ Valid
+ValidateMap: ✅ Valid
 ```

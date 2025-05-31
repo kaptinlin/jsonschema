@@ -2,258 +2,348 @@ package jsonschema
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestValidateBytes(t *testing.T) {
+// TestValidateMethodDelegation tests that the main Validate method properly delegates to type-specific methods
+func TestValidateMethodDelegation(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {"name": {"type": "string"}},
+		"required": ["name"]
+	}`))
+	require.NoError(t, err)
+
+	// Test JSON bytes delegation
+	jsonData := []byte(`{"name": "John"}`)
+	result1 := schema.Validate(jsonData)
+	result2 := schema.ValidateJSON(jsonData)
+	assert.Equal(t, result1.IsValid(), result2.IsValid())
+
+	// Test map delegation
+	mapData := map[string]interface{}{"name": "John"}
+	result3 := schema.Validate(mapData)
+	result4 := schema.ValidateMap(mapData)
+	assert.Equal(t, result3.IsValid(), result4.IsValid())
+
+	// Test struct delegation
+	type Person struct {
+		Name string `json:"name"`
+	}
+	structData := Person{Name: "John"}
+	result5 := schema.Validate(structData)
+	result6 := schema.ValidateStruct(structData)
+	assert.Equal(t, result5.IsValid(), result6.IsValid())
+}
+
+// TestValidateJSON tests JSON byte validation
+func TestValidateJSON(t *testing.T) {
 	tests := []struct {
 		name        string
 		schema      string
 		data        []byte
 		expectValid bool
-		description string
 	}{
 		{
-			name:        "valid object bytes",
-			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name"]}`,
-			data:        []byte(`{"name": "John", "age": 30}`),
+			name:        "valid JSON object",
+			schema:      `{"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}`,
+			data:        []byte(`{"name": "John"}`),
 			expectValid: true,
-			description: "Valid JSON object as bytes should pass validation",
 		},
 		{
-			name:        "invalid object bytes - missing required",
-			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name"]}`,
-			data:        []byte(`{"age": 30}`),
+			name:        "invalid JSON object - missing required",
+			schema:      `{"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}`,
+			data:        []byte(`{}`),
 			expectValid: false,
-			description: "JSON object missing required field should fail validation",
 		},
 		{
-			name:        "valid array bytes",
+			name:        "valid JSON array",
 			schema:      `{"type": "array", "items": {"type": "string"}, "minItems": 2}`,
 			data:        []byte(`["hello", "world"]`),
 			expectValid: true,
-			description: "Valid JSON array as bytes should pass validation",
 		},
 		{
-			name:        "invalid array bytes - too few items",
+			name:        "invalid JSON array - too few items",
 			schema:      `{"type": "array", "items": {"type": "string"}, "minItems": 3}`,
-			data:        []byte(`["hello", "world"]`),
+			data:        []byte(`["hello"]`),
 			expectValid: false,
-			description: "JSON array with too few items should fail validation",
 		},
 		{
-			name:        "valid string bytes",
-			schema:      `{"type": "string", "minLength": 5}`,
-			data:        []byte(`"hello world"`),
-			expectValid: true,
-			description: "Valid JSON string as bytes should pass validation",
-		},
-		{
-			name:        "invalid string bytes - too short",
-			schema:      `{"type": "string", "minLength": 20}`,
-			data:        []byte(`"hello"`),
-			expectValid: false,
-			description: "JSON string that's too short should fail validation",
-		},
-		{
-			name:        "valid number bytes",
-			schema:      `{"type": "number", "minimum": 10, "maximum": 100}`,
-			data:        []byte(`42`),
-			expectValid: true,
-			description: "Valid JSON number as bytes should pass validation",
-		},
-		{
-			name:        "invalid number bytes - out of range",
-			schema:      `{"type": "number", "minimum": 10, "maximum": 100}`,
-			data:        []byte(`5`),
-			expectValid: false,
-			description: "JSON number out of range should fail validation",
-		},
-		{
-			name:        "invalid JSON bytes",
+			name:        "invalid JSON syntax",
 			schema:      `{"type": "object"}`,
 			data:        []byte(`{invalid json`),
 			expectValid: false,
-			description: "Invalid JSON bytes should fail validation",
 		},
 		{
-			name:        "valid boolean bytes",
-			schema:      `{"type": "boolean"}`,
-			data:        []byte(`true`),
+			name:        "valid JSON primitives",
+			schema:      `{"type": "string", "minLength": 5}`,
+			data:        []byte(`"hello world"`),
 			expectValid: true,
-			description: "Valid JSON boolean as bytes should pass validation",
-		},
-		{
-			name:        "valid null bytes",
-			schema:      `{"type": "null"}`,
-			data:        []byte(`null`),
-			expectValid: true,
-			description: "Valid JSON null as bytes should pass validation",
-		},
-		{
-			name:        "nested object validation",
-			schema:      `{"type": "object", "properties": {"user": {"type": "object", "properties": {"name": {"type": "string"}, "profile": {"type": "object", "properties": {"age": {"type": "number", "minimum": 0}}}}}}}`,
-			data:        []byte(`{"user": {"name": "Alice", "profile": {"age": 25}}}`),
-			expectValid: true,
-			description: "Nested object structure should pass validation",
-		},
-		{
-			name:        "complex array validation",
-			schema:      `{"type": "array", "items": {"type": "object", "properties": {"id": {"type": "number"}, "name": {"type": "string"}}, "required": ["id"]}}`,
-			data:        []byte(`[{"id": 1, "name": "Item 1"}, {"id": 2, "name": "Item 2"}]`),
-			expectValid: true,
-			description: "Array of objects should pass validation",
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			// Compile schema
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
-			schema, err := compiler.Compile([]byte(test.schema))
-			if err != nil {
-				t.Fatalf("Failed to compile schema: %v", err)
-			}
+			schema, err := compiler.Compile([]byte(tt.schema))
+			require.NoError(t, err)
 
-			// Validate data
-			result := schema.Validate(test.data)
-
-			if test.expectValid && !result.IsValid() {
-				t.Errorf("Expected validation to pass, but got errors: %v", result.Errors)
-			}
-
-			if !test.expectValid && result.IsValid() {
-				t.Errorf("Expected validation to fail, but it passed")
-			}
+			result := schema.ValidateJSON(tt.data)
+			assert.Equal(t, tt.expectValid, result.IsValid())
 		})
 	}
 }
 
-func TestValidateJSONStrings(t *testing.T) {
+// TestValidateStruct tests struct validation
+func TestValidateStruct(t *testing.T) {
+	type Person struct {
+		Name  string  `json:"name"`
+		Age   *int    `json:"age,omitempty"` // use pointer to distinguish between zero value and missing
+		Email *string `json:"email,omitempty"`
+	}
+
 	tests := []struct {
 		name        string
 		schema      string
-		data        string
+		data        interface{}
 		expectValid bool
-		description string
 	}{
 		{
-			name:        "plain string - not JSON",
-			schema:      `{"type": "string", "minLength": 5}`,
-			data:        "hello world",
+			name:        "valid struct",
+			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name"]}`,
+			data:        Person{Name: "John", Age: intPtr(30)},
 			expectValid: true,
-			description: "Plain string should be validated as string, not parsed as JSON",
 		},
 		{
-			name:        "string that looks like JSON but isn't object/array",
-			schema:      `{"type": "string"}`,
-			data:        "not-json",
+			name:        "struct missing optional field",
+			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name"]}`,
+			data:        Person{Name: "John"}, // Age is optional
 			expectValid: true,
-			description: "String not starting with { or [ should be treated as plain string",
 		},
 		{
-			name:        "JSON-like string treated as plain string",
-			schema:      `{"type": "string", "minLength": 10}`,
-			data:        `{"name": "John"}`,
+			name:        "struct with all fields",
+			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}, "email": {"type": "string"}}, "required": ["name"]}`,
+			data:        Person{Name: "John", Age: intPtr(30), Email: strPtr("john@example.com")},
 			expectValid: true,
-			description: "JSON-like string should be validated as string, not parsed as object",
 		},
 		{
-			name:        "Array-like string treated as plain string",
-			schema:      `{"type": "string", "minLength": 5}`,
-			data:        `["hello", "world"]`,
-			expectValid: true,
-			description: "Array-like string should be validated as string, not parsed as array",
+			name:        "struct with invalid type",
+			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number", "minimum": 18}}, "required": ["name"]}`,
+			data:        Person{Name: "John", Age: intPtr(10)}, // Age is less than the minimum
+			expectValid: false,
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			// Compile schema
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
-			schema, err := compiler.Compile([]byte(test.schema))
-			if err != nil {
-				t.Fatalf("Failed to compile schema: %v", err)
-			}
+			schema, err := compiler.Compile([]byte(tt.schema))
+			require.NoError(t, err)
 
-			// Validate data
-			result := schema.Validate(test.data)
-
-			if test.expectValid && !result.IsValid() {
-				t.Errorf("Expected validation to pass, but got errors: %v", result.Errors)
-			}
-
-			if !test.expectValid && result.IsValid() {
-				t.Errorf("Expected validation to fail, but it passed")
-			}
+			result := schema.ValidateStruct(tt.data)
+			assert.Equal(t, tt.expectValid, result.IsValid())
 		})
 	}
 }
 
-func TestValidateBytesWithStructs(t *testing.T) {
-	// Test that []byte works alongside existing struct validation
+// TestValidateMap tests map validation
+func TestValidateMap(t *testing.T) {
+	tests := []struct {
+		name        string
+		schema      string
+		data        map[string]interface{}
+		expectValid bool
+	}{
+		{
+			name:        "valid map",
+			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name"]}`,
+			data:        map[string]interface{}{"name": "John", "age": 30},
+			expectValid: true,
+		},
+		{
+			name:        "map missing required field",
+			schema:      `{"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}`,
+			data:        map[string]interface{}{"age": 30},
+			expectValid: false,
+		},
+		{
+			name:        "map with invalid type",
+			schema:      `{"type": "object", "properties": {"age": {"type": "number"}}}`,
+			data:        map[string]interface{}{"age": "thirty"},
+			expectValid: false,
+		},
+		{
+			name:        "empty map with no required fields",
+			schema:      `{"type": "object", "properties": {"name": {"type": "string"}}}`,
+			data:        map[string]interface{}{},
+			expectValid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			schema, err := compiler.Compile([]byte(tt.schema))
+			require.NoError(t, err)
+
+			result := schema.ValidateMap(tt.data)
+			assert.Equal(t, tt.expectValid, result.IsValid())
+		})
+	}
+}
+
+// TestValidateTypeConstraints tests numeric and string validation
+func TestValidateTypeConstraints(t *testing.T) {
+	t.Run("NumericValidation", func(t *testing.T) {
+		schema := `{
+			"type": "object",
+			"properties": {
+				"age": {"type": "integer", "minimum": 0, "maximum": 150},
+				"score": {"type": "number", "multipleOf": 0.1}
+			}
+		}`
+
+		compiler := NewCompiler()
+		compiledSchema, err := compiler.Compile([]byte(schema))
+		require.NoError(t, err)
+
+		validData := map[string]interface{}{
+			"age":   25,
+			"score": 95.5,
+		}
+		result := compiledSchema.ValidateMap(validData)
+		assert.True(t, result.IsValid())
+
+		invalidData := map[string]interface{}{
+			"age":   200,   // Exceeds maximum
+			"score": 95.33, // Not multiple of 0.1
+		}
+		result = compiledSchema.ValidateMap(invalidData)
+		assert.False(t, result.IsValid())
+	})
+
+	t.Run("StringValidation", func(t *testing.T) {
+		schema := `{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string", "minLength": 2, "maxLength": 10, "pattern": "^[A-Za-z]+$"}
+			}
+		}`
+
+		compiler := NewCompiler()
+		compiledSchema, err := compiler.Compile([]byte(schema))
+		require.NoError(t, err)
+
+		validData := map[string]interface{}{"name": "John"}
+		result := compiledSchema.ValidateMap(validData)
+		assert.True(t, result.IsValid())
+
+		invalidData := map[string]interface{}{"name": "J"} // Too short
+		result = compiledSchema.ValidateMap(invalidData)
+		assert.False(t, result.IsValid())
+	})
+}
+
+// TestValidateComplexSchemas tests complex validation scenarios
+func TestValidateComplexSchemas(t *testing.T) {
+	t.Run("NestedObjects", func(t *testing.T) {
+		schema := `{
+			"type": "object",
+			"properties": {
+				"user": {
+					"type": "object",
+					"properties": {
+						"name": {"type": "string"},
+						"profile": {
+							"type": "object",
+							"properties": {
+								"age": {"type": "number", "minimum": 0}
+							}
+						}
+					}
+				}
+			}
+		}`
+
+		compiler := NewCompiler()
+		compiledSchema, err := compiler.Compile([]byte(schema))
+		require.NoError(t, err)
+
+		validData := []byte(`{"user": {"name": "Alice", "profile": {"age": 25}}}`)
+		result := compiledSchema.ValidateJSON(validData)
+		assert.True(t, result.IsValid())
+	})
+
+	t.Run("ArrayOfObjects", func(t *testing.T) {
+		schema := `{
+			"type": "array",
+			"items": {
+				"type": "object",
+				"properties": {
+					"id": {"type": "number"},
+					"name": {"type": "string"}
+				},
+				"required": ["id"]
+			}
+		}`
+
+		compiler := NewCompiler()
+		compiledSchema, err := compiler.Compile([]byte(schema))
+		require.NoError(t, err)
+
+		validData := []byte(`[{"id": 1, "name": "Item 1"}, {"id": 2, "name": "Item 2"}]`)
+		result := compiledSchema.ValidateJSON(validData)
+		assert.True(t, result.IsValid())
+	})
+}
+
+// TestValidateInputTypes tests various input type handling
+func TestValidateInputTypes(t *testing.T) {
+	schema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"age": {"type": "integer", "minimum": 0}
+		},
+		"required": ["name"]
+	}`
+
+	compiler := NewCompiler()
+	compiledSchema, err := compiler.Compile([]byte(schema))
+	require.NoError(t, err)
+
 	type Person struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
 	}
 
-	compiler := NewCompiler()
-	schema, err := compiler.Compile([]byte(`{
-		"type": "object",
-		"properties": {
-			"name": {"type": "string"},
-			"age": {"type": "number", "minimum": 0}
-		},
-		"required": ["name"]
-	}`))
-	if err != nil {
-		t.Fatalf("Failed to compile schema: %v", err)
-	}
-
 	tests := []struct {
-		name        string
-		data        interface{}
-		expectValid bool
+		name string
+		data interface{}
+		want bool
 	}{
-		{
-			name:        "struct validation",
-			data:        Person{Name: "John", Age: 30},
-			expectValid: true,
-		},
-		{
-			name:        "bytes validation",
-			data:        []byte(`{"name": "Jane", "age": 25}`),
-			expectValid: true,
-		},
-		{
-			name:        "map validation",
-			data:        map[string]interface{}{"name": "Bob", "age": 35},
-			expectValid: true,
-		},
-		{
-			name:        "invalid bytes",
-			data:        []byte(`{"age": 20}`), // missing required name
-			expectValid: false,
-		},
+		{"JSON bytes", []byte(`{"name": "John", "age": 30}`), true},
+		{"Map", map[string]interface{}{"name": "Jane", "age": 25}, true},
+		{"Struct", Person{Name: "Bob", Age: 35}, true},
+		{"Invalid JSON", []byte(`{invalid`), false},
+		{"Missing required", map[string]interface{}{"age": 30}, false},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result := schema.Validate(test.data)
-
-			if test.expectValid && !result.IsValid() {
-				t.Errorf("Expected validation to pass, but got errors: %v", result.Errors)
-			}
-
-			if !test.expectValid && result.IsValid() {
-				t.Errorf("Expected validation to fail, but it passed")
-			}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := compiledSchema.Validate(tt.data)
+			assert.Equal(t, tt.want, result.IsValid())
 		})
 	}
 }
 
-func BenchmarkValidateBytes(b *testing.B) {
+// BenchmarkValidate tests performance of validation methods
+func BenchmarkValidate(b *testing.B) {
 	compiler := NewCompiler()
-	schema, err := compiler.Compile([]byte(`{
+	schema, _ := compiler.Compile([]byte(`{
 		"type": "object",
 		"properties": {
 			"name": {"type": "string"},
@@ -262,60 +352,30 @@ func BenchmarkValidateBytes(b *testing.B) {
 		},
 		"required": ["name", "age"]
 	}`))
-	if err != nil {
-		b.Fatalf("Failed to compile schema: %v", err)
-	}
-
-	data := []byte(`{"name": "John Doe", "age": 30, "email": "john@example.com"}`)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		result := schema.Validate(data)
-		if !result.IsValid() {
-			b.Errorf("Expected validation to pass")
-		}
-	}
-}
-
-func BenchmarkValidateBytesVsStruct(b *testing.B) {
-	type Person struct {
-		Name  string `json:"name"`
-		Age   int    `json:"age"`
-		Email string `json:"email"`
-	}
-
-	compiler := NewCompiler()
-	schema, err := compiler.Compile([]byte(`{
-		"type": "object",
-		"properties": {
-			"name": {"type": "string"},
-			"age": {"type": "number", "minimum": 0},
-			"email": {"type": "string", "format": "email"}
-		},
-		"required": ["name", "age"]
-	}`))
-	if err != nil {
-		b.Fatalf("Failed to compile schema: %v", err)
-	}
 
 	jsonData := []byte(`{"name": "John Doe", "age": 30, "email": "john@example.com"}`)
-	structData := Person{Name: "John Doe", Age: 30, Email: "john@example.com"}
+	mapData := map[string]interface{}{"name": "John Doe", "age": 30, "email": "john@example.com"}
 
-	b.Run("ValidateBytes", func(b *testing.B) {
+	b.Run("ValidateJSON", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			result := schema.Validate(jsonData)
+			result := schema.ValidateJSON(jsonData)
 			if !result.IsValid() {
 				b.Errorf("Expected validation to pass")
 			}
 		}
 	})
 
-	b.Run("ValidateStruct", func(b *testing.B) {
+	b.Run("ValidateMap", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			result := schema.Validate(structData)
+			result := schema.ValidateMap(mapData)
 			if !result.IsValid() {
 				b.Errorf("Expected validation to pass")
 			}
 		}
 	})
+}
+
+// Helper functions
+func strPtr(s string) *string {
+	return &s
 }

@@ -1,0 +1,311 @@
+# API Reference
+
+Complete reference for all methods and types in the JSON Schema library.
+
+## Compiler
+
+### `NewCompiler() *Compiler`
+
+Creates a new schema compiler with default settings.
+
+```go
+compiler := jsonschema.NewCompiler()
+```
+
+### `(*Compiler) Compile(schema []byte) (*Schema, error)`
+
+Compiles a JSON schema from bytes.
+
+```go
+schema, err := compiler.Compile([]byte(`{"type": "string"}`))
+```
+
+### `(*Compiler) CompileWithID(id string, schema []byte) (*Schema, error)`
+
+Compiles a schema with a specific ID for referencing.
+
+```go
+schema, err := compiler.CompileWithID("user.json", schemaBytes)
+```
+
+### `(*Compiler) RegisterFormat(name string, fn FormatFunc) *Compiler`
+
+Registers a custom format validator.
+
+```go
+compiler.RegisterFormat("uuid", func(value string) bool {
+    _, err := uuid.Parse(value)
+    return err == nil
+})
+```
+
+## Schema
+
+### Validation Methods
+
+#### `(*Schema) Validate(data interface{}) *EvaluationResult`
+
+Validates data against the schema. Auto-detects input type.
+
+```go
+result := schema.Validate(data)
+if result.IsValid() {
+    // Valid data
+} else {
+    // Handle errors
+    for field, err := range result.Errors {
+        fmt.Printf("%s: %s\n", field, err.Message)
+    }
+}
+```
+
+#### `(*Schema) ValidateJSON(data []byte) *EvaluationResult`
+
+Optimized validation for JSON bytes.
+
+```go
+result := schema.ValidateJSON([]byte(`{"name": "John"}`))
+```
+
+#### `(*Schema) ValidateStruct(data interface{}) *EvaluationResult`
+
+Zero-copy validation for Go structs.
+
+```go
+user := User{Name: "John", Age: 25}
+result := schema.ValidateStruct(user)
+```
+
+#### `(*Schema) ValidateMap(data map[string]interface{}) *EvaluationResult`
+
+Optimized validation for maps.
+
+```go
+data := map[string]interface{}{"name": "John"}
+result := schema.ValidateMap(data)
+```
+
+### Unmarshal Methods
+
+**Important**: Unmarshal methods do NOT perform validation. Always validate separately.
+
+#### `(*Schema) Unmarshal(dst, src interface{}) error`
+
+Unmarshals data into destination, applying default values from schema.
+
+```go
+// Recommended workflow
+result := schema.Validate(data)
+if result.IsValid() {
+    var user User
+    err := schema.Unmarshal(&user, data)
+    if err != nil {
+        // Handle unmarshal error
+    }
+} else {
+    // Handle validation errors
+}
+```
+
+**Supported source types:**
+- `[]byte` (JSON data)
+- `map[string]interface{}` (parsed JSON object)  
+- Go structs and other types
+
+**Supported destination types:**
+- `*struct` (Go struct pointer)
+- `*map[string]interface{}` (map pointer)
+- Other pointer types
+
+## Validation Results
+
+### `*EvaluationResult`
+
+#### `(*EvaluationResult) IsValid() bool`
+
+Returns true if validation passed.
+
+```go
+if result.IsValid() {
+    // Process valid data
+}
+```
+
+#### `(*EvaluationResult) Errors map[string]*EvaluationError`
+
+Map of validation errors by field path.
+
+```go
+for field, err := range result.Errors {
+    switch err.Keyword {
+    case "required":
+        fmt.Printf("Missing: %s\n", field)
+    case "type":
+        fmt.Printf("Wrong type: %s\n", field)
+    default:
+        fmt.Printf("%s: %s\n", field, err.Message)
+    }
+}
+```
+
+#### `(*EvaluationResult) ToList(includeHierarchy ...bool) *List`
+
+Converts result to a flat list format.
+
+```go
+list := result.ToList()
+for field, message := range list.Errors {
+    fmt.Printf("%s: %s\n", field, message)
+}
+```
+
+#### `(*EvaluationResult) ToLocalizeList(localizer *i18n.Localizer, includeHierarchy ...bool) *List`
+
+Converts result with localized error messages.
+
+```go
+i18nBundle, _ := jsonschema.GetI18n()
+localizer := i18nBundle.NewLocalizer("zh-Hans")
+list := result.ToLocalizeList(localizer)
+```
+
+## Error Types
+
+### `*EvaluationError`
+
+Validation error with detailed information.
+
+#### Fields
+- `Keyword string` - JSON Schema keyword that failed
+- `Code string` - Error code for i18n
+- `Message string` - Human-readable error message
+- `Params map[string]interface{}` - Parameters for templating
+
+#### `(*EvaluationError) Localize(localizer *i18n.Localizer) string`
+
+Returns localized error message.
+
+### `*UnmarshalError`
+
+Error during unmarshaling process.
+
+#### Fields
+- `Type string` - Error category ("destination", "source", "defaults", "unmarshal")
+- `Field string` - Field that caused the error (if applicable)
+- `Reason string` - Human-readable reason
+- `Err error` - Wrapped underlying error
+
+```go
+var unmarshalErr *jsonschema.UnmarshalError
+if errors.As(err, &unmarshalErr) {
+    switch unmarshalErr.Type {
+    case "destination":
+        // Invalid destination (nil, not pointer, etc.)
+    case "source":
+        // Invalid source data
+    case "defaults":
+        // Error applying default values
+    case "unmarshal":
+        // Error during unmarshaling
+    }
+}
+```
+
+## Internationalization
+
+### `GetI18n() (*i18n.I18n, error)`
+
+Returns the i18n bundle with supported locales.
+
+```go
+i18nBundle, err := jsonschema.GetI18n()
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### `(*i18n.I18n) NewLocalizer(locale string) *i18n.Localizer`
+
+Creates a localizer for a specific locale.
+
+```go
+localizer := i18nBundle.NewLocalizer("zh-Hans")
+```
+
+**Supported locales:**
+- `en` - English
+- `zh-Hans` - Simplified Chinese
+- `zh-Hant` - Traditional Chinese  
+- `ja-JP` - Japanese
+- `ko-KR` - Korean
+- `fr-FR` - French
+- `de-DE` - German
+- `es-ES` - Spanish
+- `pt-BR` - Portuguese (Brazil)
+
+## Common Patterns
+
+### Production Validation + Unmarshal
+
+```go
+func ProcessData(schema *jsonschema.Schema, data []byte) (*User, error) {
+    // Step 1: Validate
+    result := schema.Validate(data)
+    if !result.IsValid() {
+        return nil, fmt.Errorf("validation failed: %v", result.Errors)
+    }
+    
+    // Step 2: Unmarshal
+    var user User
+    if err := schema.Unmarshal(&user, data); err != nil {
+        return nil, fmt.Errorf("unmarshal failed: %w", err)
+    }
+    
+    return &user, nil
+}
+```
+
+### Conditional Processing
+
+```go
+func ProcessWithWarnings(schema *jsonschema.Schema, data []byte) (*User, []string) {
+    var warnings []string
+    
+    // Always unmarshal (applies defaults)
+    var user User
+    schema.Unmarshal(&user, data)
+    
+    // Check validation separately
+    result := schema.Validate(data)
+    if !result.IsValid() {
+        for field, err := range result.Errors {
+            warnings = append(warnings, fmt.Sprintf("%s: %s", field, err.Message))
+        }
+    }
+    
+    return &user, warnings
+}
+```
+
+### Localized Error Handling
+
+```go
+func ValidateWithLocale(schema *jsonschema.Schema, data interface{}, locale string) error {
+    result := schema.Validate(data)
+    if result.IsValid() {
+        return nil
+    }
+    
+    i18nBundle, _ := jsonschema.GetI18n()
+    localizer := i18nBundle.NewLocalizer(locale)
+    localizedList := result.ToLocalizeList(localizer)
+    
+    var errors []string
+    for field, message := range localizedList.Errors {
+        errors = append(errors, fmt.Sprintf("%s: %s", field, message))
+    }
+    
+    return fmt.Errorf("validation failed: %s", strings.Join(errors, "; "))
+}
+```
+

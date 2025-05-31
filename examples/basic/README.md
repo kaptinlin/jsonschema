@@ -1,23 +1,25 @@
-# Basic JSON Schema Validation
+# Basic Example
 
-This example demonstrates the fundamental usage of JSON Schema validation with simple map data.
+Simple JSON Schema validation using maps.
 
-## Running the Example
+## What it shows
+
+- Compile a schema
+- Validate data
+- Handle validation errors
+
+## Run
 
 ```bash
-go run examples/basic/main.go
+go run main.go
 ```
 
-## Schema Overview
+## Output
 
-```json
-{
-  "type": "object",
-  "properties": {
-    "name": {"type": "string", "minLength": 2},
-    "age": {"type": "integer", "minimum": 0}
-  },
-  "required": ["name", "age"]
-}
+```
+✅ Valid data passed
+❌ Invalid data failed:
+  - name: [Value should be at least 2 characters long]
+  - age: [Value should be at least 0]
 ```
 

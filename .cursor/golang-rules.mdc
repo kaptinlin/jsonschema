@@ -1,0 +1,187 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Golang Rules for JSON Schema Validator
+
+## 🎯 Core Principles
+
+### Code Style
+- Follow `gofmt` and `goimports` strictly
+- Use `golangci-lint` with strict settings
+- Prefer short, clear variable names in limited scopes
+- Document all exported APIs with examples
+
+### Dependencies & Modules
+- Pin exact versions for reproducible builds
+- Use `go mod tidy` regularly
+- Group imports: stdlib → third-party → local
+- Minimize external dependencies for core functionality
+
+## 🚀 Modern Go Features
+
+### Generics & Types
+- Use generics for type-safe collections and utilities
+- Prefer `any` over `interface{}`
+- Use type constraints appropriately (`comparable`, `constraints.Ordered`)
+- Apply generics judiciously - avoid over-engineering
+
+### Error Handling
+- Use `errors.Is()` and `errors.As()` for error checking
+- Wrap errors with context: `fmt.Errorf("operation failed: %w", err)`
+- Create domain-specific error types with error codes
+- Design errors for internationalization from the start
+
+### Context & Lifecycle
+- Pass `context.Context` as first parameter when applicable
+- Use `context.WithTimeout` for operations with deadlines
+- Check `ctx.Err()` in long-running operations
+- Propagate context through API boundaries
+
+## 🔍 Validation Library Specific
+
+### Input Type Handling
+- Support multiple input types consistently: `[]byte`, `map[string]interface{}`, structs
+- Handle `[]byte` intelligently: parse as JSON if valid, treat as raw bytes otherwise
+- Use type switches for clean, efficient input processing
+- Document input type behavior clearly in API
+
+### Performance Optimization
+- Pre-allocate slices and maps with known capacity
+- Cache compiled schemas and reflection data
+- Use `sync.Pool` for frequently allocated objects
+- Implement zero-allocation paths for hot code
+- Profile and benchmark critical paths continuously
+
+### Schema Compilation
+- Compile schemas once, validate many times
+- Cache `reflect.Type` and field information
+- Use concurrent-safe caching with appropriate locking
+- Optimize for both compilation and validation speed
+
+### Type Conversion & Reflection
+- Cache struct field metadata to avoid repeated reflection
+- Use type assertions before falling back to reflection
+- Implement fast paths for common types (string, int, bool, time.Time)
+- Minimize reflection usage in validation hot paths
+
+## 🧪 Testing Strategy
+
+### Test Coverage
+- Test all supported input types comprehensively
+- Include edge cases: nil pointers, empty values, nested structures
+- Use table-driven tests for multiple scenarios
+- Integrate official test suites (JSON Schema Test Suite)
+
+### Performance Testing
+- Write benchmarks for all critical paths
+- Track memory allocations and CPU usage
+- Test both simple and complex validation scenarios
+- Set performance regression thresholds in CI
+
+### Error Testing
+- Verify error message accuracy and consistency
+- Test error localization and formatting
+- Validate error codes and contexts
+- Test error propagation through call stacks
+
+## 📚 API Design
+
+### Public Interface
+- Design APIs for multiple input types from the start
+- Provide consistent behavior across all input types
+- Document performance characteristics clearly
+- Follow Go idioms for method naming and signatures
+
+### Backward Compatibility
+- Use semantic versioning strictly
+- Deprecate features gracefully with clear migration paths
+- Maintain API stability for core functionality
+- Document breaking changes thoroughly
+
+### Documentation
+- Document all exported functions, types, and constants
+- Explain behavior differences between input types
+- Include performance notes for resource-intensive operations
+- Provide comprehensive usage examples
+
+## 🌍 Internationalization
+
+### Error Messages
+- Use error codes instead of hardcoded strings
+- Support message localization with context parameters
+- Provide fallback to English for missing translations
+- Design error types to carry localization context
+
+### Localization Support
+- Separate message keys from display text
+- Support cultural formatting differences
+- Handle pluralization rules correctly
+- Use structured error data for translation
+
+## ⚡ Performance Guidelines
+
+### Memory Management
+- Reuse buffers with `sync.Pool`
+- Avoid string concatenation in loops
+- Use `strings.Builder` for dynamic string construction
+- Cache expensive computations
+
+### JSON Processing
+- Allow custom JSON encoders/decoders (sonic, jsoniter)
+- Use streaming JSON for large inputs when possible
+- Pre-define struct tags to avoid runtime reflection
+- Handle JSON unmarshaling errors gracefully
+
+### Concurrency
+- Use `sync.RWMutex` for read-heavy caches
+- Prefer channels for coordination, mutexes for protection
+- Avoid goroutines for simple, fast operations
+- Design thread-safe APIs by default
+
+## 🚫 Anti-Patterns
+
+### Performance
+- Don't allocate in validation hot paths unnecessarily
+- Avoid reflection when type assertions work
+- Don't copy large structs by value
+- Avoid string concatenation with `+` in loops
+
+### API Design
+- Don't ignore input type differences in behavior
+- Avoid mutable global state in validators
+- Don't skip validation for "trusted" input
+- Avoid breaking API changes in minor versions
+
+### Error Handling
+- Don't ignore errors or use blank assignments
+- Don't use `panic()` for expected error conditions
+- Avoid generic error messages without context
+- Don't return errors without proper wrapping
+
+## 🔧 Development Tools
+
+### Required Tools
+```bash
+go install golang.org/x/tools/cmd/goimports@latest
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+go install honnef.co/go/tools/cmd/staticcheck@latest
+```
+
+### CI/CD Integration
+- Run `go vet`, `golangci-lint`, and `staticcheck` in CI
+- Include comprehensive test coverage reporting
+- Run benchmarks and track performance regressions
+- Validate against official JSON Schema test suites
+- Test on multiple Go versions
+
+### Code Quality
+- Set up pre-commit hooks for formatting and linting
+- Use `goimports` on save in editor
+- Configure benchmark result tracking
+- Integrate with code coverage tools
+
+---
+
+> 💡 **Focus**: Build a fast, correct, and maintainable JSON Schema validator. Prioritize correctness first, then optimize for performance without sacrificing code clarity.

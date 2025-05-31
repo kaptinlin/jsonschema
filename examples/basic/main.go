@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -9,48 +8,39 @@ import (
 )
 
 func main() {
-	// Create a new compiler instance
+	// Compile schema
 	compiler := jsonschema.NewCompiler()
-
-	// Define a simple JSON Schema
-	schemaData := []byte(`{
+	schema, err := compiler.Compile([]byte(`{
 		"type": "object",
 		"properties": {
 			"name": {"type": "string", "minLength": 2},
 			"age": {"type": "integer", "minimum": 0}
 		},
 		"required": ["name", "age"]
-	}`)
-
-	// Compile the schema
-	schema, err := compiler.Compile(schemaData)
+	}`))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Validate valid data
+	// Valid data
 	validData := map[string]interface{}{
 		"name": "John",
 		"age":  30,
 	}
-	result := schema.Validate(validData)
-	if !result.IsValid() {
-		log.Fatal("Valid data failed validation")
+	if schema.Validate(validData).IsValid() {
+		fmt.Println("✅ Valid data passed")
 	}
-	fmt.Println("Valid data passed validation")
 
-	// Validate invalid data
+	// Invalid data
 	invalidData := map[string]interface{}{
-		"name": "J",
-		"age":  -1,
+		"name": "J", // too short
+		"age":  -1,  // negative
 	}
-	result = schema.Validate(invalidData)
-	if result.IsValid() {
-		log.Fatal("Invalid data passed validation")
+	result := schema.Validate(invalidData)
+	if !result.IsValid() {
+		fmt.Println("❌ Invalid data failed:")
+		for field, errors := range result.Errors {
+			fmt.Printf("  - %s: %v\n", field, errors)
+		}
 	}
-
-	// Format and output error messages
-	errors := result.ToList()
-	output, _ := json.MarshalIndent(errors, "", "  ")
-	fmt.Printf("Validation errors:\n%s\n", output)
 }

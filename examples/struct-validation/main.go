@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -10,77 +9,53 @@ import (
 
 // User represents a user in our system
 type User struct {
-	Name     string   `json:"name"`
-	Age      int      `json:"age"`
-	Email    string   `json:"email"`
-	Tags     []string `json:"tags,omitempty"`
-	IsActive bool     `json:"is_active"`
+	Name  string `json:"name"`
+	Age   int    `json:"age"`
+	Email string `json:"email,omitempty"`
 }
 
 func main() {
-	// Create a new compiler instance
+	// Compile schema
 	compiler := jsonschema.NewCompiler()
-
-	fmt.Println("=== Basic Struct Validation Example ===")
-
-	// Schema for user validation
-	schema := []byte(`{
+	schema, err := compiler.Compile([]byte(`{
 		"type": "object",
 		"properties": {
-			"name": {"type": "string", "minLength": 2},
-			"age": {"type": "integer", "minimum": 0, "maximum": 120},
-			"email": {"type": "string", "format": "email"},
-			"tags": {"type": "array", "items": {"type": "string"}},
-			"is_active": {"type": "boolean"}
+			"name": {"type": "string", "minLength": 1},
+			"age": {"type": "integer", "minimum": 18},
+			"email": {"type": "string", "format": "email"}
 		},
-		"required": ["name", "age", "email", "is_active"]
-	}`)
-
-	compiledSchema, err := compiler.Compile(schema)
+		"required": ["name", "age"]
+	}`))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Valid user
+	// Valid struct
 	validUser := User{
-		Name:     "Alice Johnson",
-		Age:      28,
-		Email:    "alice@example.com",
-		Tags:     []string{"premium", "verified"},
-		IsActive: true,
+		Name:  "Alice",
+		Age:   25,
+		Email: "alice@example.com",
+	}
+	if schema.ValidateStruct(validUser).IsValid() {
+		fmt.Println("✅ Valid struct passed")
 	}
 
-	fmt.Println("1. Validating a valid user struct:")
-	result := compiledSchema.Validate(validUser)
-	if result.IsValid() {
-		fmt.Printf("✅ Validation passed for user: %s\n\n", validUser.Name)
-	} else {
-		errors := result.ToList()
-		output, _ := json.MarshalIndent(errors, "", "  ")
-		fmt.Printf("❌ Validation failed:\n%s\n\n", output)
-	}
-
-	// Invalid user
+	// Invalid struct
 	invalidUser := User{
-		Name:     "B", // Too short
-		Age:      -5,  // Negative age
-		Email:    "invalid-email",
-		IsActive: true,
+		Name: "Bob",
+		Age:  16, // under 18
+	}
+	result := schema.ValidateStruct(invalidUser)
+	if !result.IsValid() {
+		fmt.Println("❌ Invalid struct failed:")
+		for field, errors := range result.Errors {
+			fmt.Printf("  - %s: %v\n", field, errors)
+		}
 	}
 
-	fmt.Println("2. Validating an invalid user struct:")
-	result = compiledSchema.Validate(invalidUser)
-	if result.IsValid() {
-		fmt.Printf("✅ Validation unexpectedly passed\n\n")
-	} else {
-		errors := result.ToList()
-		output, _ := json.MarshalIndent(errors, "", "  ")
-		fmt.Printf("❌ Validation correctly failed:\n%s\n\n", output)
+	// Alternative: use general Validate method
+	fmt.Println("\nUsing general Validate method:")
+	if schema.Validate(validUser).IsValid() {
+		fmt.Println("✅ Auto-detected struct validation passed")
 	}
-
-	fmt.Println("=== Key Benefits ===")
-	fmt.Println("• Direct struct validation without map conversion")
-	fmt.Println("• Automatic JSON tag handling (renaming, omitempty)")
-	fmt.Println("• Better performance than map-based validation")
-	fmt.Println("• Type safety with Go structs")
 }

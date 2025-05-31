@@ -1,37 +1,21 @@
-# Internationalization (i18n) Example
+# Internationalization Example
 
-This example demonstrates how to get localized validation error messages in different languages.
+Demonstrates multilingual error messages using Chinese (zh-Hans) and English locales.
 
-## Running the Example
+## What it does
+
+- Shows validation errors in both Chinese and English
+- Demonstrates the separation of validation and unmarshaling
+- Shows production pattern with localized error handling
+
+## Run
 
 ```bash
-go run examples/i18n/main.go
+go run main.go
 ```
 
-## Localization Setup
+## Expected output
 
-```go
-// Get i18n instance
-i18n, err := jsonschema.GetI18n()
-if err != nil {
-    log.Fatal(err)
-}
-
-// Create localizer for Simplified Chinese
-localizer := i18n.NewLocalizer("zh-Hans")
-
-// Get localized error messages
-errors := result.ToLocalizeList(localizer)
-```
-
-## Example Output
-
-Instead of technical English errors like:
-```
-"message": "Value must be at least 0"
-```
-
-You get localized messages like:
-```
-"message": "数值必须至少为 0"
-```
+- Invalid data with validation errors in both languages
+- Unmarshal still works despite validation failure
+- Production pattern with successful validation and processing 

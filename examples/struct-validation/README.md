@@ -1,21 +1,32 @@
-# Basic Struct Validation
+# Struct Validation Example
 
-This example demonstrates how to validate Go structs directly with JSON Schema, without converting them to `map[string]interface{}`.
+Validate Go structs directly without map conversion.
 
-## Running the Example
+## What it shows
+
+- `ValidateStruct()` method for direct struct validation
+- Auto-detection with `Validate()` method
+- JSON tags are automatically handled
+
+## Benefits
+
+- Better performance than map-based validation
+- Type safety with Go structs
+- Automatic handling of `omitempty` and field renaming
+
+## Run
 
 ```bash
-go run examples/struct-validation/main.go
+go run main.go
 ```
 
-## Structure Overview
+## Output
 
-```go
-type User struct {
-    Name     string   `json:"name"`
-    Age      int      `json:"age"`
-    Email    string   `json:"email"`
-    Tags     []string `json:"tags,omitempty"`    // Optional field
-    IsActive bool     `json:"is_active"`
-}
+```
+✅ Valid struct passed
+❌ Invalid struct failed:
+  - age: [Value should be at least 18]
+
+Using general Validate method:
+✅ Auto-detected struct validation passed
 ```

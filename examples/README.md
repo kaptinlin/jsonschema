@@ -1,33 +1,34 @@
-# JSON Schema Validation Examples
+# Examples
 
-This directory contains examples demonstrating different features and use cases of the JSON Schema validation library.
+Practical examples demonstrating JSON Schema validation and unmarshaling with the new separated workflow.
 
 ## Available Examples
 
-### 🏠 [basic](./basic/)
-**Map-based validation** - Traditional JSON Schema validation using `map[string]interface{}` data structures. Shows the fundamental usage patterns.
+### 🎯 [Basic](./basic/)
+Simple validation example showing valid and invalid data handling.
 
-### 🎯 [struct-validation](./struct-validation/)
-**Direct struct validation** - Validate Go structs directly against JSON Schema without map conversion. Demonstrates performance benefits and type safety.
+### 🏗️ [Struct Validation](./struct-validation/)
+Direct struct validation without JSON marshaling for optimal performance.
 
-### 🏗️ [advanced-struct](./advanced-struct/)
-**Nested struct validation** - Complex object hierarchies with nested structs, demonstrating advanced validation features like enums, patterns, and pointer fields.
+### 🔄 [Multiple Input Types](./multiple-input-types/)
+Handle different data types (JSON bytes, maps, structs) with type-specific methods.
 
-### 🔍 [jsonschema](./jsonschema/)
-**Meta-validation** - Validate JSON Schema definitions against the official JSON Schema meta-schema to ensure schema correctness.
+### 📦 [Unmarshaling](./unmarshaling/)
+Validation + unmarshaling workflow with default value application.
 
-### 🌍 [i18n](./i18n/)
-**Internationalization** - Localized validation error messages in different languages for better user experience.
+### ⚠️ [Error Handling](./error-handling/)
+Comprehensive error handling patterns and validation failure management.
 
-## Quick Start
+### 🌍 [Internationalization](./i18n/)
+Multilingual error messages using Chinese (zh-Hans) and English locales.
 
-Each example can be run from the project root:
+## Running Examples
 
 ```bash
-# Run any example from project root
-go run examples/basic/main.go
-go run examples/struct-validation/main.go
-go run examples/advanced-struct/main.go
-go run examples/jsonschema/main.go
-go run examples/i18n/main.go
+# Run any example
+cd <example-directory>
+go run main.go
+
+# Or run from project root
+go run examples/<example-name>/main.go
 ```

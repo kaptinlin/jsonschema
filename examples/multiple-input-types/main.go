@@ -17,25 +17,23 @@ type User struct {
 }
 
 func main() {
-	// Setup schema with default values
+	// Setup schema with defaults
 	schema := setupSchema()
 
-	fmt.Println("🎯 JSON Schema Multiple Input Types Demo")
-	fmt.Println("==========================================")
+	fmt.Println("Multiple Input Types Demo")
+	fmt.Println("========================")
 
-	// Part 1: Input Type Validation
-	fmt.Println("\n📝 Part 1: Input Type Validation")
+	// Demonstrate different input types
+	fmt.Println("\n1. Input Type Validation:")
 	demonstrateInputTypes(schema)
 
-	// Part 2: Unmarshal with Defaults
-	fmt.Println("\n🔄 Part 2: Unmarshal with Defaults")
+	// Demonstrate unmarshal with defaults
+	fmt.Println("\n2. Unmarshal with Defaults:")
 	demonstrateUnmarshal(schema)
 
-	// Part 3: Best Practices
-	fmt.Println("\n💡 Part 3: Best Practices")
+	// Show best practices
+	fmt.Println("\n3. Best Practices:")
 	demonstrateBestPractices(schema)
-
-	fmt.Println("\n✨ Demo Complete!")
 }
 
 func setupSchema() *jsonschema.Schema {
@@ -164,14 +162,13 @@ func demonstrateBestPractices(schema *jsonschema.Schema) {
 	invalidData := []byte(`{"name": "", "age": -5}`) // Invalid data
 	result := schema.Validate(invalidData)
 	if !result.IsValid() {
-		fmt.Printf("    ❌ Invalid data detected:\n")
-		for field, errors := range result.Errors {
-			fmt.Printf("      - %s: %v\n", field, errors)
+		fmt.Println("    Validation errors:")
+		for field, err := range result.Errors {
+			fmt.Printf("    - %s: %s\n", field, err.Message)
 		}
 	}
 }
 
-// Helper functions
 func getStatusIcon(isValid bool) string {
 	if isValid {
 		return "✅"
@@ -181,7 +178,7 @@ func getStatusIcon(isValid bool) string {
 
 func getStatusText(isValid bool) string {
 	if isValid {
-		return "PASSED"
+		return "Valid"
 	}
-	return "FAILED"
+	return "Invalid"
 }

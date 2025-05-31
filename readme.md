@@ -1,406 +1,310 @@
-# JsonSchema Validator for Go
+# JSON Schema Validator for Go
 
 [![Go Version](https://img.shields.io/badge/go-%3E%3D1.21.1-blue)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Test Status](https://img.shields.io/badge/tests-passing-brightgreen)](https://github.com/json-schema-org/JSON-Schema-Test-Suite)
 
-🚀 A high-performance, feature-rich JSON Schema validator for Go that supports **JSON Schema Draft 2020-12** with **direct struct validation**, **intelligent byte array handling**, and **smart unmarshaling** with automatic default value application.
+A high-performance JSON Schema validator for Go with **direct struct validation**, **smart unmarshaling** with defaults, and **separated validation workflow**.
 
-## Table of Contents
-- [🌟 Key Features](#-key-features)
-- [📦 Installation](#-installation)
-- [⚡ Quick Start](#-quick-start)
-- [📝 Validation](#-validation)
-- [🔄 Unmarshal with Defaults](#-unmarshal-with-defaults)
-- [🏗️ Struct Validation](#️-struct-validation)
-- [⚙️ Advanced Usage](#️-advanced-usage)
-- [📚 Examples](#-examples)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+## Features
 
-## 🌟 Key Features
+- ✅ **JSON Schema Draft 2020-12** - Full spec compliance  
+- ✅ **Direct Struct Validation** - Zero-copy validation without JSON marshaling
+- ✅ **Separated Workflow** - Validation and unmarshaling as distinct operations
+- ✅ **Type-Specific Methods** - Optimized paths for JSON, structs, and maps
+- ✅ **Schema References** - Full `$ref`, `$recursiveRef`, `$dynamicRef` support
+- ✅ **Custom Formats** - Register your own validators
+- ✅ **Internationalization** - Multi-language error messages
 
-- ✅ **JSON Schema Draft 2020-12** - Full compliance with the latest specification
-- 🚀 **Direct Struct Validation** - Zero-allocation validation of Go structs without map conversion
-- 🔄 **Smart Unmarshal** - Validation + unmarshaling + automatic default value application in one step
-- 🧪 **Test Suite Verified** - Passes all [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite) cases (except vocabulary)
-- 🌍 **Internationalization** - Support for 9 languages with localized error messages
-- 📊 **Enhanced Output** - Detailed validation results with multiple output formats
-- ⚡ **High Performance** - Configurable JSON encoder/decoder with caching optimizations
-- 🔗 **Remote Schema Loading** - Load schemas from URLs with automatic caching
-- 🛡️ **Type Safety** - Full support for Go's type system including pointers, time.Time, and nested structs
+## Quick Start
 
-## 📦 Installation
+### Installation
 
 ```bash
 go get github.com/kaptinlin/jsonschema
 ```
 
-**Requirements:** Go 1.21.1 or higher
-
-## ⚡ Quick Start
+### Basic Usage
 
 ```go
-package main
+import "github.com/kaptinlin/jsonschema"
 
-import (
-    "fmt"
-    "log"
-    "github.com/kaptinlin/jsonschema"
-)
+// Compile schema
+compiler := jsonschema.NewCompiler()
+schema, err := compiler.Compile([]byte(`{
+    "type": "object",
+    "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "age": {"type": "integer", "minimum": 0}
+    },
+    "required": ["name"]
+}`))
 
-func main() {
-    // 1. Define your JSON schema
-    schemaJSON := `{
-        "type": "object",
-        "properties": {
-            "name": {"type": "string", "minLength": 1},
-            "age": {"type": "integer", "minimum": 0, "maximum": 120},
-            "email": {"type": "string", "format": "email"}
-        },
-        "required": ["name", "age"]
-    }`
+// Recommended workflow: validate first, then unmarshal
+data := []byte(`{"name": "John", "age": 25}`)
 
-    // 2. Compile the schema
-    compiler := jsonschema.NewCompiler()
-    schema, err := compiler.Compile([]byte(schemaJSON))
-    if err != nil {
-        log.Fatal("Schema compilation failed:", err)
-    }
-
-    // 3. Validate your data
-    person := map[string]interface{}{
-        "name": "Alice",
-        "age":  30,
-        "email": "alice@example.com",
-    }
-    
-    result := schema.Validate(person)
-    if result.IsValid() {
-        fmt.Println("✅ Validation passed!")
-    } else {
-        fmt.Printf("❌ Validation failed: %v\n", result.Errors)
-    }
-}
-```
-
-## 📝 Validation
-
-### Input Types Support
-
-The validator handles various input types with clear, predictable behavior:
-
-```go
-// 1. JSON bytes ([]byte) - automatically parsed as JSON if valid
-jsonBytes := []byte(`{"name": "John", "age": 25}`)
-result := schema.Validate(jsonBytes)
-
-// 2. Go structs (zero-allocation validation)
-type Person struct {
-    Name string `json:"name"`
-    Age  int    `json:"age"`
-}
-person := Person{Name: "Bob", Age: 35}
-result = schema.Validate(person)
-
-// 3. Maps and interfaces
-data := map[string]interface{}{"name": "Alice", "age": 28}
-result = schema.Validate(data)
-
-// 4. Raw bytes (treated as byte array, not parsed as JSON)
-rawBytes := []byte{1, 2, 3}
-result = schema.Validate(rawBytes) // Validates as array of integers
-
-// 5. JSON strings 
-jsonString := `{"name": "Jane", "age": 30}`
-result = schema.Validate([]byte(jsonString))
-```
-
-### Smart Byte Array Handling
-
-The validator intelligently handles `[]byte` input:
-
-- **Valid JSON**: Automatically parsed and validated as JSON objects/arrays
-- **Invalid JSON-like**: Returns validation error for malformed JSON (starts with `{` or `[`)
-- **Binary Data**: Treated as regular byte array for validation
-
-```go
-// These bytes will be parsed as JSON object
-jsonBytes := []byte(`{"name": "John", "age": 25}`)
-
-// These bytes will be treated as byte array
-binaryBytes := []byte{0x48, 0x65, 0x6c, 0x6c, 0x6f} // "Hello" in bytes
-
-// This will return a JSON parsing error
-malformedJSON := []byte(`{"name": "John", "age":`)
-```
-
-### Validation Results
-
-```go
+// Step 1: Validate
 result := schema.Validate(data)
-
-// Check if valid
 if result.IsValid() {
-    fmt.Println("Data is valid!")
+    fmt.Println("✅ Valid")
+    // Step 2: Unmarshal validated data
+    var user User
+    err := schema.Unmarshal(&user, data)
+    if err != nil {
+        log.Fatal(err)
+    }
+} else {
+    fmt.Println("❌ Invalid")
+    for field, err := range result.Errors {
+        fmt.Printf("- %s: %s\n", field, err.Message)
+    }
 }
-
-// Get detailed errors
-errors := result.Errors
-for field, err := range errors {
-    fmt.Printf("Field '%s': %v\n", field, err)
-}
-
-// Different output formats
-flag := result.ToFlag()                    // Simple boolean
-list := result.ToList()                    // Detailed list
-hierarchical := result.ToList(false)       // Hierarchical structure
 ```
 
-## 🔄 Unmarshal with Defaults
+### Type-Specific Validation
 
-The `Unmarshal` method combines **validation**, **unmarshaling**, and **automatic default value application** in a single operation. It follows the same input pattern as `json.Unmarshal` for consistency.
+Choose the method that matches your data type for best performance:
 
 ```go
-// Define schema with default values
+// For JSON bytes - fastest JSON parsing
+result := schema.ValidateJSON([]byte(`{"name": "John"}`))
+
+// For Go structs - zero-copy validation
+result := schema.ValidateStruct(Person{Name: "John"})
+
+// For maps - optimal for pre-parsed data
+result := schema.ValidateMap(map[string]interface{}{"name": "John"})
+
+// Auto-detect input type
+result := schema.Validate(anyData)
+```
+
+### Unmarshal with Defaults
+
+```go
+type User struct {
+    Name    string `json:"name"`
+    Country string `json:"country"`
+    Active  bool   `json:"active"`
+}
+
+// Schema with defaults
 schemaJSON := `{
     "type": "object",
     "properties": {
         "name": {"type": "string"},
-        "age": {"type": "integer", "minimum": 0},
         "country": {"type": "string", "default": "US"},
-        "active": {"type": "boolean", "default": true},
-        "role": {"type": "string", "default": "user"}
+        "active": {"type": "boolean", "default": true}
     },
-    "required": ["name", "age"]
+    "required": ["name"]
 }`
 
 schema, _ := compiler.Compile([]byte(schemaJSON))
 
-type User struct {
-    Name    string `json:"name"`
-    Age     int    `json:"age"`
-    Country string `json:"country"`
-    Active  bool   `json:"active"`
-    Role    string `json:"role"`
-}
-
-// 1. Unmarshal from JSON bytes (like json.Unmarshal)
-jsonData := []byte(`{"name": "John", "age": 25}`)
-var user1 User
-err := schema.Unmarshal(&user1, jsonData)
-// Result: User{Name: "John", Age: 25, Country: "US", Active: true, Role: "user"}
-
-// 2. Unmarshal from JSON string (convert to []byte first)
-jsonString := `{"name": "Jane", "age": 30, "country": "CA"}`
-var user2 User
-err = schema.Unmarshal(&user2, []byte(jsonString))
-// Result: User{Name: "Jane", Age: 30, Country: "CA", Active: true, Role: "user"}
-
-// 3. Unmarshal from map
-data := map[string]interface{}{"name": "Bob", "age": 35}
-var user3 User
-err = schema.Unmarshal(&user3, data)
-// Result: User{Name: "Bob", Age: 35, Country: "US", Active: true, Role: "user"}
-```
-
-### Input Types
-
-| Type | Usage | Example |
-|------|-------|---------|
-| `[]byte` | JSON data (like `json.Unmarshal`) | `[]byte(`{"name": "John"}`)` |
-| `map[string]interface{}` | Parsed JSON object | `map[string]interface{}{"name": "John"}` |
-| Go structs | Direct struct validation | `User{Name: "John", Age: 25}` |
-
-### Output Types
-
-| Type | Description |
-|------|-------------|
-| `*struct` | Unmarshal to Go struct with JSON tags |
-| `*map[string]interface{}` | Unmarshal to generic map |
-| Other pointer types | Via JSON round-trip conversion |
-
-## 🏗️ Struct Validation
-
-Validate Go structs directly without JSON serialization overhead:
-
-```go
-type Address struct {
-    Street  string `json:"street"`
-    City    string `json:"city"`
-    Country string `json:"country"`
-}
-
-type User struct {
-    ID       int        `json:"id"`
-    Name     string     `json:"name"`
-    Email    *string    `json:"email,omitempty"`     // Optional pointer field
-    Age      int        `json:"age"`
-    Address  *Address   `json:"address,omitempty"`   // Nested optional struct
-    Tags     []string   `json:"tags"`                // Array field
-    Created  time.Time  `json:"created_at"`          // Time field (auto-formatted)
-    Metadata map[string]interface{} `json:"metadata"` // Dynamic fields
-}
-
-user := User{
-    ID:   1,
-    Name: "John Doe",
-    Age:  30,
-    Tags: []string{"admin", "user"},
-    Created: time.Now(),
-}
-
-result := schema.Validate(user)
-```
-
-### Struct Validation Features
-
-- **🏷️ JSON Tag Support** - Full support for `json:"-"`, `omitempty`, custom names
-- **🏗️ Nested Structures** - Deep validation of complex object hierarchies
-- **📍 Pointer Fields** - Proper handling of pointer types and nil values
-- **⏰ Time Support** - Automatic RFC3339 formatting for `time.Time` fields
-- **📊 Array/Slice Support** - Validation of arrays and slices with item schemas
-- **🗺️ Map Support** - Dynamic key-value validation
-- **⚡ Performance** - Field caching and zero-allocation validation paths
-- **🔄 Interface Support** - Handles `interface{}` types intelligently
-
-## ⚙️ Advanced Usage
-
-### Schema Compilation Options
-
-```go
-compiler := jsonschema.NewCompiler()
-
-// Set default base URI for resolving relative references
-compiler.SetDefaultBaseURI("https://example.com/schemas/")
-
-// Enable format assertions (email, date-time, etc.)
-compiler.SetAssertFormat(true)
-
-// Register custom format validator
-compiler.RegisterFormat("custom-id", func(value string) bool {
-    return len(value) == 10 // Example validation
-})
-```
-
-### Custom JSON Encoder/Decoder
-
-```go
-import "github.com/bytedance/sonic" // High-performance JSON library
-
-compiler := jsonschema.NewCompiler()
-compiler.WithEncoderJSON(sonic.Marshal)
-compiler.WithDecoderJSON(sonic.Unmarshal)
-```
-
-### Remote Schema Loading
-
-```go
-// Load schema from URL
-schema, err := compiler.GetSchema("https://json-schema.org/draft/2020-12/schema")
-
-// Register custom loaders
-compiler.RegisterLoader("file", func(uri string) ([]byte, error) {
-    return os.ReadFile(strings.TrimPrefix(uri, "file://"))
-})
-```
-
-### Error Output Formats
-
-```go
+// Validation + Unmarshal workflow
+data := []byte(`{"name": "John"}`)
 result := schema.Validate(data)
+if result.IsValid() {
+    var user User
+    err := schema.Unmarshal(&user, data)
+    // Result: user.Country = "US", user.Active = true
+}
+```
 
-// Basic errors map
-errors := result.Errors
+## Advanced Features
 
-// Detailed list with paths
-details := result.ToList()
+### Custom Formats
 
-// Hierarchical structure (preserves nesting)
-hierarchical := result.ToList(false)
+```go
+compiler.RegisterFormat("uuid", func(value string) bool {
+    _, err := uuid.Parse(value)
+    return err == nil
+})
 
-// Simple boolean for quick checks
-isValid := result.ToFlag()
+// Use in schema
+schema := `{
+    "type": "object",
+    "properties": {
+        "id": {"type": "string", "format": "uuid"}
+    }
+}`
+```
+
+### Schema References
+
+```go
+// Register reusable schemas
+compiler.CompileWithID("person.json", personSchema)
+
+// Reference in other schemas
+schema := `{
+    "type": "object",
+    "properties": {
+        "user": {"$ref": "person.json"}
+    }
+}`
+```
+
+### Error Handling
+
+```go
+import "errors" // Required for errors.As
+
+// Detailed validation error handling
+result := schema.Validate(data)
+if !result.IsValid() {
+    for field, err := range result.Errors {
+        switch err.Keyword {
+        case "required":
+            fmt.Printf("Missing required field: %s\n", field)
+        case "type":
+            fmt.Printf("Invalid type for field: %s\n", field)
+        default:
+            fmt.Printf("%s: %s\n", field, err.Message)
+        }
+    }
+}
+
+// Unmarshal error handling
+var user User
+err := schema.Unmarshal(&user, data)
+if err != nil {
+    var unmarshalErr *jsonschema.UnmarshalError
+    if errors.As(err, &unmarshalErr) {
+        fmt.Printf("Error type: %s, Reason: %s\n", unmarshalErr.Type, unmarshalErr.Reason)
+    }
+}
 ```
 
 ### Internationalization
 
 ```go
-// Get i18n support
-i18n, err := jsonschema.GetI18n()
-if err != nil {
-    log.Fatal(err)
-}
-
-// Create localizer for specific language
-localizer := i18n.NewLocalizer("zh-Hans") // Simplified Chinese
-
-// Validate and get localized errors
+i18n, _ := jsonschema.GetI18n()
+localizer := i18n.NewLocalizer("zh-Hans")
 result := schema.Validate(data)
-localizedErrors := result.ToLocalizeList(localizer)
+localizedList := result.ToLocalizeList(localizer)
+```
 
-for _, error := range localizedErrors {
-    fmt.Printf("错误: %s\n", error.Message)
+## Validation + Unmarshal Patterns
+
+### Pattern 1: Strict Validation
+```go
+result := schema.Validate(data)
+if !result.IsValid() {
+    return fmt.Errorf("validation failed: %v", result.Errors)
+}
+
+var user User
+return schema.Unmarshal(&user, data)
+```
+
+### Pattern 2: Conditional Processing  
+```go
+result := schema.Validate(data)
+var user User
+err := schema.Unmarshal(&user, data) // Always unmarshal
+
+if result.IsValid() {
+    // Process valid data
+    return processUser(user)
+} else {
+    // Log errors but still process with defaults
+    log.Printf("Validation warnings: %v", result.Errors)
+    return processUserWithWarnings(user)
 }
 ```
 
-## 📚 Examples
-
-Explore comprehensive examples in the [`examples/`](./examples/) directory:
-
-- **[basic-validation](./examples/basic-validation/)** - Simple validation examples
-- **[struct-validation](./examples/struct-validation/)** - Advanced struct validation
-- **[multiple-input-types](./examples/multiple-input-types/)** - Byte array handling and unmarshal examples
-- **[internationalization](./examples/internationalization/)** - Multi-language error messages
-- **[remote-schemas](./examples/remote-schemas/)** - Loading schemas from URLs
-- **[custom-formats](./examples/custom-formats/)** - Custom format validators
-
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Development Setup
-
-```bash
-# Clone repository with test suite submodule
-git clone --recurse-submodules https://github.com/kaptinlin/jsonschema.git
-
-# Install dependencies
-go mod download
-
-# Run tests
-go test -v ./...
-
-# Run official JSON Schema test suite
-cd tests && go test -v
+### Pattern 3: Production Workflow
+```go
+func ProcessUserData(schema *jsonschema.Schema, data []byte) error {
+    // Step 1: Validate
+    result := schema.Validate(data)
+    if !result.IsValid() {
+        return fmt.Errorf("validation failed: %v", result.Errors)
+    }
+    
+    // Step 2: Unmarshal validated data
+    var user User
+    if err := schema.Unmarshal(&user, data); err != nil {
+        return fmt.Errorf("unmarshal failed: %w", err)
+    }
+    
+    // Step 3: Process user
+    return saveUser(user)
+}
 ```
 
-### Project Structure
+## Performance Optimization
 
+### Pre-compile Schemas
+
+```go
+// Pre-compile for better performance
+var userSchema, productSchema *jsonschema.Schema
+
+func init() {
+    compiler := jsonschema.NewCompiler()
+    userSchema, _ = compiler.CompileWithID("user", userSchemaJSON)
+    productSchema, _ = compiler.CompileWithID("product", productSchemaJSON)
+}
+
+// Reuse compiled schemas
+func validateUser(data []byte) error {
+    result := userSchema.ValidateJSON(data)
+    if !result.IsValid() {
+        return fmt.Errorf("validation failed")
+    }
+    return nil
+}
 ```
-├── compiler.go          # Schema compilation and caching
-├── validate.go          # Core validation logic
-├── unmarshal.go         # Unmarshal with defaults
-├── struct_validation.go # Direct struct validation
-├── formats.go          # Format validators
-├── i18n/               # Internationalization files
-├── examples/           # Example applications
-└── tests/             # Official test suite
+
+### Use Optimal Methods
+
+```go
+// Choose the right method for your data type
+schema.ValidateJSON(jsonBytes)    // Fastest for JSON
+schema.ValidateStruct(structData) // Fastest for structs  
+schema.ValidateMap(mapData)       // Fastest for maps
+
+// Use high-performance JSON libraries
+compiler.WithEncoderJSON(sonic.Marshal)
+compiler.WithDecoderJSON(sonic.Unmarshal)
 ```
 
-## 📄 License
+## Documentation
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### Guides
+- **[Validation](./docs/validation.md)** - Validation methods and input types
+- **[Unmarshal](./docs/unmarshal.md)** - Unmarshal with validation and defaults  
+- **[Error Handling](./docs/error-handling.md)** - Error types and handling patterns
+- **[Schema Compilation](./docs/compilation.md)** - Compiler configuration
+
+### Reference
+- **[API Reference](./docs/api.md)** - Complete method documentation
+- **[Examples](./examples/)** - Runnable code examples
+
+## Examples
+
+See [examples/](./examples/) directory for working code samples:
+
+- **[Basic](./examples/basic/)** - Simple validation patterns
+- **[Struct Validation](./examples/struct-validation/)** - Direct struct validation
+- **[Multiple Input Types](./examples/multiple-input-types/)** - Handle different data types
+- **[Unmarshaling](./examples/unmarshaling/)** - Validation + defaults workflow
+- **[Error Handling](./examples/error-handling/)** - Error management patterns
+- **[Internationalization](./examples/i18n/)** - Multilingual error messages
+
+## Contributing
+
+Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Credits
-
 Special thanks to:
-- [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite) for comprehensive test cases
+- [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite) for 
+comprehensive test cases
 - [jsonschema by santhosh-tekuri](https://github.com/santhosh-tekuri/jsonschema) for inspiration
 - [Json-Everything](https://json-everything.net/) for reference implementation
-
-## Related Projects
-
-- [quicktype](https://github.com/glideapps/quicktype) - Generate Go structs from JSON Schema
-- [go-jsonschema](https://github.com/atombender/go-jsonschema) - Generate Go types from JSON Schema
-- [swaggest/jsonschema-go](https://github.com/swaggest/jsonschema-go) - JSON Schema structures for Go

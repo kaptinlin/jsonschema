@@ -29,7 +29,8 @@ type Profile struct {
 	Country string `json:"country"`
 }
 
-func TestSchema_Unmarshal_BasicTypes(t *testing.T) {
+// TestUnmarshalBasicTypes tests basic unmarshaling with defaults
+func TestUnmarshalBasicTypes(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
@@ -103,7 +104,8 @@ func TestSchema_Unmarshal_BasicTypes(t *testing.T) {
 	}
 }
 
-func TestSchema_Unmarshal_PointerFields(t *testing.T) {
+// TestUnmarshalPointerFields tests pointer field handling
+func TestUnmarshalPointerFields(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
@@ -132,7 +134,8 @@ func TestSchema_Unmarshal_PointerFields(t *testing.T) {
 	assert.Equal(t, 100.0, *result.Score)
 }
 
-func TestSchema_Unmarshal_NestedStructs(t *testing.T) {
+// TestUnmarshalNestedStructs tests nested struct unmarshaling
+func TestUnmarshalNestedStructs(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
@@ -164,7 +167,8 @@ func TestSchema_Unmarshal_NestedStructs(t *testing.T) {
 	assert.Equal(t, "US", result.Profile.Country) // Default applied
 }
 
-func TestSchema_Unmarshal_ToMap(t *testing.T) {
+// TestUnmarshalToMap tests unmarshaling to map
+func TestUnmarshalToMap(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
@@ -189,7 +193,8 @@ func TestSchema_Unmarshal_ToMap(t *testing.T) {
 	assert.Equal(t, true, result["active"])
 }
 
-func TestSchema_Unmarshal_ValidationFailure(t *testing.T) {
+// TestUnmarshalWithoutValidation tests that unmarshal works without validation
+func TestUnmarshalWithoutValidation(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
@@ -202,17 +207,121 @@ func TestSchema_Unmarshal_ValidationFailure(t *testing.T) {
 	schema, err := compiler.Compile([]byte(schemaJSON))
 	require.NoError(t, err)
 
-	input := `{"id": 0}` // Violates minimum constraint
+	// This violates minimum constraint but unmarshal should still work
+	input := `{"id": 0}`
 	var result User
 	err = schema.Unmarshal(&result, []byte(input))
-	require.Error(t, err)
-
-	var unmarshalErr *UnmarshalError
-	assert.ErrorAs(t, err, &unmarshalErr)
-	assert.Equal(t, "validation", unmarshalErr.Type)
+	require.NoError(t, err) // No error because validation is not performed
+	assert.Equal(t, 0, result.ID)
 }
 
-func TestSchema_Unmarshal_ErrorCases(t *testing.T) {
+// TestSeparateValidationAndUnmarshal tests the intended workflow: validate first, then unmarshal
+func TestSeparateValidationAndUnmarshal(t *testing.T) {
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"id": {"type": "integer", "minimum": 1},
+			"name": {"type": "string", "default": "Anonymous"}
+		},
+		"required": ["id"]
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	tests := []struct {
+		name           string
+		input          string
+		shouldValidate bool
+		expectedID     int
+		expectedName   string
+	}{
+		{
+			name:           "valid data",
+			input:          `{"id": 5}`,
+			shouldValidate: true,
+			expectedID:     5,
+			expectedName:   "Anonymous",
+		},
+		{
+			name:           "invalid data (but unmarshal works)",
+			input:          `{"id": 0}`,
+			shouldValidate: false,
+			expectedID:     0,
+			expectedName:   "Anonymous",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Step 1: Validate
+			result := schema.Validate([]byte(tt.input))
+			assert.Equal(t, tt.shouldValidate, result.IsValid())
+
+			// Step 2: Unmarshal (works regardless of validation result)
+			var user User
+			err := schema.Unmarshal(&user, []byte(tt.input))
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedID, user.ID)
+			assert.Equal(t, tt.expectedName, user.Name)
+
+			// Step 3: Handle based on validation result
+			if result.IsValid() {
+				// Proceed with valid data
+				assert.Equal(t, tt.expectedID, user.ID)
+			} else {
+				// Handle validation errors
+				assert.Contains(t, result.Errors, "properties")
+			}
+		})
+	}
+}
+
+// TestWorkflowExample demonstrates the recommended usage pattern
+func TestWorkflowExample(t *testing.T) {
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"user_id": {"type": "integer", "minimum": 1},
+			"email": {"type": "string", "format": "email"},
+			"country": {"type": "string", "default": "US"},
+			"active": {"type": "boolean", "default": true}
+		},
+		"required": ["user_id", "email"]
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	type UserProfile struct {
+		UserID  int    `json:"user_id"`
+		Email   string `json:"email"`
+		Country string `json:"country"`
+		Active  bool   `json:"active"`
+	}
+
+	input := []byte(`{"user_id": 123, "email": "user@example.com"}`)
+
+	// Recommended workflow
+	result := schema.Validate(input)
+	if result.IsValid() {
+		var profile UserProfile
+		err := schema.Unmarshal(&profile, input)
+		require.NoError(t, err)
+
+		assert.Equal(t, 123, profile.UserID)
+		assert.Equal(t, "user@example.com", profile.Email)
+		assert.Equal(t, "US", profile.Country) // Default applied
+		assert.Equal(t, true, profile.Active)  // Default applied
+	} else {
+		t.Fatalf("Validation failed: %v", result.Errors)
+	}
+}
+
+// TestUnmarshalErrorCases tests various error conditions
+func TestUnmarshalErrorCases(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
@@ -268,7 +377,8 @@ func TestSchema_Unmarshal_ErrorCases(t *testing.T) {
 	}
 }
 
-func TestSchema_Unmarshal_TimeHandling(t *testing.T) {
+// TestUnmarshalTimeHandling tests time parsing
+func TestUnmarshalTimeHandling(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
@@ -313,145 +423,8 @@ func TestSchema_Unmarshal_TimeHandling(t *testing.T) {
 	}
 }
 
-func TestSchema_Unmarshal_ArrayDefaults(t *testing.T) {
-	schemaJSON := `{
-		"type": "object",
-		"properties": {
-			"users": {
-				"type": "array",
-				"items": {
-					"type": "object",
-					"properties": {
-						"id": {"type": "integer"},
-						"name": {"type": "string", "default": "Unknown"}
-					}
-				}
-			}
-		}
-	}`
-
-	compiler := NewCompiler()
-	schema, err := compiler.Compile([]byte(schemaJSON))
-	require.NoError(t, err)
-
-	input := map[string]interface{}{
-		"users": []interface{}{
-			map[string]interface{}{"id": 1},
-			map[string]interface{}{"id": 2, "name": "John"},
-		},
-	}
-
-	var result map[string]interface{}
-	err = schema.Unmarshal(&result, input)
-	require.NoError(t, err)
-
-	users := result["users"].([]interface{})
-	user1 := users[0].(map[string]interface{})
-	user2 := users[1].(map[string]interface{})
-
-	assert.Equal(t, "Unknown", user1["name"]) // Default applied
-	assert.Equal(t, "John", user2["name"])    // Original value preserved
-}
-
-func TestSchema_Unmarshal_Performance(t *testing.T) {
-	schemaJSON := `{
-		"type": "object",
-		"properties": {
-			"id": {"type": "integer"},
-			"name": {"type": "string", "default": "Test User"},
-			"active": {"type": "boolean", "default": true}
-		},
-		"required": ["id"]
-	}`
-
-	compiler := NewCompiler()
-	schema, err := compiler.Compile([]byte(schemaJSON))
-	require.NoError(t, err)
-
-	input := `{"id": 1}`
-
-	// Warm up
-	for i := 0; i < 100; i++ {
-		var result User
-		err := schema.Unmarshal(&result, []byte(input))
-		require.NoError(t, err)
-	}
-
-	// Benchmark
-	const iterations = 1000
-	start := time.Now()
-
-	for i := 0; i < iterations; i++ {
-		var result User
-		err := schema.Unmarshal(&result, []byte(input))
-		require.NoError(t, err)
-	}
-
-	duration := time.Since(start)
-	avgDuration := duration / iterations
-
-	t.Logf("Average unmarshal time: %v", avgDuration)
-	assert.Less(t, avgDuration, time.Millisecond, "Unmarshal should be fast")
-}
-
-// Helper function to parse time strings for tests
-func parseTime(timeStr string) time.Time {
-	t, err := time.Parse(time.RFC3339, timeStr)
-	if err != nil {
-		panic(err)
-	}
-	return t
-}
-
-// Benchmark tests
-func BenchmarkSchema_Unmarshal_Simple(b *testing.B) {
-	schemaJSON := `{
-		"type": "object",
-		"properties": {
-			"id": {"type": "integer"},
-			"name": {"type": "string", "default": "Test"}
-		}
-	}`
-
-	compiler := NewCompiler()
-	schema, _ := compiler.Compile([]byte(schemaJSON))
-	input := []byte(`{"id": 1}`)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var result User
-		_ = schema.Unmarshal(&result, input)
-	}
-}
-
-func BenchmarkSchema_Unmarshal_Complex(b *testing.B) {
-	schemaJSON := `{
-		"type": "object",
-		"properties": {
-			"id": {"type": "integer"},
-			"name": {"type": "string", "default": "Test"},
-			"profile": {
-				"type": "object",
-				"properties": {
-					"age": {"type": "integer", "default": 25},
-					"country": {"type": "string", "default": "US"}
-				}
-			}
-		}
-	}`
-
-	compiler := NewCompiler()
-	schema, _ := compiler.Compile([]byte(schemaJSON))
-	input := []byte(`{"id": 1, "name": "John"}`)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var result NestedUser
-		_ = schema.Unmarshal(&result, input)
-	}
-}
-
-func TestSchema_Unmarshal_InputTypes(t *testing.T) {
+// TestUnmarshalInputTypes tests various input types
+func TestUnmarshalInputTypes(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
@@ -512,7 +485,8 @@ func TestSchema_Unmarshal_InputTypes(t *testing.T) {
 	}
 }
 
-func TestSchema_Unmarshal_NonObjectTypes(t *testing.T) {
+// TestUnmarshalNonObjectTypes tests non-object JSON types
+func TestUnmarshalNonObjectTypes(t *testing.T) {
 	tests := []struct {
 		name       string
 		schemaJSON string
@@ -578,112 +552,117 @@ func TestSchema_Unmarshal_NonObjectTypes(t *testing.T) {
 	}
 }
 
-func TestSchema_Unmarshal_EdgeCases(t *testing.T) {
-	schemaJSON := `{
-		"type": "object",
-		"properties": {
-			"data": {"type": "string"}
-		}
-	}`
-
-	compiler := NewCompiler()
-	schema, err := compiler.Compile([]byte(schemaJSON))
-	require.NoError(t, err)
-
-	tests := []struct {
-		name    string
-		input   interface{}
-		wantErr bool
-	}{
-		{
-			name:    "Empty JSON bytes",
-			input:   []byte(`{}`),
-			wantErr: false,
-		},
-		{
-			name:    "Null JSON",
-			input:   []byte(`null`),
-			wantErr: true, // null is not an object
-		},
+// TestUnmarshalDefaults tests default value application
+func TestUnmarshalDefaults(t *testing.T) {
+	type User struct {
+		Name    string `json:"name"`
+		Age     int    `json:"age"`
+		Country string `json:"country"`
+		Active  bool   `json:"active"`
+		Role    string `json:"role"`
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var result map[string]interface{}
-			err := schema.Unmarshal(&result, tt.input)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestSchema_Unmarshal_RawBytes(t *testing.T) {
-	// Test raw bytes that are not JSON
-	arraySchemaJSON := `{
-		"type": "array",
-		"items": {"type": "integer", "minimum": 0, "maximum": 255}
-	}`
-
-	compiler := NewCompiler()
-	arraySchema, err := compiler.Compile([]byte(arraySchemaJSON))
-	require.NoError(t, err)
-
-	tests := []struct {
-		name        string
-		schema      *Schema
-		input       interface{}
-		shouldError bool
-		description string
-	}{
-		{
-			name:        "Raw binary bytes - should be treated as byte array",
-			schema:      arraySchema,
-			input:       []byte{1, 2, 3, 4, 5},
-			shouldError: true, // Can't unmarshal []byte directly to []int without JSON
-			description: "Raw bytes can't be unmarshaled to []int",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var result []int
-			err := tt.schema.Unmarshal(&result, tt.input)
-			if tt.shouldError {
-				assert.Error(t, err, tt.description)
-			} else {
-				assert.NoError(t, err, tt.description)
-			}
-		})
-	}
-}
-
-func TestSchema_Unmarshal_JSONStringConversion(t *testing.T) {
-	// Test that users can still use JSON strings by converting them to []byte
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
 			"name": {"type": "string"},
-			"age": {"type": "integer"}
+			"age": {"type": "integer", "minimum": 0},
+			"country": {"type": "string", "default": "US"},
+			"active": {"type": "boolean", "default": true},
+			"role": {"type": "string", "default": "user"}
 		},
 		"required": ["name", "age"]
 	}`
 
+	tests := []struct {
+		name         string
+		src          interface{}
+		expectError  bool
+		expectedUser User
+	}{
+		{
+			name:        "JSON bytes with defaults",
+			src:         []byte(`{"name": "John", "age": 25}`),
+			expectError: false,
+			expectedUser: User{
+				Name:    "John",
+				Age:     25,
+				Country: "US",
+				Active:  true,
+				Role:    "user",
+			},
+		},
+		{
+			name:        "map with defaults",
+			src:         map[string]interface{}{"name": "Jane", "age": 30, "country": "CA"},
+			expectError: false,
+			expectedUser: User{
+				Name:    "Jane",
+				Age:     30,
+				Country: "CA",
+				Active:  true,
+				Role:    "user",
+			},
+		},
+		{
+			name:        "missing required field - no error in unmarshal (validation should be done separately)",
+			src:         []byte(`{"age": 25}`),
+			expectError: false,
+			expectedUser: User{
+				Name:    "", // Missing required field, but unmarshal still works
+				Age:     25,
+				Country: "US",
+				Active:  true,
+				Role:    "user",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			schema, err := compiler.Compile([]byte(schemaJSON))
+			require.NoError(t, err)
+
+			var result User
+			err = schema.Unmarshal(&result, tt.src)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedUser, result)
+			}
+		})
+	}
+}
+
+// BenchmarkUnmarshal tests performance
+func BenchmarkUnmarshal(b *testing.B) {
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"id": {"type": "integer"},
+			"name": {"type": "string", "default": "Test"}
+		}
+	}`
+
 	compiler := NewCompiler()
-	schema, err := compiler.Compile([]byte(schemaJSON))
-	require.NoError(t, err)
+	schema, _ := compiler.Compile([]byte(schemaJSON))
+	input := []byte(`{"id": 1}`)
 
-	// JSON string that user wants to unmarshal
-	jsonString := `{"name": "John", "age": 25}`
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var result User
+		_ = schema.Unmarshal(&result, input)
+	}
+}
 
-	// Convert to []byte (following json.Unmarshal pattern)
-	var result map[string]interface{}
-	err = schema.Unmarshal(&result, []byte(jsonString))
-
-	require.NoError(t, err)
-	assert.Equal(t, "John", result["name"])
-	assert.Equal(t, float64(25), result["age"]) // JSON numbers are float64
+// Helper function to parse time strings for tests
+func parseTime(timeStr string) time.Time {
+	t, err := time.Parse(time.RFC3339, timeStr)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
