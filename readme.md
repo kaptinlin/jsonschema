@@ -15,6 +15,7 @@ A high-performance JSON Schema validator for Go with **direct struct validation*
 - ✅ **Schema References** - Full `$ref`, `$recursiveRef`, `$dynamicRef` support
 - ✅ **Custom Formats** - Register your own validators
 - ✅ **Internationalization** - Multi-language error messages
+- ✅ **Code Construction** - Type-safe schema building using JSON Schema keywords
 
 ## Quick Start
 
@@ -111,6 +112,31 @@ if result.IsValid() {
 }
 ```
 
+## Programmatic Schema Building
+
+Create JSON schemas directly in Go code with type-safe constructors:
+
+```go
+// Define schemas with fluent API
+schema := jsonschema.Object(
+    jsonschema.Prop("name", jsonschema.String(jsonschema.MinLen(1))),
+    jsonschema.Prop("email", jsonschema.Email()),
+    jsonschema.Required("name", "email"),
+)
+
+// Validate immediately - no compilation step
+result := schema.Validate(data)
+```
+
+### Key Features
+
+- **Core Types**: String, Integer, Array, Object with validation keywords
+- **Composition**: OneOf, AnyOf, AllOf, conditional logic (If/Then/Else)
+- **Formats**: Built-in validators for email, UUID, datetime, URI, etc.
+- **Registration**: Register schemas for reuse and cross-references
+
+**📖 Full Documentation**: [docs/constructor.md](docs/constructor.md)
+
 ## Advanced Features
 
 ### Custom Formats
@@ -123,188 +149,127 @@ compiler.RegisterFormat("uuid", func(value string) bool {
 
 // Use in schema
 schema := `{
-    "type": "object",
-    "properties": {
-        "id": {"type": "string", "format": "uuid"}
-    }
+    "type": "string",
+    "format": "uuid"
 }`
 ```
 
 ### Schema References
 
 ```go
-// Register reusable schemas
-compiler.CompileWithID("person.json", personSchema)
-
-// Reference in other schemas
 schema := `{
     "type": "object",
     "properties": {
-        "user": {"$ref": "person.json"}
-    }
-}`
-```
-
-### Error Handling
-
-```go
-import "errors" // Required for errors.As
-
-// Detailed validation error handling
-result := schema.Validate(data)
-if !result.IsValid() {
-    for field, err := range result.Errors {
-        switch err.Keyword {
-        case "required":
-            fmt.Printf("Missing required field: %s\n", field)
-        case "type":
-            fmt.Printf("Invalid type for field: %s\n", field)
-        default:
-            fmt.Printf("%s: %s\n", field, err.Message)
+        "user": {"$ref": "#/$defs/User"}
+    },
+    "$defs": {
+        "User": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"}
+            }
         }
     }
-}
-
-// Unmarshal error handling
-var user User
-err := schema.Unmarshal(&user, data)
-if err != nil {
-    var unmarshalErr *jsonschema.UnmarshalError
-    if errors.As(err, &unmarshalErr) {
-        fmt.Printf("Error type: %s, Reason: %s\n", unmarshalErr.Type, unmarshalErr.Reason)
-    }
-}
+}`
 ```
 
 ### Internationalization
 
 ```go
-i18n, _ := jsonschema.GetI18n()
-localizer := i18n.NewLocalizer("zh-Hans")
-result := schema.Validate(data)
-localizedList := result.ToLocalizeList(localizer)
+// Set custom error messages
+compiler.SetLocale("zh-CN")
+
+// Or use custom translator
+compiler.SetTranslator(func(key string, args ...interface{}) string {
+    return customTranslate(key, args...)
+})
 ```
 
-## Validation + Unmarshal Patterns
+### Performance Optimization
 
-### Pattern 1: Strict Validation
+```go
+// Pre-compile schemas for better performance
+compiler := jsonschema.NewCompiler()
+schema := compiler.MustCompile(schemaJSON)
+
+// Use type-specific validation methods
+result := schema.ValidateStruct(structData)  // Fastest for structs
+result := schema.ValidateJSON(jsonBytes)     // Fastest for JSON
+result := schema.ValidateMap(mapData)        // Fastest for maps
+```
+
+## Error Handling
+
+### Detailed Error Information
+
 ```go
 result := schema.Validate(data)
 if !result.IsValid() {
-    return fmt.Errorf("validation failed: %v", result.Errors)
-}
-
-var user User
-return schema.Unmarshal(&user, data)
-```
-
-### Pattern 2: Conditional Processing  
-```go
-result := schema.Validate(data)
-var user User
-err := schema.Unmarshal(&user, data) // Always unmarshal
-
-if result.IsValid() {
-    // Process valid data
-    return processUser(user)
-} else {
-    // Log errors but still process with defaults
-    log.Printf("Validation warnings: %v", result.Errors)
-    return processUserWithWarnings(user)
-}
-```
-
-### Pattern 3: Production Workflow
-```go
-func ProcessUserData(schema *jsonschema.Schema, data []byte) error {
-    // Step 1: Validate
-    result := schema.Validate(data)
-    if !result.IsValid() {
-        return fmt.Errorf("validation failed: %v", result.Errors)
+    // Get all errors
+    for field, err := range result.Errors {
+        fmt.Printf("Field: %s\n", field)
+        fmt.Printf("Message: %s\n", err.Message)
+        fmt.Printf("Value: %v\n", err.Value)
+        fmt.Printf("Schema: %v\n", err.Schema)
     }
     
-    // Step 2: Unmarshal validated data
-    var user User
-    if err := schema.Unmarshal(&user, data); err != nil {
-        return fmt.Errorf("unmarshal failed: %w", err)
+    // Or get as a list
+    errors := result.ToList()
+    for _, err := range errors {
+        fmt.Printf("Error: %s\n", err.Error())
     }
-    
-    // Step 3: Process user
-    return saveUser(user)
 }
 ```
 
-## Performance Optimization
-
-### Pre-compile Schemas
+### Custom Error Messages
 
 ```go
-// Pre-compile for better performance
-var userSchema, productSchema *jsonschema.Schema
-
-func init() {
-    compiler := jsonschema.NewCompiler()
-    userSchema, _ = compiler.CompileWithID("user", userSchemaJSON)
-    productSchema, _ = compiler.CompileWithID("product", productSchemaJSON)
-}
-
-// Reuse compiled schemas
-func validateUser(data []byte) error {
-    result := userSchema.ValidateJSON(data)
-    if !result.IsValid() {
-        return fmt.Errorf("validation failed")
-    }
-    return nil
-}
+schema := `{
+    "type": "string",
+    "minLength": 5,
+    "errorMessage": "Name must be at least 5 characters long"
+}`
 ```
 
-### Use Optimal Methods
+## Testing
 
-```go
-// Choose the right method for your data type
-schema.ValidateJSON(jsonBytes)    // Fastest for JSON
-schema.ValidateStruct(structData) // Fastest for structs  
-schema.ValidateMap(mapData)       // Fastest for maps
+The library includes comprehensive tests and passes the official JSON Schema Test Suite:
 
-// Use high-performance JSON libraries
-compiler.WithEncoderJSON(sonic.Marshal)
-compiler.WithDecoderJSON(sonic.Unmarshal)
+```bash
+go test ./...
 ```
 
-## Documentation
+### Benchmarks
 
-### Guides
-- **[Validation](./docs/validation.md)** - Validation methods and input types
-- **[Unmarshal](./docs/unmarshal.md)** - Unmarshal with validation and defaults  
-- **[Error Handling](./docs/error-handling.md)** - Error types and handling patterns
-- **[Schema Compilation](./docs/compilation.md)** - Compiler configuration
-
-### Reference
-- **[API Reference](./docs/api.md)** - Complete method documentation
-- **[Examples](./examples/)** - Runnable code examples
-
-## Examples
-
-See [examples/](./examples/) directory for working code samples:
-
-- **[Basic](./examples/basic/)** - Simple validation patterns
-- **[Struct Validation](./examples/struct-validation/)** - Direct struct validation
-- **[Multiple Input Types](./examples/multiple-input-types/)** - Handle different data types
-- **[Unmarshaling](./examples/unmarshaling/)** - Validation + defaults workflow
-- **[Error Handling](./examples/error-handling/)** - Error management patterns
-- **[Internationalization](./examples/i18n/)** - Multilingual error messages
+```bash
+go test -bench=. -benchmem
+```
 
 ## Contributing
 
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Development Setup
+
+```bash
+git clone https://github.com/kaptinlin/jsonschema.git
+cd jsonschema
+go mod download
+go test ./...
+```
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Credits
-Special thanks to:
-- [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite) for 
-comprehensive test cases
-- [jsonschema by santhosh-tekuri](https://github.com/santhosh-tekuri/jsonschema) for inspiration
-- [Json-Everything](https://json-everything.net/) for reference implementation
+## Related Projects
+
+- [JSON Schema](https://json-schema.org/) - The official JSON Schema specification
+- [JSON Schema Test Suite](https://github.com/json-schema-org/JSON-Schema-Test-Suite) - Official test suite
+- [Understanding JSON Schema](https://json-schema.org/understanding-json-schema/) - Comprehensive guide
+
+## Acknowledgments
+
+- Thanks to the JSON Schema community for the excellent specification
+- Inspired by other JSON Schema implementations in various languages
+- Special thanks to all contributors who have helped improve this library
