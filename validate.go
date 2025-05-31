@@ -13,6 +13,22 @@ func (s *Schema) Validate(instance interface{}) *EvaluationResult {
 }
 
 func (s *Schema) evaluate(instance interface{}, dynamicScope *DynamicScope) (*EvaluationResult, map[string]bool, map[int]bool) {
+	// Handle []byte by parsing as JSON if possible
+	if jsonBytes, ok := instance.([]byte); ok {
+		var parsed interface{}
+		if err := s.compiler.jsonDecoder(jsonBytes, &parsed); err == nil {
+			// Successfully parsed as JSON, use the parsed data
+			instance = parsed
+		} else if len(jsonBytes) > 0 && (jsonBytes[0] == '{' || jsonBytes[0] == '[') {
+			// Only return error if it looks like it was meant to be JSON
+			result := NewEvaluationResult(s)
+			//nolint:errcheck // Error from AddError is intentionally ignored here
+			result.AddError(NewEvaluationError("format", "invalid_json", "Invalid JSON format in byte array"))
+			return result, make(map[string]bool), make(map[int]bool)
+		}
+		// Otherwise, keep the original bytes for validation as a regular byte array
+	}
+
 	dynamicScope.Push(s)
 	result := NewEvaluationResult(s)
 
