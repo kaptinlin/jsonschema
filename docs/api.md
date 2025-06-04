@@ -39,6 +39,33 @@ compiler.RegisterFormat("uuid", func(value string) bool {
 })
 ```
 
+### `(*Compiler) RegisterDefaultFunc(name string, fn DefaultFunc) *Compiler`
+
+Registers a function for dynamic default value generation.
+
+```go
+// Register built-in function
+compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
+
+// Register custom function
+compiler.RegisterDefaultFunc("uuid", func(args ...any) (any, error) {
+    return uuid.New().String(), nil
+})
+
+// Use in schema
+schema := `{
+    "properties": {
+        "id": {"default": "uuid()"},
+        "timestamp": {"default": "now(2006-01-02)"}
+    }
+}`
+```
+
+**Function signature**: `func(args ...any) (any, error)`
+- Functions should handle argument parsing gracefully
+- Return values are used as defaults during unmarshaling
+- Errors cause fallback to literal string values
+
 ## Schema
 
 ### Validation Methods
@@ -116,6 +143,45 @@ if result.IsValid() {
 - `*struct` (Go struct pointer)
 - `*map[string]interface{}` (map pointer)
 - Other pointer types
+
+### Schema Configuration Methods
+
+#### `(*Schema) SetCompiler(compiler *Compiler) *Schema`
+
+Sets a custom compiler for the schema and returns the schema for method chaining.
+
+```go
+// Create custom compiler with functions
+compiler := jsonschema.NewCompiler()
+compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
+compiler.RegisterDefaultFunc("uuid", generateUUID)
+
+// Set compiler on schema
+schema := jsonschema.Object(
+    jsonschema.Prop("id", jsonschema.String(jsonschema.Default("uuid()"))),
+    jsonschema.Prop("timestamp", jsonschema.String(jsonschema.Default("now()"))),
+).SetCompiler(compiler)
+
+// Child schemas automatically inherit parent's compiler
+```
+
+#### `(*Schema) GetCompiler() *Compiler`
+
+Returns the effective compiler for the schema with smart inheritance.
+
+```go
+compiler := schema.GetCompiler()
+
+// Inheritance order:
+// 1. Current schema's compiler
+// 2. Parent schema's compiler (recursive)
+// 3. Default global compiler
+```
+
+**Use cases:**
+- **Per-schema functions**: Isolate function registries for different schemas
+- **Function inheritance**: Child schemas automatically use parent's compiler
+- **Dynamic defaults**: Enable function-based default value generation
 
 ## Validation Results
 

@@ -124,12 +124,18 @@ func newSchema(jsonSchema []byte) (*Schema, error) {
 // initializeSchema sets up the schema structure, resolves URIs, and initializes nested schemas.
 // It populates schema properties from the compiler settings and the parent schema context.
 func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
-	s.compiler = compiler
+	// Only set compiler if it's not nil (for constructor usage)
+	if compiler != nil {
+		s.compiler = compiler
+	}
 	s.parent = parent
+
+	// Get effective compiler for initialization
+	effectiveCompiler := s.GetCompiler()
 
 	parentBaseURI := s.getParentBaseURI()
 	if parentBaseURI == "" {
-		parentBaseURI = compiler.DefaultBaseURI
+		parentBaseURI = effectiveCompiler.DefaultBaseURI
 	}
 	if s.ID != "" {
 		if isValidURI(s.ID) {
@@ -163,6 +169,8 @@ func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
 		root.setSchema(s.uri, s)
 	}
 
+	// For constructor usage (compiler=nil), don't pass compiler to children
+	// They should inherit through parent-child relationship via GetCompiler()
 	initializeNestedSchemas(s, compiler)
 	s.resolveReferences()
 }
@@ -483,4 +491,25 @@ func (cv ConstValue) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	return json.Marshal(cv.Value)
+}
+
+// SetCompiler sets a custom Compiler for the Schema and returns the Schema itself to support method chaining
+func (s *Schema) SetCompiler(compiler *Compiler) *Schema {
+	s.compiler = compiler
+	return s
+}
+
+// GetCompiler gets the effective Compiler for the Schema
+// Lookup order: current Schema -> parent Schema -> defaultCompiler
+func (s *Schema) GetCompiler() *Compiler {
+	if s.compiler != nil {
+		return s.compiler
+	}
+
+	// Look up parent Schema's compiler
+	if s.parent != nil {
+		return s.parent.GetCompiler()
+	}
+
+	return defaultCompiler
 }

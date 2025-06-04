@@ -3,6 +3,16 @@ package jsonschema
 // Default compiler instance for initializing Schema
 var defaultCompiler = NewCompiler()
 
+// SetDefaultCompiler allows setting a custom compiler for the constructor API
+func SetDefaultCompiler(c *Compiler) {
+	defaultCompiler = c
+}
+
+// GetDefaultCompiler returns the current default compiler
+func GetDefaultCompiler() *Compiler {
+	return defaultCompiler
+}
+
 // Property represents a Schema property definition
 type Property struct {
 	Name   string
@@ -46,7 +56,7 @@ func Object(items ...interface{}) *Schema {
 	}
 
 	// Initialize Schema to make it directly usable
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
@@ -56,7 +66,7 @@ func String(keywords ...Keyword) *Schema {
 	for _, keyword := range keywords {
 		keyword(schema)
 	}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
@@ -66,7 +76,7 @@ func Integer(keywords ...Keyword) *Schema {
 	for _, keyword := range keywords {
 		keyword(schema)
 	}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
@@ -76,7 +86,7 @@ func Number(keywords ...Keyword) *Schema {
 	for _, keyword := range keywords {
 		keyword(schema)
 	}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
@@ -86,7 +96,7 @@ func Boolean(keywords ...Keyword) *Schema {
 	for _, keyword := range keywords {
 		keyword(schema)
 	}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
@@ -96,7 +106,7 @@ func Null(keywords ...Keyword) *Schema {
 	for _, keyword := range keywords {
 		keyword(schema)
 	}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
@@ -106,7 +116,7 @@ func Array(keywords ...Keyword) *Schema {
 	for _, keyword := range keywords {
 		keyword(schema)
 	}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
@@ -116,7 +126,7 @@ func Any(keywords ...Keyword) *Schema {
 	for _, keyword := range keywords {
 		keyword(schema)
 	}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
@@ -125,42 +135,42 @@ func Const(value interface{}) *Schema {
 	schema := &Schema{
 		Const: &ConstValue{Value: value, IsSet: true},
 	}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
 // Enum creates an enum Schema
 func Enum(values ...interface{}) *Schema {
 	schema := &Schema{Enum: values}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
 // OneOf creates a oneOf combination Schema
 func OneOf(schemas ...*Schema) *Schema {
 	schema := &Schema{OneOf: schemas}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
 // AnyOf creates an anyOf combination Schema
 func AnyOf(schemas ...*Schema) *Schema {
 	schema := &Schema{AnyOf: schemas}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
 // AllOf creates an allOf combination Schema
 func AllOf(schemas ...*Schema) *Schema {
 	schema := &Schema{AllOf: schemas}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
 // Not creates a not combination Schema
 func Not(schema *Schema) *Schema {
 	result := &Schema{Not: schema}
-	result.initializeSchema(defaultCompiler, nil)
+	result.initializeSchema(nil, nil)
 	return result
 }
 
@@ -195,13 +205,13 @@ func (cs *ConditionalSchema) ToSchema() *Schema {
 		Then: cs.then,
 		Else: cs.otherwise,
 	}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }
 
 // Ref creates a reference Schema using $ref keyword
 func Ref(ref string) *Schema {
 	schema := &Schema{Ref: ref}
-	schema.initializeSchema(defaultCompiler, nil)
+	schema.initializeSchema(nil, nil)
 	return schema
 }

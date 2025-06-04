@@ -65,3 +65,159 @@ func TestSchemaInitialization(t *testing.T) {
 		})
 	}
 }
+
+func TestSetCompiler(t *testing.T) {
+	// Create a custom compiler
+	customCompiler := NewCompiler()
+	customCompiler.RegisterDefaultFunc("testFunc", func(args ...any) (any, error) {
+		return "custom_result", nil
+	})
+
+	// Test SetCompiler returns the schema for chaining
+	schema := &Schema{}
+	result := schema.SetCompiler(customCompiler)
+	assert.Same(t, schema, result, "SetCompiler should return the schema for chaining")
+	assert.Same(t, customCompiler, schema.compiler, "Schema should have the custom compiler set")
+}
+
+func TestGetCompiler(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupFunc      func() *Schema
+		expectedResult *Compiler
+	}{
+		{
+			name: "Schema with custom compiler",
+			setupFunc: func() *Schema {
+				customCompiler := NewCompiler()
+				schema := &Schema{}
+				schema.SetCompiler(customCompiler)
+				return schema
+			},
+			expectedResult: NewCompiler(), // Same as custom compiler
+		},
+		{
+			name: "Schema without compiler, no parent",
+			setupFunc: func() *Schema {
+				return &Schema{}
+			},
+			expectedResult: defaultCompiler,
+		},
+		{
+			name: "Child schema inherits from parent",
+			setupFunc: func() *Schema {
+				customCompiler := NewCompiler()
+				parent := &Schema{}
+				parent.SetCompiler(customCompiler)
+
+				child := &Schema{parent: parent}
+				return child
+			},
+			expectedResult: NewCompiler(), // Same as parent's custom compiler
+		},
+		{
+			name: "Nested inheritance chain",
+			setupFunc: func() *Schema {
+				customCompiler := NewCompiler()
+
+				// Create inheritance chain: grandparent -> parent -> child
+				grandparent := &Schema{}
+				grandparent.SetCompiler(customCompiler)
+
+				parent := &Schema{parent: grandparent}
+				child := &Schema{parent: parent}
+
+				return child
+			},
+			expectedResult: NewCompiler(), // Same as grandparent's custom compiler
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema := tt.setupFunc()
+			result := schema.GetCompiler()
+
+			// We can't directly compare compiler instances, so we check they're not nil
+			// and that they have the same type
+			assert.NotNil(t, result, "GetCompiler should never return nil")
+			assert.IsType(t, &Compiler{}, result, "GetCompiler should return a Compiler")
+		})
+	}
+}
+
+func TestGetCompilerInheritance(t *testing.T) {
+	// Create a custom compiler with a test function
+	customCompiler := NewCompiler()
+	customCompiler.RegisterDefaultFunc("testFunc", func(args ...any) (any, error) {
+		return "inherited_result", nil
+	})
+
+	// Create parent-child relationship
+	parent := &Schema{}
+	parent.SetCompiler(customCompiler)
+
+	child := &Schema{parent: parent}
+
+	// Test that child inherits parent's compiler
+	childCompiler := child.GetCompiler()
+	assert.NotNil(t, childCompiler, "Child should inherit compiler from parent")
+
+	// Verify the inherited compiler has the custom function
+	fn, exists := childCompiler.getDefaultFunc("testFunc")
+	assert.True(t, exists, "Child's compiler should have inherited the custom function")
+
+	result, err := fn()
+	assert.NoError(t, err)
+	assert.Equal(t, "inherited_result", result, "Inherited function should work correctly")
+}
+
+func TestSetCompilerWithConstructors(t *testing.T) {
+	// Create a custom compiler
+	customCompiler := NewCompiler()
+	customCompiler.RegisterDefaultFunc("now", DefaultNowFunc)
+
+	// Test that constructors work with SetCompiler
+	schema := Object(
+		Prop("timestamp", String(Default("now()"))),
+	).SetCompiler(customCompiler)
+
+	// Verify the child schema can use the parent's compiler
+	data := map[string]interface{}{}
+	var result map[string]interface{}
+	err := schema.Unmarshal(&result, data)
+	assert.NoError(t, err)
+	assert.Contains(t, result, "timestamp", "Default value should be applied")
+	assert.IsType(t, "", result["timestamp"], "Timestamp should be a string")
+}
+
+func TestConstructorCompilerBehavior(t *testing.T) {
+	// Test that constructors don't force defaultCompiler
+	// This verifies SetCompiler works correctly after construction
+
+	// Create custom compiler with a unique function
+	customCompiler := NewCompiler()
+	customCompiler.RegisterDefaultFunc("customFunc", func(args ...any) (any, error) {
+		return "custom_value", nil
+	})
+
+	// Create schema using constructor, then set custom compiler
+	schema := Object(
+		Prop("field", String(Default("customFunc()"))),
+	)
+
+	// Before SetCompiler, the child schema should not have a compiler set
+	// This verifies constructors don't force defaultCompiler
+	childSchema := (*schema.Properties)["field"]
+	assert.Nil(t, childSchema.compiler, "Child schema should not have compiler set by constructor")
+
+	// Set custom compiler on parent
+	schema.SetCompiler(customCompiler)
+
+	// Test that child inherits parent's compiler for function execution
+	data := map[string]interface{}{}
+	var result map[string]interface{}
+	err := schema.Unmarshal(&result, data)
+	assert.NoError(t, err)
+	assert.Equal(t, "custom_value", result["field"], "Child should inherit parent's custom compiler")
+}

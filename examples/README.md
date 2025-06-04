@@ -16,11 +16,17 @@ Handle different data types (JSON bytes, maps, structs) with type-specific metho
 ### 📦 [Unmarshaling](./unmarshaling/)
 Validation + unmarshaling workflow with default value application.
 
+### ⚙️ [Dynamic Defaults](./dynamic-defaults/)
+Dynamic default value generation using registered functions (e.g., timestamps, UUIDs).
+
 ### ⚠️ [Error Handling](./error-handling/)
 Comprehensive error handling patterns and validation failure management.
 
 ### 🌍 [Internationalization](./i18n/)
 Multilingual error messages using Chinese (zh-Hans) and English locales.
+
+### 🏗️ [Constructor](./constructor/)
+Schema creation using fluent constructor API with keywords and validation.
 
 ## Running Examples
 
@@ -29,6 +35,10 @@ Multilingual error messages using Chinese (zh-Hans) and English locales.
 cd <example-directory>
 go run main.go
 
-# Or run from project root
+# Or run from project root (for single-file examples)
 go run examples/<example-name>/main.go
+
+# For dynamic defaults example
+cd examples/dynamic-defaults
+go run dynamic_defaults.go
 ```

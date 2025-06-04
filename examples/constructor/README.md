@@ -1,22 +1,20 @@
 # Constructor API Examples
 
-Simple examples demonstrating the JSON Schema Constructor API for programmatic schema building.
+Demonstrates building JSON schemas programmatically using the Constructor API.
 
-## Running the Example
+## Usage
 
 ```bash
 go run main.go
 ```
 
-## What's Demonstrated
+## Features Demonstrated
 
-The example showcases the Constructor API's key capabilities:
-
-- **Basic Types**: String, integer, array, and object schemas with validation keywords
-- **Value Constraints**: Constant values and enumerations
-- **Schema Composition**: OneOf, AnyOf, AllOf, and conditional logic
-- **Convenience Functions**: Pre-built schemas for common formats (email, UUID, datetime)
-- **Immediate Validation**: Direct validation without compilation steps
+- **Type Constructors**: String, integer, array, object with validation
+- **Constraints**: Enums, constants, min/max values, patterns
+- **Composition**: OneOf, AnyOf, conditional schemas
+- **Convenience**: Pre-built schemas for common formats (email, UUID, datetime)
+- **Custom Compiler**: Using SetCompiler for dynamic defaults
 
 ## Documentation
 

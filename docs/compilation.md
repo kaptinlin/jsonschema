@@ -344,37 +344,6 @@ if err != nil {
 
 ## Performance Tips
 
-### Schema Caching
-
-```go
-// Pre-compile frequently used schemas
-type SchemaCache struct {
-    compiler *jsonschema.Compiler
-    schemas  map[string]*jsonschema.Schema
-}
-
-func NewSchemaCache() *SchemaCache {
-    return &SchemaCache{
-        compiler: jsonschema.NewCompiler(),
-        schemas:  make(map[string]*jsonschema.Schema),
-    }
-}
-
-func (c *SchemaCache) GetSchema(id string, schemaBytes []byte) (*jsonschema.Schema, error) {
-    if schema, exists := c.schemas[id]; exists {
-        return schema, nil
-    }
-    
-    schema, err := c.compiler.CompileWithID(id, schemaBytes)
-    if err != nil {
-        return nil, err
-    }
-    
-    c.schemas[id] = schema
-    return schema, nil
-}
-```
-
 ### Compilation Best Practices
 
 1. **Reuse compiler instances** for related schemas
@@ -383,28 +352,4 @@ func (c *SchemaCache) GetSchema(id string, schemaBytes []byte) (*jsonschema.Sche
 4. **Register custom formats** before compilation
 5. **Set base URI** for relative references
 
-```go
-// Good: Setup once, use many times
-func setupSchemas() map[string]*jsonschema.Schema {
-    compiler := jsonschema.NewCompiler()
-    compiler.SetAssertFormat(true)
-    compiler.SetDefaultBaseURI("https://api.example.com/schemas/")
-    
-    // Register custom formats
-    compiler.RegisterFormat("uuid", validateUUID)
-    
-    schemas := make(map[string]*jsonschema.Schema)
-    
-    // Compile all schemas
-    for name, schemaBytes := range schemaDefinitions {
-        schema, err := compiler.CompileWithID(name, schemaBytes)
-        if err != nil {
-            log.Fatalf("Failed to compile schema %s: %v", name, err)
-        }
-        schemas[name] = schema
-    }
-    
-    return schemas
-}
 ```
-

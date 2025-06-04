@@ -112,6 +112,40 @@ if result.IsValid() {
 }
 ```
 
+### Dynamic Default Values
+
+Register functions to generate dynamic defaults during unmarshaling:
+
+```go
+// Register custom functions
+compiler := jsonschema.NewCompiler()
+compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
+compiler.RegisterDefaultFunc("uuid", func(args ...any) (any, error) {
+    return uuid.New().String(), nil
+})
+
+// Schema with dynamic defaults
+schemaJSON := `{
+    "type": "object",
+    "properties": {
+        "id": {"default": "uuid()"},
+        "createdAt": {"default": "now()"},
+        "formattedDate": {"default": "now(2006-01-02)"},
+        "status": {"default": "active"}
+    }
+}`
+
+schema, _ := compiler.Compile([]byte(schemaJSON))
+
+// Input: {}  
+// Result: {
+//   "id": "3ace637a-515a-4328-a614-b3deb58d410d",
+//   "createdAt": "2025-06-05T01:05:22+08:00",
+//   "formattedDate": "2025-06-05",
+//   "status": "active"
+// }
+```
+
 ## Programmatic Schema Building
 
 Create JSON schemas directly in Go code with type-safe constructors:
@@ -136,6 +170,25 @@ result := schema.Validate(data)
 - **Registration**: Register schemas for reuse and cross-references
 
 **📖 Full Documentation**: [docs/constructor.md](docs/constructor.md)
+
+### Custom Compiler for Schemas
+
+Set custom compilers on schemas for isolated function registries:
+
+```go
+// Create custom compiler with functions
+compiler := jsonschema.NewCompiler()
+compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
+
+// Apply to programmatically built schema
+schema := jsonschema.Object(
+    jsonschema.Prop("timestamp", jsonschema.String(jsonschema.Default("now()"))),
+    jsonschema.Prop("name", jsonschema.String()),
+).SetCompiler(compiler)
+
+// Child schemas automatically inherit parent's compiler
+result := schema.Validate(data)
+```
 
 ## Advanced Features
 

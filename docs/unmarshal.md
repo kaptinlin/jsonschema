@@ -142,6 +142,104 @@ schema := `{
 // }
 ```
 
+## Dynamic Default Values
+
+The library supports dynamic functions for generating default values at runtime:
+
+### Function Registration
+
+```go
+// Register built-in and custom functions
+compiler := jsonschema.NewCompiler()
+compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
+compiler.RegisterDefaultFunc("uuid", func(args ...any) (any, error) {
+    return uuid.New().String(), nil
+})
+```
+
+### Schema with Dynamic Defaults
+
+```go
+schemaJSON := `{
+    "type": "object",
+    "properties": {
+        "id": {"default": "uuid()"},
+        "createdAt": {"default": "now()"},
+        "updatedAt": {"default": "now(2006-01-02 15:04:05)"},
+        "status": {"default": "active"},
+        "unregistered": {"default": "unknown_func()"}
+    }
+}`
+
+schema, _ := compiler.Compile([]byte(schemaJSON))
+
+// Unmarshal with empty input
+var result map[string]interface{}
+schema.Unmarshal(&result, map[string]interface{}{})
+
+// Output:
+// {
+//   "id": "3ace637a-515a-4328-a614-b3deb58d410d",
+//   "createdAt": "2025-06-05T01:05:22+08:00", 
+//   "updatedAt": "2025-06-05 01:05:22",
+//   "status": "active",
+//   "unregistered": "unknown_func()" // Falls back to literal
+// }
+```
+
+### Built-in Functions
+
+#### `DefaultNowFunc`
+Generates timestamps with optional custom formatting:
+
+```go
+// Register the function
+compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
+
+// Usage in schema
+"createdAt": {"default": "now()"}                    // RFC3339 format
+"date": {"default": "now(2006-01-02)"}              // Date only
+"time": {"default": "now(15:04:05)"}                // Time only
+"custom": {"default": "now(Jan 2, 2006 3:04 PM)"}   // Custom format
+```
+
+### Per-Schema Compilers
+
+Use `SetCompiler()` to isolate function registries per schema:
+
+```go
+// Create custom compiler for specific use case
+apiCompiler := jsonschema.NewCompiler()
+apiCompiler.RegisterDefaultFunc("apiKey", generateAPIKey)
+apiCompiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
+
+// Apply to programmatically built schema
+schema := jsonschema.Object(
+    jsonschema.Prop("apiKey", jsonschema.String(jsonschema.Default("apiKey()"))),
+    jsonschema.Prop("timestamp", jsonschema.String(jsonschema.Default("now()"))),
+).SetCompiler(apiCompiler)
+
+// Child schemas inherit parent's compiler automatically
+```
+
+### Error Handling
+
+Dynamic functions are safe-by-design:
+- **Unregistered functions**: Fall back to literal string values
+- **Function errors**: Fall back to literal string values  
+- **No panics**: Library never crashes on function failures
+
+```go
+// This won't break unmarshaling
+schemaJSON := `{
+    "properties": {
+        "value": {"default": "nonexistent_function()"}
+    }
+}`
+
+// result["value"] will be "nonexistent_function()" (literal)
+```
+
 ## Error Handling
 
 ```go

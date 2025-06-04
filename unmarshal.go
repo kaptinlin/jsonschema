@@ -214,7 +214,12 @@ func (s *Schema) applyDefaults(data map[string]interface{}, schema *Schema) erro
 func (s *Schema) applyPropertyDefaults(data map[string]interface{}, propName string, propSchema *Schema) error {
 	// Set default value if property doesn't exist
 	if _, exists := data[propName]; !exists && propSchema.Default != nil {
-		data[propName] = propSchema.Default
+		// Try to evaluate dynamic default value
+		defaultValue, err := s.evaluateDefaultValue(propSchema.Default)
+		if err != nil {
+			return fmt.Errorf("failed to evaluate default value for property '%s': %w", propName, err)
+		}
+		data[propName] = defaultValue
 	}
 
 	propData, exists := data[propName]
@@ -235,6 +240,50 @@ func (s *Schema) applyPropertyDefaults(data map[string]interface{}, propName str
 	return nil
 }
 
+// evaluateDefaultValue evaluates a default value, checking if it's a function call
+func (s *Schema) evaluateDefaultValue(defaultValue interface{}) (interface{}, error) {
+	// Check if it's a string that might be a function call
+	defaultStr, ok := defaultValue.(string)
+	if !ok {
+		// Non-string default value, return as is
+		return defaultValue, nil
+	}
+
+	// Try to parse as function call
+	call, err := parseFunctionCall(defaultStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse function call: %w", err)
+	}
+
+	if call == nil {
+		// Not a function call, use literal value
+		return defaultStr, nil
+	}
+
+	// Get the effective compiler (current schema -> parent schema -> defaultCompiler)
+	compiler := s.GetCompiler()
+	if compiler == nil {
+		// No compiler available, use literal value as fallback
+		return defaultStr, nil
+	}
+
+	// Look up and execute function
+	fn, exists := compiler.getDefaultFunc(call.Name)
+	if !exists {
+		// Function not registered, use literal value as fallback
+		return defaultStr, nil
+	}
+
+	// Execute function
+	value, err := fn(call.Args...)
+	if err != nil {
+		// Execution failed, use literal value as fallback
+		return defaultStr, nil //nolint:nilerr // Intentional fallback to literal value on function execution failure
+	}
+
+	return value, nil
+}
+
 // applyArrayDefaults applies defaults for array items
 func (s *Schema) applyArrayDefaults(arrayData []interface{}, itemSchema *Schema, propName string) error {
 	for _, item := range arrayData {
@@ -251,7 +300,7 @@ func (s *Schema) applyArrayDefaults(arrayData []interface{}, itemSchema *Schema,
 func (s *Schema) unmarshalToDestination(dst interface{}, data map[string]interface{}) error {
 	dstVal := reflect.ValueOf(dst).Elem()
 
-	//nolint:exhaustive // Only need to handle Map, Struct, and Ptr kinds for unmarshaling
+	//nolint:exhaustive // Only handling Map, Struct, and Ptr kinds - other types use default fallback
 	switch dstVal.Kind() {
 	case reflect.Map:
 		return s.unmarshalToMap(dstVal, data)

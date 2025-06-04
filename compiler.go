@@ -27,7 +27,13 @@ type Compiler struct {
 	// JSON encoder/decoder configuration
 	jsonEncoder func(v interface{}) ([]byte, error)
 	jsonDecoder func(data []byte, v interface{}) error
+
+	// Default function registry
+	defaultFuncs map[string]DefaultFunc // Registry for dynamic default value functions
 }
+
+// DefaultFunc represents a function that can generate dynamic default values
+type DefaultFunc func(args ...any) (any, error)
 
 // NewCompiler creates a new Compiler instance and initializes it with default settings.
 func NewCompiler() *Compiler {
@@ -38,6 +44,7 @@ func NewCompiler() *Compiler {
 		Loaders:        make(map[string]func(url string) (io.ReadCloser, error)),
 		DefaultBaseURI: "",
 		AssertFormat:   false,
+		defaultFuncs:   make(map[string]DefaultFunc),
 
 		// Default to standard library JSON implementation
 		jsonEncoder: json.Marshal,
@@ -187,6 +194,27 @@ func (c *Compiler) RegisterMediaType(mediaTypeName string, unmarshalFunc func([]
 func (c *Compiler) RegisterLoader(scheme string, loaderFunc func(url string) (io.ReadCloser, error)) *Compiler {
 	c.Loaders[scheme] = loaderFunc
 	return c
+}
+
+// RegisterDefaultFunc registers a function for dynamic default value generation
+func (c *Compiler) RegisterDefaultFunc(name string, fn DefaultFunc) *Compiler {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.defaultFuncs == nil {
+		c.defaultFuncs = make(map[string]DefaultFunc)
+	}
+	c.defaultFuncs[name] = fn
+	return c
+}
+
+// getDefaultFunc retrieves a registered default function by name
+func (c *Compiler) getDefaultFunc(name string) (DefaultFunc, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	fn, exists := c.defaultFuncs[name]
+	return fn, exists
 }
 
 // initDefaults initializes default values for decoders, media types, and loaders.

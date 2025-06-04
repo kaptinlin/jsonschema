@@ -11,6 +11,7 @@ func main() {
 	objectSchemaExample()
 	schemaCompositionExample()
 	convenienceFunctionsExample()
+	setCompilerExample()
 }
 
 // Basic type construction
@@ -51,26 +52,16 @@ func objectSchemaExample() {
 		jsonschema.Prop("name", jsonschema.String(jsonschema.MinLen(1))),
 		jsonschema.Prop("email", jsonschema.Email()),
 		jsonschema.Prop("age", jsonschema.Integer(jsonschema.Min(0))),
-		jsonschema.Prop("profile", jsonschema.Object(
-			jsonschema.Prop("bio", jsonschema.String()),
-			jsonschema.Prop("website", jsonschema.URI()),
-		)),
 		jsonschema.Required("name", "email"),
-		jsonschema.AdditionalProps(false),
 	)
 
 	userData := map[string]interface{}{
 		"name":  "Alice",
 		"email": "alice@example.com",
 		"age":   30,
-		"profile": map[string]interface{}{
-			"bio":     "Software developer",
-			"website": "https://alice.dev",
-		},
 	}
 
-	result := userSchema.Validate(userData)
-	fmt.Printf("User validation: %t\n", result.IsValid())
+	fmt.Printf("User validation: %t\n", userSchema.Validate(userData).IsValid())
 	fmt.Println()
 }
 
@@ -78,42 +69,33 @@ func objectSchemaExample() {
 func schemaCompositionExample() {
 	fmt.Println("=== Schema Composition ===")
 
-	// OneOf: either email or username authentication
+	// OneOf: email or username authentication
 	authSchema := jsonschema.OneOf(
 		jsonschema.Object(
 			jsonschema.Prop("email", jsonschema.Email()),
-			jsonschema.Prop("password", jsonschema.String()),
-			jsonschema.Required("email", "password"),
+			jsonschema.Required("email"),
 		),
 		jsonschema.Object(
 			jsonschema.Prop("username", jsonschema.String()),
-			jsonschema.Prop("password", jsonschema.String()),
-			jsonschema.Required("username", "password"),
+			jsonschema.Required("username"),
 		),
 	)
 
-	emailAuth := map[string]interface{}{
-		"email":    "user@example.com",
-		"password": "secret123",
-	}
+	emailAuth := map[string]interface{}{"email": "user@example.com"}
 	fmt.Printf("Email auth: %t\n", authSchema.Validate(emailAuth).IsValid())
 
-	// Conditional schema with If/Then/Else
+	// Conditional schema
 	conditionalSchema := jsonschema.If(
-		jsonschema.Object(
-			jsonschema.Prop("type", jsonschema.Const("premium")),
-		),
+		jsonschema.Object(jsonschema.Prop("type", jsonschema.Const("premium"))),
 	).Then(
 		jsonschema.Object(jsonschema.Required("features")),
-	).Else(
-		jsonschema.Object(jsonschema.Required("basic_features")),
-	)
+	).ToSchema()
 
 	premiumUser := map[string]interface{}{
 		"type":     "premium",
-		"features": []string{"advanced", "priority"},
+		"features": []string{"advanced"},
 	}
-	fmt.Printf("Premium user: %t\n", conditionalSchema.Validate(premiumUser).IsValid())
+	fmt.Printf("Conditional: %t\n", conditionalSchema.Validate(premiumUser).IsValid())
 	fmt.Println()
 }
 
@@ -121,26 +103,39 @@ func schemaCompositionExample() {
 func convenienceFunctionsExample() {
 	fmt.Println("=== Convenience Functions ===")
 
-	apiSchema := jsonschema.Object(
-		jsonschema.Prop("id", jsonschema.UUID()),
-		jsonschema.Prop("created_at", jsonschema.DateTime()),
-		jsonschema.Prop("email", jsonschema.Email()),
-		jsonschema.Prop("score", jsonschema.PositiveInt()),
-		jsonschema.Prop("website", jsonschema.URI()),
-	)
+	// Test individual convenience functions
+	fmt.Printf("UUID: %t\n", jsonschema.UUID().Validate("550e8400-e29b-41d4-a716-446655440000").IsValid())
+	fmt.Printf("Email: %t\n", jsonschema.Email().Validate("test@example.com").IsValid())
+	fmt.Printf("DateTime: %t\n", jsonschema.DateTime().Validate("2023-12-01T10:30:00Z").IsValid())
+	fmt.Printf("PositiveInt: %t\n", jsonschema.PositiveInt().Validate(5).IsValid())
+	fmt.Println()
+}
 
-	apiData := map[string]interface{}{
-		"id":         "550e8400-e29b-41d4-a716-446655440000",
-		"created_at": "2023-12-01T10:30:00Z",
-		"email":      "api@example.com",
-		"score":      95,
-		"website":    "https://api.example.com",
+// SetCompiler example for dynamic defaults
+func setCompilerExample() {
+	fmt.Println("=== SetCompiler with Dynamic Defaults ===")
+
+	// Create custom compiler with dynamic functions
+	compiler := jsonschema.NewCompiler()
+	compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
+
+	// Create schema and set custom compiler
+	userSchema := jsonschema.Object(
+		jsonschema.Prop("id", jsonschema.String(jsonschema.Default("user_123"))),
+		jsonschema.Prop("createdAt", jsonschema.String(jsonschema.Default("now()"))),
+		jsonschema.Prop("status", jsonschema.String(jsonschema.Default("active"))),
+	).SetCompiler(compiler)
+
+	// Test with empty input
+	var result map[string]interface{}
+	err := userSchema.Unmarshal(&result, map[string]interface{}{})
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
 	}
 
-	fmt.Printf("API data validation: %t\n", apiSchema.Validate(apiData).IsValid())
-
-	// Test convenience functions individually
-	fmt.Printf("UUID validation: %t\n", jsonschema.UUID().Validate("550e8400-e29b-41d4-a716-446655440000").IsValid())
-	fmt.Printf("PositiveInt validation: %t\n", jsonschema.PositiveInt().Validate(5).IsValid())
-	fmt.Printf("PositiveInt(0) validation: %t\n", jsonschema.PositiveInt().Validate(0).IsValid())
+	fmt.Println("Generated defaults:")
+	for key, value := range result {
+		fmt.Printf("  %s: %v\n", key, value)
+	}
 }
