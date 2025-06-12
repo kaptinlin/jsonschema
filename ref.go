@@ -260,3 +260,78 @@ func resolveUnresolvedInList(schemas []*Schema) {
 		}
 	}
 }
+
+// getUnresolvedReferenceURIs returns a list of URIs that this schema references but are not yet resolved
+func (s *Schema) getUnresolvedReferenceURIs() []string {
+	var unresolvedURIs []string
+
+	// Check direct references
+	if s.Ref != "" && s.ResolvedRef == nil {
+		unresolvedURIs = append(unresolvedURIs, s.Ref)
+	}
+
+	if s.DynamicRef != "" && s.ResolvedDynamicRef == nil {
+		unresolvedURIs = append(unresolvedURIs, s.DynamicRef)
+	}
+
+	// Recursively check nested schemas
+	if s.Defs != nil {
+		for _, defSchema := range s.Defs {
+			unresolvedURIs = append(unresolvedURIs, defSchema.getUnresolvedReferenceURIs()...)
+		}
+	}
+
+	if s.Properties != nil {
+		for _, propSchema := range *s.Properties {
+			if propSchema != nil {
+				unresolvedURIs = append(unresolvedURIs, propSchema.getUnresolvedReferenceURIs()...)
+			}
+		}
+	}
+
+	// Check other schema fields
+	unresolvedURIs = append(unresolvedURIs, getUnresolvedFromList(s.AllOf)...)
+	unresolvedURIs = append(unresolvedURIs, getUnresolvedFromList(s.AnyOf)...)
+	unresolvedURIs = append(unresolvedURIs, getUnresolvedFromList(s.OneOf)...)
+
+	if s.Not != nil {
+		unresolvedURIs = append(unresolvedURIs, s.Not.getUnresolvedReferenceURIs()...)
+	}
+
+	if s.Items != nil {
+		unresolvedURIs = append(unresolvedURIs, s.Items.getUnresolvedReferenceURIs()...)
+	}
+
+	if s.PrefixItems != nil {
+		for _, schema := range s.PrefixItems {
+			unresolvedURIs = append(unresolvedURIs, schema.getUnresolvedReferenceURIs()...)
+		}
+	}
+
+	if s.AdditionalProperties != nil {
+		unresolvedURIs = append(unresolvedURIs, s.AdditionalProperties.getUnresolvedReferenceURIs()...)
+	}
+
+	if s.Contains != nil {
+		unresolvedURIs = append(unresolvedURIs, s.Contains.getUnresolvedReferenceURIs()...)
+	}
+
+	if s.PatternProperties != nil {
+		for _, schema := range *s.PatternProperties {
+			unresolvedURIs = append(unresolvedURIs, schema.getUnresolvedReferenceURIs()...)
+		}
+	}
+
+	return unresolvedURIs
+}
+
+// Helper function to get unresolved references from a list of schemas
+func getUnresolvedFromList(schemas []*Schema) []string {
+	var unresolvedURIs []string
+	for _, schema := range schemas {
+		if schema != nil {
+			unresolvedURIs = append(unresolvedURIs, schema.getUnresolvedReferenceURIs()...)
+		}
+	}
+	return unresolvedURIs
+}
