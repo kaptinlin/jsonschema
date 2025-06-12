@@ -18,6 +18,7 @@ import (
 type Compiler struct {
 	mu             sync.RWMutex                                       // Protects concurrent access to schemas map
 	schemas        map[string]*Schema                                 // Cache of compiled schemas.
+	allSchemas     []*Schema                                          // All compiled schemas, including those without IDs
 	Decoders       map[string]func(string) ([]byte, error)            // Decoders for various encoding formats.
 	MediaTypes     map[string]func([]byte) (interface{}, error)       // Media type handlers for unmarshalling data.
 	Loaders        map[string]func(url string) (io.ReadCloser, error) // Functions to load schemas from URLs.
@@ -39,6 +40,7 @@ type DefaultFunc func(args ...any) (any, error)
 func NewCompiler() *Compiler {
 	compiler := &Compiler{
 		schemas:        make(map[string]*Schema),
+		allSchemas:     make([]*Schema, 0),
 		Decoders:       make(map[string]func(string) ([]byte, error)),
 		MediaTypes:     make(map[string]func([]byte) (interface{}, error)),
 		Loaders:        make(map[string]func(url string) (io.ReadCloser, error)),
@@ -92,8 +94,24 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 
 	schema.initializeSchema(c, nil)
 
+	// Track all schemas, whether they have an ID or not
+	c.mu.Lock()
+	c.allSchemas = append(c.allSchemas, schema)
+
 	if schema.uri != "" && isValidURI(schema.uri) {
-		c.SetSchema(schema.uri, schema)
+		c.schemas[schema.uri] = schema
+	}
+	c.mu.Unlock()
+
+	// After adding a new schema, try to resolve previously unresolved references
+	// in all existing schemas
+	c.mu.RLock()
+	allSchemasToResolve := make([]*Schema, len(c.allSchemas))
+	copy(allSchemasToResolve, c.allSchemas)
+	c.mu.RUnlock()
+
+	for _, existingSchema := range allSchemasToResolve {
+		existingSchema.ResolveUnresolvedReferences()
 	}
 
 	return schema, nil

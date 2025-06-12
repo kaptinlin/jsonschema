@@ -124,6 +124,68 @@ func findSchemaInSegment(currentSchema *Schema, segment string, previousSegment 
 	return nil, false
 }
 
+// ResolveUnresolvedReferences tries to resolve any previously unresolved references
+// This is called after new schemas are added to the compiler
+func (s *Schema) ResolveUnresolvedReferences() {
+	// Try to resolve unresolved $ref
+	if s.Ref != "" && s.ResolvedRef == nil {
+		if resolved, err := s.resolveRef(s.Ref); err == nil {
+			s.ResolvedRef = resolved
+		}
+	}
+
+	// Try to resolve unresolved $dynamicRef
+	if s.DynamicRef != "" && s.ResolvedDynamicRef == nil {
+		if resolved, err := s.resolveRef(s.DynamicRef); err == nil {
+			s.ResolvedDynamicRef = resolved
+		}
+	}
+
+	// Recursively resolve references within definitions
+	if s.Defs != nil {
+		for _, defSchema := range s.Defs {
+			defSchema.ResolveUnresolvedReferences()
+		}
+	}
+
+	// Recursively resolve references in properties
+	if s.Properties != nil {
+		for _, schema := range *s.Properties {
+			if schema != nil {
+				schema.ResolveUnresolvedReferences()
+			}
+		}
+	}
+
+	// Additional fields that can have subschemas
+	resolveUnresolvedInList(s.AllOf)
+	resolveUnresolvedInList(s.AnyOf)
+	resolveUnresolvedInList(s.OneOf)
+	if s.Not != nil {
+		s.Not.ResolveUnresolvedReferences()
+	}
+	if s.Items != nil {
+		s.Items.ResolveUnresolvedReferences()
+	}
+	if s.PrefixItems != nil {
+		for _, schema := range s.PrefixItems {
+			schema.ResolveUnresolvedReferences()
+		}
+	}
+
+	if s.AdditionalProperties != nil {
+		s.AdditionalProperties.ResolveUnresolvedReferences()
+	}
+	if s.Contains != nil {
+		s.Contains.ResolveUnresolvedReferences()
+	}
+	if s.PatternProperties != nil {
+		for _, schema := range *s.PatternProperties {
+			schema.ResolveUnresolvedReferences()
+		}
+	}
+}
+
 func (s *Schema) resolveReferences() {
 	// Resolve the root reference if this schema itself is a reference
 	if s.Ref != "" {
@@ -186,6 +248,15 @@ func resolveSubschemaList(schemas []*Schema) {
 	for _, schema := range schemas {
 		if schema != nil {
 			schema.resolveReferences()
+		}
+	}
+}
+
+// Helper function to resolve unresolved references in a list of schemas
+func resolveUnresolvedInList(schemas []*Schema) {
+	for _, schema := range schemas {
+		if schema != nil {
+			schema.ResolveUnresolvedReferences()
 		}
 	}
 }

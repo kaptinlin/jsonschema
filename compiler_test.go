@@ -275,3 +275,114 @@ func TestWithDecoderJSON(t *testing.T) {
 	expectedValue := "value"
 	assert.Equal(t, expectedValue, result["test"], "Expected decoded result to be %s", expectedValue)
 }
+
+// TestSchemaReferenceOrdering tests that schema references work correctly regardless
+// of compilation order - parent schema can be compiled before referenced child schema
+func TestSchemaReferenceOrdering(t *testing.T) {
+	compiler := NewCompiler()
+
+	childSchema := []byte(`{
+		"$id": "http://example.com/child",
+		"type": "object",
+		"properties": {
+			"key": { "type": "string" }
+		}
+	}`)
+
+	parentSchema := []byte(`{
+		"type": "object",
+		"properties": {
+			"child": { "$ref": "http://example.com/child" }
+		}
+	}`)
+
+	// Compile parent first, then child - this should now work correctly
+	parentCompiledSchema, err := compiler.Compile(parentSchema)
+	require.NoError(t, err, "Failed to compile parent schema")
+
+	_, err = compiler.Compile(childSchema)
+	require.NoError(t, err, "Failed to compile child schema")
+
+	// Verify that reference is now resolved
+	require.NotNil(t, parentCompiledSchema.Properties, "Properties should not be nil")
+	childProp, exists := (*parentCompiledSchema.Properties)["child"]
+	require.True(t, exists, "child property should exist")
+	require.NotNil(t, childProp.ResolvedRef, "Reference should have been resolved after child schema compilation")
+
+	// Test valid data
+	validData := map[string]interface{}{
+		"child": map[string]interface{}{
+			"key": "valid",
+		},
+	}
+	result := parentCompiledSchema.Validate(validData)
+	assert.True(t, result.IsValid(), "Valid data should pass validation")
+
+	// Test invalid data - string instead of object
+	invalidData1 := map[string]interface{}{
+		"child": "string",
+	}
+	result = parentCompiledSchema.Validate(invalidData1)
+	assert.False(t, result.IsValid(), "Invalid data (string instead of object) should fail validation")
+
+	// Test invalid data - wrong type for key
+	invalidData2 := map[string]interface{}{
+		"child": map[string]interface{}{
+			"key": false,
+		},
+	}
+	result = parentCompiledSchema.Validate(invalidData2)
+	assert.False(t, result.IsValid(), "Invalid data (boolean instead of string) should fail validation")
+}
+
+// TestSchemaReferenceOrderingReversed tests the original working order for comparison
+func TestSchemaReferenceOrderingReversed(t *testing.T) {
+	compiler := NewCompiler()
+
+	childSchema := []byte(`{
+		"$id": "http://example.com/child",
+		"type": "object",
+		"properties": {
+			"key": { "type": "string" }
+		}
+	}`)
+
+	parentSchema := []byte(`{
+		"type": "object",
+		"properties": {
+			"child": { "$ref": "http://example.com/child" }
+		}
+	}`)
+
+	// Compile child first, then parent - this should work
+	_, err := compiler.Compile(childSchema)
+	require.NoError(t, err, "Failed to compile child schema")
+
+	parentCompiledSchema, err := compiler.Compile(parentSchema)
+	require.NoError(t, err, "Failed to compile parent schema")
+
+	// Test valid data
+	validData := map[string]interface{}{
+		"child": map[string]interface{}{
+			"key": "valid",
+		},
+	}
+	result := parentCompiledSchema.Validate(validData)
+	assert.True(t, result.IsValid(), "Valid data should pass validation")
+
+	// Test invalid data - string instead of object
+	invalidData1 := map[string]interface{}{
+		"child": "string",
+	}
+	result = parentCompiledSchema.Validate(invalidData1)
+	assert.False(t, result.IsValid(), "Invalid data (string instead of object) should fail validation")
+
+	// Test invalid data - wrong type for key
+	invalidData2 := map[string]interface{}{
+		"child": map[string]interface{}{
+			"key": false,
+		},
+	}
+	result = parentCompiledSchema.Validate(invalidData2)
+	assert.False(t, result.IsValid(), "Invalid data (boolean instead of string) should fail validation")
+}
