@@ -386,3 +386,168 @@ func TestSchemaReferenceOrderingReversed(t *testing.T) {
 	result = parentCompiledSchema.Validate(invalidData2)
 	assert.False(t, result.IsValid(), "Invalid data (boolean instead of string) should fail validation")
 }
+
+// TestCompileBatchWithCrossReferences tests that CompileBatch can handle schemas
+// with cross-references without causing nil pointer dereference errors
+// This test specifically addresses the fix for using s.GetCompiler() instead of s.compiler
+func TestCompileBatchWithCrossReferences(t *testing.T) {
+	compiler := NewCompiler()
+
+	// Define schemas with cross-references
+	schemas := map[string][]byte{
+		"person.json": []byte(`{
+			"$id": "person.json",
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"address": {"$ref": "address.json"},
+				"employer": {"$ref": "company.json"}
+			},
+			"required": ["name"]
+		}`),
+		"address.json": []byte(`{
+			"$id": "address.json",
+			"type": "object",
+			"properties": {
+				"street": {"type": "string"},
+				"city": {"type": "string"},
+				"country": {"$ref": "country.json"}
+			},
+			"required": ["street", "city"]
+		}`),
+		"company.json": []byte(`{
+			"$id": "company.json",
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"address": {"$ref": "address.json"}
+			},
+			"required": ["name"]
+		}`),
+		"country.json": []byte(`{
+			"$id": "country.json",
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"code": {"type": "string"}
+			},
+			"required": ["name", "code"]
+		}`),
+	}
+
+	// CompileBatch should not panic with cross-references
+	compiledSchemas, err := compiler.CompileBatch(schemas)
+	require.NoError(t, err, "CompileBatch should not fail with cross-references")
+	require.Len(t, compiledSchemas, 4, "All schemas should be compiled")
+
+	// Test that all schemas are properly compiled
+	for schemaID, schema := range compiledSchemas {
+		assert.NotNil(t, schema, "Schema %s should not be nil", schemaID)
+		assert.Equal(t, schemaID, schema.ID, "Schema ID should match: %s", schemaID)
+	}
+
+	// Test validation with the compiled schemas
+	personSchema := compiledSchemas["person.json"]
+	require.NotNil(t, personSchema, "Person schema should be available")
+
+	// Valid test data
+	validData := map[string]interface{}{
+		"name": "John Doe",
+		"address": map[string]interface{}{
+			"street": "123 Main St",
+			"city":   "Anytown",
+			"country": map[string]interface{}{
+				"name": "United States",
+				"code": "US",
+			},
+		},
+		"employer": map[string]interface{}{
+			"name": "Acme Corp",
+			"address": map[string]interface{}{
+				"street": "456 Business Ave",
+				"city":   "Corporate City",
+				"country": map[string]interface{}{
+					"name": "United States",
+					"code": "US",
+				},
+			},
+		},
+	}
+
+	result := personSchema.Validate(validData)
+	assert.True(t, result.IsValid(), "Valid data should pass validation")
+
+	// Invalid test data - missing required field
+	invalidData := map[string]interface{}{
+		"address": map[string]interface{}{
+			"street": "123 Main St",
+			"city":   "Anytown",
+		},
+	}
+
+	result = personSchema.Validate(invalidData)
+	assert.False(t, result.IsValid(), "Invalid data (missing required name) should fail validation")
+}
+
+// TestCompileBatchWithNestedReferences tests CompileBatch with deeply nested references
+// to ensure the fix for GetCompiler() works correctly in all contexts
+func TestCompileBatchWithNestedReferences(t *testing.T) {
+	compiler := NewCompiler()
+
+	schemas := map[string][]byte{
+		"root.json": []byte(`{
+			"$id": "root.json",
+			"type": "object",
+			"properties": {
+				"data": {
+					"type": "object",
+					"properties": {
+						"nested": {"$ref": "nested.json"}
+					}
+				}
+			}
+		}`),
+		"nested.json": []byte(`{
+			"$id": "nested.json",
+			"type": "object",
+			"properties": {
+				"deep": {
+					"type": "object",
+					"properties": {
+						"reference": {"$ref": "leaf.json"}
+					}
+				}
+			}
+		}`),
+		"leaf.json": []byte(`{
+			"$id": "leaf.json",
+			"type": "object",
+			"properties": {
+				"value": {"type": "string"}
+			},
+			"required": ["value"]
+		}`),
+	}
+
+	// This should not panic due to nil compiler references
+	compiledSchemas, err := compiler.CompileBatch(schemas)
+	require.NoError(t, err, "CompileBatch should handle nested references")
+	require.Len(t, compiledSchemas, 3, "All schemas should be compiled")
+
+	// Test validation works through the entire reference chain
+	rootSchema := compiledSchemas["root.json"]
+	testData := map[string]interface{}{
+		"data": map[string]interface{}{
+			"nested": map[string]interface{}{
+				"deep": map[string]interface{}{
+					"reference": map[string]interface{}{
+						"value": "test string",
+					},
+				},
+			},
+		},
+	}
+
+	result := rootSchema.Validate(testData)
+	assert.True(t, result.IsValid(), "Valid nested data should pass validation")
+}

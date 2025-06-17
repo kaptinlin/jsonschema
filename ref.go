@@ -56,7 +56,7 @@ func (s *Schema) resolveRefWithFullURL(ref string) (*Schema, error) {
 	}
 
 	// If not found in the current schema or its parents, look for the reference in the compiler
-	if resolved, err := s.compiler.GetSchema(ref); err != nil {
+	if resolved, err := s.GetCompiler().GetSchema(ref); err != nil {
 		return nil, ErrFailedToResolveGlobalReference
 	} else {
 		return resolved, nil

@@ -52,19 +52,19 @@ func (s *Schema) ValidateMap(data map[string]interface{}) *EvaluationResult {
 // parseJSONData safely parses []byte data as JSON
 func (s *Schema) parseJSONData(data []byte) (interface{}, error) {
 	var parsed interface{}
-	return parsed, s.compiler.jsonDecoder(data, &parsed)
+	return parsed, s.GetCompiler().jsonDecoder(data, &parsed)
 }
 
 // processJSONBytes handles []byte input with smart JSON parsing
 func (s *Schema) processJSONBytes(jsonBytes []byte) (interface{}, error) {
 	var parsed interface{}
-	if err := s.compiler.jsonDecoder(jsonBytes, &parsed); err == nil {
+	if err := s.GetCompiler().jsonDecoder(jsonBytes, &parsed); err == nil {
 		return parsed, nil
 	}
 
 	// Only return error if it looks like intended JSON
 	if len(jsonBytes) > 0 && (jsonBytes[0] == '{' || jsonBytes[0] == '[') {
-		return nil, s.compiler.jsonDecoder(jsonBytes, &parsed)
+		return nil, s.GetCompiler().jsonDecoder(jsonBytes, &parsed)
 	}
 
 	// Otherwise, keep original bytes for validation as byte array

@@ -121,12 +121,12 @@ func (s *Schema) unmarshalObject(dst, intermediate interface{}) error {
 // unmarshalNonObject handles non-object type unmarshaling without validation
 func (s *Schema) unmarshalNonObject(dst, intermediate interface{}) error {
 	// No validation for non-object types, use JSON marshaling directly
-	jsonData, err := s.compiler.jsonEncoder(intermediate)
+	jsonData, err := s.GetCompiler().jsonEncoder(intermediate)
 	if err != nil {
 		return &UnmarshalError{Type: "marshal", Reason: "failed to encode intermediate data", Err: err}
 	}
 
-	if err := s.compiler.jsonDecoder(jsonData, dst); err != nil {
+	if err := s.GetCompiler().jsonDecoder(jsonData, dst); err != nil {
 		return &UnmarshalError{Type: "unmarshal", Reason: "failed to decode to destination", Err: err}
 	}
 
@@ -150,7 +150,7 @@ func (s *Schema) convertSource(src interface{}) (interface{}, bool, error) {
 // convertBytesSource handles []byte input with JSON parsing
 func (s *Schema) convertBytesSource(data []byte) (interface{}, bool, error) {
 	var parsed interface{}
-	if err := s.compiler.jsonDecoder(data, &parsed); err == nil {
+	if err := s.GetCompiler().jsonDecoder(data, &parsed); err == nil {
 		// Successfully parsed as JSON, check if it's an object
 		if objData, ok := parsed.(map[string]interface{}); ok {
 			return objData, true, nil
@@ -176,13 +176,13 @@ func (s *Schema) convertGenericSource(src interface{}) (interface{}, bool, error
 	}
 
 	// For other types, use JSON round-trip to convert
-	data, err := s.compiler.jsonEncoder(src)
+	data, err := s.GetCompiler().jsonEncoder(src)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to encode source: %w", err)
 	}
 
 	var parsed interface{}
-	if err := s.compiler.jsonDecoder(data, &parsed); err != nil {
+	if err := s.GetCompiler().jsonDecoder(data, &parsed); err != nil {
 		return nil, false, fmt.Errorf("failed to decode intermediate JSON: %w", err)
 	}
 
@@ -319,11 +319,11 @@ func (s *Schema) unmarshalToDestination(dst interface{}, data map[string]interfa
 
 // unmarshalViaJSON uses JSON round-trip for unsupported types
 func (s *Schema) unmarshalViaJSON(dst interface{}, data map[string]interface{}) error {
-	jsonData, err := s.compiler.jsonEncoder(data)
+	jsonData, err := s.GetCompiler().jsonEncoder(data)
 	if err != nil {
 		return fmt.Errorf("failed to encode data for fallback: %w", err)
 	}
-	return s.compiler.jsonDecoder(jsonData, dst)
+	return s.GetCompiler().jsonDecoder(jsonData, dst)
 }
 
 // unmarshalToMap converts data to a map destination
@@ -435,11 +435,11 @@ func (s *Schema) setPointerValue(fieldVal reflect.Value, valueVal reflect.Value,
 
 // setComplexValue handles nested structs and maps
 func (s *Schema) setComplexValue(fieldVal reflect.Value, value interface{}) error {
-	jsonData, err := s.compiler.jsonEncoder(value)
+	jsonData, err := s.GetCompiler().jsonEncoder(value)
 	if err != nil {
 		return fmt.Errorf("failed to encode nested value: %w", err)
 	}
-	return s.compiler.jsonDecoder(jsonData, fieldVal.Addr().Interface())
+	return s.GetCompiler().jsonDecoder(jsonData, fieldVal.Addr().Interface())
 }
 
 // setTimeValue handles time.Time field assignment from various string formats
