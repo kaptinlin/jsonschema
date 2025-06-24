@@ -39,6 +39,17 @@ compiler.RegisterFormat("uuid", func(value string) bool {
 })
 ```
 
+### `(*Compiler) UnregisterFormat(name string) *Compiler`
+
+Removes a previously registered custom format from the compiler. If `AssertFormat` is
+set to `true`, schemas that reference this format will fail validation; otherwise the
+format annotation will be ignored.
+
+```go
+// Remove a custom format
+compiler.UnregisterFormat("uuid")
+```
+
 ### `(*Compiler) RegisterDefaultFunc(name string, fn DefaultFunc) *Compiler`
 
 Registers a function for dynamic default value generation.

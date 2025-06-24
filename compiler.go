@@ -3,17 +3,27 @@ package jsonschema
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
-	"sync"
-
+	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
-	"github.com/goccy/go-json"
 	"github.com/goccy/go-yaml"
 )
+
+// FormatDef defines a custom format validation rule
+type FormatDef struct {
+	// Type specifies which JSON Schema type this format applies to (optional)
+	// Supported values: "string", "number", "integer", "boolean", "array", "object"
+	// Empty string means applies to all types
+	Type string
+
+	// Validate is the validation function
+	Validate func(interface{}) bool
+}
 
 // Compiler represents a JSON Schema compiler that manages schema compilation and caching.
 type Compiler struct {
@@ -33,6 +43,10 @@ type Compiler struct {
 
 	// Default function registry
 	defaultFuncs map[string]DefaultFunc // Registry for dynamic default value functions
+
+	// Custom format registry
+	customFormats   map[string]*FormatDef // Registry for custom format definitions
+	customFormatsRW sync.RWMutex          // Protects concurrent access to custom formats
 }
 
 // DefaultFunc represents a function that can generate dynamic default values
@@ -50,6 +64,7 @@ func NewCompiler() *Compiler {
 		DefaultBaseURI: "",
 		AssertFormat:   false,
 		defaultFuncs:   make(map[string]DefaultFunc),
+		customFormats:  make(map[string]*FormatDef),
 
 		// Default to standard library JSON implementation
 		jsonEncoder: json.Marshal,
@@ -378,34 +393,30 @@ func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, 
 	return compiledSchemas, nil
 }
 
-/* Performance Optimization Summary:
+// RegisterFormat registers a custom format.
+// The optional typeName parameter specifies which JSON Schema type the format applies to
+// (e.g., "string", "number"). If omitted, the format applies to all types.
+func (c *Compiler) RegisterFormat(name string, validator func(interface{}) bool, typeName ...string) *Compiler {
+	c.customFormatsRW.Lock()
+	defer c.customFormatsRW.Unlock()
 
-Current Implementation: Smart Dependency Tracking
-- Time Complexity: O(k) where k = number of schemas with dependencies
-- Best for: Mixed workloads with some interdependent schemas
-- Memory overhead: Low (only tracks unresolved references)
+	var t string
+	if len(typeName) > 0 {
+		t = typeName[0]
+	}
 
-Alternative Approaches:
+	c.customFormats[name] = &FormatDef{
+		Type:     t,
+		Validate: validator,
+	}
+	return c
+}
 
-1. Lazy Resolution (commented above):
-   - Time Complexity: O(1) for compilation, O(1) for validation (first time may be slower)
-   - Best for: Large numbers of schemas where many references are never validated
-   - Memory overhead: Minimal
-   - Tradeoff: Slower first validation, faster compilation
+// UnregisterFormat removes a custom format.
+func (c *Compiler) UnregisterFormat(name string) *Compiler {
+	c.customFormatsRW.Lock()
+	defer c.customFormatsRW.Unlock()
 
-2. Batch Compilation (CompileBatch method):
-   - Time Complexity: O(n) for batch, O(1) for individual schemas
-   - Best for: Known sets of interdependent schemas
-   - Memory overhead: Low
-   - Tradeoff: Requires knowledge of all schemas upfront
-
-3. Original Naive Approach (replaced):
-   - Time Complexity: O(n²)
-   - Performance degrades significantly with many schemas
-   - Not recommended for production use
-
-Recommendation:
-- Use CompileBatch() for known sets of related schemas
-- Use regular Compile() for dynamic/incremental schema addition
-- Consider lazy resolution for very large schema sets with sparse validation
-*/
+	delete(c.customFormats, name)
+	return c
+}

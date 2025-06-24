@@ -92,6 +92,7 @@ func TestFormatUuidForTestSuite(t *testing.T) {
 func TestCompileBatchFormatValidation(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.SetAssertFormat(true) // Enable format validation
+	compiler.RegisterFormat("ipv4", jsonschema.IsIPV4, "string")
 
 	schemas := map[string][]byte{
 		"schema1": []byte(`{
@@ -165,9 +166,13 @@ func TestCompileBatchFormatValidation(t *testing.T) {
 func TestCompileBatchVsRegularCompileFormatValidation(t *testing.T) {
 	compiler1 := jsonschema.NewCompiler()
 	compiler1.SetAssertFormat(true)
+	compiler1.RegisterFormat("email", jsonschema.IsEmail, "string")
+	compiler1.RegisterFormat("ipv4", jsonschema.IsIPV4, "string")
 
 	compiler2 := jsonschema.NewCompiler()
 	compiler2.SetAssertFormat(true)
+	compiler2.RegisterFormat("email", jsonschema.IsEmail, "string")
+	compiler2.RegisterFormat("ipv4", jsonschema.IsIPV4, "string")
 
 	schemaBytes := []byte(`{
 		"$schema": "https://json-schema.org/draft/2020-12/schema",

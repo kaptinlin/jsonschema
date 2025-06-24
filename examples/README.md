@@ -19,6 +19,9 @@ Validation + unmarshaling workflow with default value application.
 ### ⚙️ [Dynamic Defaults](./dynamic-defaults/)
 Dynamic default value generation using registered functions (e.g., timestamps, UUIDs).
 
+### 📋 [Custom Formats](./custom-formats/)
+Custom format validation using registered functions.
+
 ### ⚠️ [Error Handling](./error-handling/)
 Comprehensive error handling patterns and validation failure management.
 
