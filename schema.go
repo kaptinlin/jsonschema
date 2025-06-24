@@ -175,6 +175,59 @@ func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
 	s.resolveReferences()
 }
 
+// initializeSchemaWithoutReferences sets up the schema structure without resolving references.
+// This is used by CompileBatch to defer reference resolution until all schemas are compiled.
+func (s *Schema) initializeSchemaWithoutReferences(compiler *Compiler, parent *Schema) {
+	// Only set compiler if it's not nil (for constructor usage)
+	if compiler != nil {
+		s.compiler = compiler
+	}
+	s.parent = parent
+
+	// Get effective compiler for initialization
+	effectiveCompiler := s.GetCompiler()
+
+	parentBaseURI := s.getParentBaseURI()
+	if parentBaseURI == "" {
+		parentBaseURI = effectiveCompiler.DefaultBaseURI
+	}
+	if s.ID != "" {
+		if isValidURI(s.ID) {
+			s.uri = s.ID
+			s.baseURI = getBaseURI(s.ID)
+		} else {
+			resolvedURL := resolveRelativeURI(parentBaseURI, s.ID)
+			s.uri = resolvedURL
+			s.baseURI = getBaseURI(resolvedURL)
+		}
+	} else {
+		s.baseURI = parentBaseURI
+	}
+
+	if s.baseURI == "" {
+		if s.uri != "" && isValidURI(s.uri) {
+			s.baseURI = getBaseURI(s.uri)
+		}
+	}
+
+	if s.Anchor != "" {
+		s.setAnchor(s.Anchor)
+	}
+
+	if s.DynamicAnchor != "" {
+		s.setDynamicAnchor(s.DynamicAnchor)
+	}
+
+	if s.uri != "" && isValidURI(s.uri) {
+		root := s.getRootSchema()
+		root.setSchema(s.uri, s)
+	}
+
+	// Initialize nested schemas but without resolving references
+	initializeNestedSchemasWithoutReferences(s, compiler)
+	// Note: We don't call s.resolveReferences() here - that's deferred
+}
+
 // initializeNestedSchemas initializes all nested or related schemas as defined in the structure.
 func initializeNestedSchemas(s *Schema, compiler *Compiler) {
 	if s.Defs != nil {
@@ -245,6 +298,77 @@ func initializeNestedSchemas(s *Schema, compiler *Compiler) {
 	}
 }
 
+// initializeNestedSchemasWithoutReferences initializes all nested or related schemas
+// without resolving references. Used by CompileBatch.
+func initializeNestedSchemasWithoutReferences(s *Schema, compiler *Compiler) {
+	if s.Defs != nil {
+		for _, def := range s.Defs {
+			def.initializeSchemaWithoutReferences(compiler, s)
+		}
+	}
+	// Initialize logical schema groupings
+	initializeSchemasWithoutReferences(s.AllOf, compiler, s)
+	initializeSchemasWithoutReferences(s.AnyOf, compiler, s)
+	initializeSchemasWithoutReferences(s.OneOf, compiler, s)
+
+	// Initialize conditional schemas
+	if s.Not != nil {
+		s.Not.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.If != nil {
+		s.If.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.Then != nil {
+		s.Then.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.Else != nil {
+		s.Else.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.DependentSchemas != nil {
+		for _, depSchema := range s.DependentSchemas {
+			depSchema.initializeSchemaWithoutReferences(compiler, s)
+		}
+	}
+
+	// Initialize array and object schemas
+	if s.PrefixItems != nil {
+		for _, item := range s.PrefixItems {
+			item.initializeSchemaWithoutReferences(compiler, s)
+		}
+	}
+	if s.Items != nil {
+		s.Items.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.Contains != nil {
+		s.Contains.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.AdditionalProperties != nil {
+		s.AdditionalProperties.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.Properties != nil {
+		for _, prop := range *s.Properties {
+			prop.initializeSchemaWithoutReferences(compiler, s)
+		}
+	}
+	if s.PatternProperties != nil {
+		for _, prop := range *s.PatternProperties {
+			prop.initializeSchemaWithoutReferences(compiler, s)
+		}
+	}
+	if s.UnevaluatedProperties != nil {
+		s.UnevaluatedProperties.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.UnevaluatedItems != nil {
+		s.UnevaluatedItems.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.ContentSchema != nil {
+		s.ContentSchema.initializeSchemaWithoutReferences(compiler, s)
+	}
+	if s.PropertyNames != nil {
+		s.PropertyNames.initializeSchemaWithoutReferences(compiler, s)
+	}
+}
+
 // setAnchor creates or updates the anchor mapping for the current schema and propagates it to parent schemas.
 func (s *Schema) setAnchor(anchor string) {
 	if s.anchors == nil {
@@ -309,6 +433,16 @@ func initializeSchemas(schemas []*Schema, compiler *Compiler, parent *Schema) {
 	for _, schema := range schemas {
 		if schema != nil {
 			schema.initializeSchema(compiler, parent)
+		}
+	}
+}
+
+// initializeSchemasWithoutReferences iteratively initializes a list of nested schemas
+// without resolving references. Used by CompileBatch.
+func initializeSchemasWithoutReferences(schemas []*Schema, compiler *Compiler, parent *Schema) {
+	for _, schema := range schemas {
+		if schema != nil {
+			schema.initializeSchemaWithoutReferences(compiler, parent)
 		}
 	}
 }

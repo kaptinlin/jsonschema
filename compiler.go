@@ -357,7 +357,8 @@ func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, 
 
 		// Initialize schema structure but skip reference resolution
 		schema.compiler = c
-		// We'll resolve references in the second pass
+		// Initialize basic properties without resolving references
+		schema.initializeSchemaWithoutReferences(c, nil)
 
 		compiledSchemas[id] = schema
 
