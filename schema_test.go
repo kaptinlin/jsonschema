@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetRootSchema(t *testing.T) {
@@ -220,4 +221,23 @@ func TestConstructorCompilerBehavior(t *testing.T) {
 	err := schema.Unmarshal(&result, data)
 	assert.NoError(t, err)
 	assert.Equal(t, "custom_value", result["field"], "Child should inherit parent's custom compiler")
+}
+
+func TestSchemaUnresolvedRefs(t *testing.T) {
+	compiler := NewCompiler()
+
+	refSchemaJSON := `{
+		"$id": "http://example.com/ref",
+		"type": "object",
+		"properties": {
+			"userInfo": {"$ref": "http://example.com/base"}
+		}
+	}`
+
+	schema, err := compiler.Compile([]byte(refSchemaJSON))
+	require.NoError(t, err, "Failed to resolve reference")
+
+	unresolved := schema.GetUnresolvedReferenceURIs()
+	assert.Len(t, unresolved, 1, "Should have 1 unresolved ref")
+	assert.Equal(t, []string{"http://example.com/base"}, unresolved, "Should have correct unresolved schema")
 }
