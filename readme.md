@@ -274,16 +274,6 @@ if !result.IsValid() {
 }
 ```
 
-### Custom Error Messages
-
-```go
-schema := `{
-    "type": "string",
-    "minLength": 5,
-    "errorMessage": "Name must be at least 5 characters long"
-}`
-```
-
 ## Testing
 
 The library includes comprehensive tests and passes the official JSON Schema Test Suite:
