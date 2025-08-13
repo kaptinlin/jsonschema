@@ -272,12 +272,14 @@ func evaluatePropertiesStruct(schema *Schema, structValue reflect.Value, fieldCa
 
 		fieldInfo, exists := fieldCache.FieldsByName[propName]
 		if !exists {
-			// Field doesn't exist in struct, validate as nil
-			result, _, _ := propSchema.evaluate(nil, dynamicScope)
-			if result != nil {
-				results = append(results, result)
-				if !result.IsValid() {
-					invalidProperties = append(invalidProperties, propName)
+			// Field doesn't exist in struct, only validate as nil if required and no default
+			if isRequired(schema, propName) && !defaultIsSpecified(propSchema) {
+				result, _, _ := propSchema.evaluate(nil, dynamicScope)
+				if result != nil {
+					results = append(results, result)
+					if !result.IsValid() {
+						invalidProperties = append(invalidProperties, propName)
+					}
 				}
 			}
 			continue
