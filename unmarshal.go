@@ -160,7 +160,7 @@ func (s *Schema) convertBytesSource(data []byte) (interface{}, bool, error) {
 	} else {
 		// Only return error if it looks like it was meant to be JSON
 		if len(data) > 0 && (data[0] == '{' || data[0] == '[') {
-			return nil, false, fmt.Errorf("failed to decode JSON: %w", err)
+			return nil, false, fmt.Errorf("%w: %w", ErrFailedToDecodeJSON, err)
 		}
 		// Otherwise, treat as raw bytes
 		return data, false, nil
@@ -178,12 +178,12 @@ func (s *Schema) convertGenericSource(src interface{}) (interface{}, bool, error
 	// For other types, use JSON round-trip to convert
 	data, err := s.GetCompiler().jsonEncoder(src)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to encode source: %w", err)
+		return nil, false, fmt.Errorf("%w: %w", ErrFailedToEncodeSource, err)
 	}
 
 	var parsed interface{}
 	if err := s.GetCompiler().jsonDecoder(data, &parsed); err != nil {
-		return nil, false, fmt.Errorf("failed to decode intermediate JSON: %w", err)
+		return nil, false, fmt.Errorf("%w: %w", ErrFailedToDecodeIntermediateJSON, err)
 	}
 
 	// Check if the result is an object
@@ -203,7 +203,7 @@ func (s *Schema) applyDefaults(data map[string]interface{}, schema *Schema) erro
 	// Apply defaults for current level properties
 	for propName, propSchema := range *schema.Properties {
 		if err := s.applyPropertyDefaults(data, propName, propSchema); err != nil {
-			return fmt.Errorf("failed to apply defaults for property '%s': %w", propName, err)
+			return fmt.Errorf("%w: property '%s': %w", ErrFailedToApplyDefaults, propName, err)
 		}
 	}
 
@@ -217,7 +217,7 @@ func (s *Schema) applyPropertyDefaults(data map[string]interface{}, propName str
 		// Try to evaluate dynamic default value
 		defaultValue, err := s.evaluateDefaultValue(propSchema.Default)
 		if err != nil {
-			return fmt.Errorf("failed to evaluate default value for property '%s': %w", propName, err)
+			return fmt.Errorf("%w: property '%s': %w", ErrFailedToEvaluateDefaultValue, propName, err)
 		}
 		data[propName] = defaultValue
 	}
@@ -252,7 +252,7 @@ func (s *Schema) evaluateDefaultValue(defaultValue interface{}) (interface{}, er
 	// Try to parse as function call
 	call, err := parseFunctionCall(defaultStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse function call: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToParseFunctionCall, err)
 	}
 
 	if call == nil {
@@ -289,7 +289,7 @@ func (s *Schema) applyArrayDefaults(arrayData []interface{}, itemSchema *Schema,
 	for _, item := range arrayData {
 		if itemMap, ok := item.(map[string]interface{}); ok {
 			if err := s.applyDefaults(itemMap, itemSchema); err != nil {
-				return fmt.Errorf("failed to apply defaults for array item in '%s': %w", propName, err)
+				return fmt.Errorf("%w: array item in '%s': %w", ErrFailedToApplyArrayDefaults, propName, err)
 			}
 		}
 	}
@@ -321,7 +321,7 @@ func (s *Schema) unmarshalToDestination(dst interface{}, data map[string]interfa
 func (s *Schema) unmarshalViaJSON(dst interface{}, data map[string]interface{}) error {
 	jsonData, err := s.GetCompiler().jsonEncoder(data)
 	if err != nil {
-		return fmt.Errorf("failed to encode data for fallback: %w", err)
+		return fmt.Errorf("%w: %w", ErrFailedToEncodeData, err)
 	}
 	return s.GetCompiler().jsonDecoder(jsonData, dst)
 }
@@ -364,7 +364,7 @@ func (s *Schema) unmarshalToStruct(dstVal reflect.Value, data map[string]interfa
 		}
 
 		if err := s.setFieldValue(fieldVal, value); err != nil {
-			return fmt.Errorf("failed to set field '%s': %w", jsonName, err)
+			return fmt.Errorf("%w: field '%s': %w", ErrFailedToSetField, jsonName, err)
 		}
 	}
 
@@ -437,7 +437,7 @@ func (s *Schema) setPointerValue(fieldVal reflect.Value, valueVal reflect.Value,
 func (s *Schema) setComplexValue(fieldVal reflect.Value, value interface{}) error {
 	jsonData, err := s.GetCompiler().jsonEncoder(value)
 	if err != nil {
-		return fmt.Errorf("failed to encode nested value: %w", err)
+		return fmt.Errorf("%w: %w", ErrFailedToEncodeNestedValue, err)
 	}
 	return s.GetCompiler().jsonDecoder(jsonData, fieldVal.Addr().Interface())
 }

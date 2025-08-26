@@ -362,7 +362,7 @@ func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, 
 	for id, schemaBytes := range schemas {
 		schema, err := newSchema(schemaBytes)
 		if err != nil {
-			return nil, fmt.Errorf("failed to compile schema %s: %w", id, err)
+			return nil, fmt.Errorf("%w: %s: %w", ErrFailedToCompileSchema, id, err)
 		}
 
 		if schema.ID == "" {

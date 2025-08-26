@@ -1,0 +1,1292 @@
+package jsonschema
+
+import (
+	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/kaptinlin/jsonschema/pkg/tagparser"
+)
+
+// StructTagError represents an error that occurred during struct tag processing
+type StructTagError struct {
+	StructType string
+	FieldName  string
+	TagRule    string
+	Message    string
+	Cause      error
+}
+
+func (e *StructTagError) Error() string {
+	var parts []string
+	if e.StructType != "" {
+		parts = append(parts, fmt.Sprintf("struct %s", e.StructType))
+	}
+	if e.FieldName != "" {
+		parts = append(parts, fmt.Sprintf("field %s", e.FieldName))
+	}
+	if e.TagRule != "" {
+		parts = append(parts, fmt.Sprintf("tag rule %s", e.TagRule))
+	}
+
+	context := strings.Join(parts, ", ")
+	if context != "" {
+		context = fmt.Sprintf("(%s)", context)
+	}
+
+	if e.Cause != nil {
+		return fmt.Sprintf("struct tag error %s: %s: %v", context, e.Message, e.Cause)
+	}
+	return fmt.Sprintf("struct tag error %s: %s", context, e.Message)
+}
+
+func (e *StructTagError) Unwrap() error {
+	return e.Cause
+}
+
+// Import jschemagen components for reuse
+// Note: Since jschemagen is in cmd/jschemagen and we're in the main package,
+// we'll reimplement the required components adapted for runtime use
+
+// StructTagOptions holds configuration for struct tag schema generation
+type StructTagOptions struct {
+	TagName             string                 // tag name to parse (default: "jsonschema")
+	AllowUntaggedFields bool                   // whether to include fields without tags (default: false)
+	DefaultRequired     bool                   // whether fields are required by default (default: false)
+	FieldNameMapper     func(string) string    // function to map Go field names to JSON names
+	CustomValidators    map[string]interface{} // custom validators (for future extension)
+	CacheEnabled        bool                   // whether to enable schema caching (default: true)
+	ErrorHandler        func(error)            // optional error handler for processing errors
+}
+
+// CustomValidatorFunc represents a custom validator function
+type CustomValidatorFunc func(fieldType reflect.Type, params []string) []Keyword
+
+// ValidatorRegistry manages custom validators
+type ValidatorRegistry struct {
+	validators map[string]CustomValidatorFunc
+	mutex      sync.RWMutex
+}
+
+var globalValidatorRegistry = &ValidatorRegistry{
+	validators: make(map[string]CustomValidatorFunc),
+}
+
+// RegisterCustomValidator registers a custom validator globally
+func RegisterCustomValidator(name string, validator CustomValidatorFunc) {
+	globalValidatorRegistry.mutex.Lock()
+	defer globalValidatorRegistry.mutex.Unlock()
+	globalValidatorRegistry.validators[name] = validator
+}
+
+// GetCustomValidator retrieves a custom validator by name
+func (r *ValidatorRegistry) GetCustomValidator(name string) (CustomValidatorFunc, bool) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	validator, exists := r.validators[name]
+	return validator, exists
+}
+
+// DefaultStructTagOptions returns the default configuration for struct tag processing
+func DefaultStructTagOptions() *StructTagOptions {
+	return &StructTagOptions{
+		TagName:             "jsonschema",
+		AllowUntaggedFields: false,
+		DefaultRequired:     false,
+		FieldNameMapper:     nil, // use default field naming
+		CustomValidators:    make(map[string]interface{}),
+		CacheEnabled:        true,
+	}
+}
+
+// structTagGenerator handles runtime struct tag schema generation with reused jschemagen logic
+type structTagGenerator struct {
+	options      *StructTagOptions
+	tagParser    *tagparser.TagParser // Use the real tagparser
+	typeMapping  map[string]func(...Keyword) *Schema
+	validatorMap map[string]validatorFunc
+	// Dependency tracking (simplified from jschemagen ReferenceAnalyzer)
+	visited       map[reflect.Type]int    // 0=unvisited, 1=visiting, 2=completed
+	definitions   map[string]*Schema      // $defs storage
+	generatedRefs map[reflect.Type]string // track generated $refs
+}
+
+// validatorFunc represents a function that converts tag parameters to Schema keywords
+type validatorFunc func(fieldType reflect.Type, params []string) []Keyword
+
+var (
+	// Global schema cache for improved performance across multiple calls
+	globalSchemaCache sync.Map // map[cacheKey]*Schema
+)
+
+// cacheKey represents a unique key for caching schemas
+type cacheKey struct {
+	structType          reflect.Type
+	tagName             string
+	allowUntaggedFields bool
+	defaultRequired     bool
+	cacheEnabled        bool
+	// Note: we don't include function pointers in the cache key as they can't be compared
+}
+
+// newStructTagGenerator creates a new struct tag generator with the given options
+func newStructTagGenerator(options *StructTagOptions) *structTagGenerator {
+	if options == nil {
+		options = DefaultStructTagOptions()
+	}
+
+	return &structTagGenerator{
+		options:       options,
+		tagParser:     tagparser.NewWithTagName(options.TagName), // Use real tagparser
+		typeMapping:   createRuntimeTypeMapping(),
+		validatorMap:  createRuntimeValidatorMapping(),
+		visited:       make(map[reflect.Type]int),
+		definitions:   make(map[string]*Schema),
+		generatedRefs: make(map[reflect.Type]string),
+	}
+}
+
+// FromStruct generates a JSON Schema from a struct type with jsonschema tags
+func FromStruct[T any]() *Schema {
+	return FromStructWithOptions[T](nil)
+}
+
+// FromStructWithOptions generates a JSON Schema from a struct type with custom options
+func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
+	var zero T
+	structType := reflect.TypeOf(zero)
+
+	// Use default options if none provided
+	if options == nil {
+		options = DefaultStructTagOptions()
+	}
+
+	// Check global cache first if enabled
+	if options.CacheEnabled {
+		key := cacheKey{
+			structType:          structType,
+			tagName:             options.TagName,
+			allowUntaggedFields: options.AllowUntaggedFields,
+			defaultRequired:     options.DefaultRequired,
+			cacheEnabled:        options.CacheEnabled,
+		}
+		if cached, ok := globalSchemaCache.Load(key); ok {
+			return cached.(*Schema)
+		}
+	}
+
+	// Create generator for this call (allows different options per call)
+	generator := newStructTagGenerator(options)
+
+	// Generate schema using reused jschemagen logic
+	schema, err := generator.generateSchemaWithDependencyAnalysis(structType)
+	if err != nil {
+		// Create a detailed error with context
+		structTagErr := &StructTagError{
+			Message: "failed to generate schema",
+		}
+
+		// For now, return a basic schema but log the error
+		// In a production environment, you might want to return the error instead
+		_ = structTagErr // TODO: Consider how to expose errors to users
+		schema = &Schema{Type: SchemaType{"object"}}
+	}
+
+	// Add $defs if there are any circular references
+	if len(generator.definitions) > 0 {
+		defsMap := make(SchemaMap)
+		for name, defSchema := range generator.definitions {
+			// Create a clean copy of the definition schema to avoid circular references
+			cleanDef := generator.createCleanDefinition(defSchema)
+			defsMap[name] = cleanDef
+		}
+		schema.Defs = defsMap
+	}
+
+	// Clean up visited state
+	generator.visited = make(map[reflect.Type]int)
+
+	// Cache the result globally if caching is enabled
+	if options.CacheEnabled {
+		key := cacheKey{
+			structType:          structType,
+			tagName:             options.TagName,
+			allowUntaggedFields: options.AllowUntaggedFields,
+			defaultRequired:     options.DefaultRequired,
+			cacheEnabled:        options.CacheEnabled,
+		}
+		globalSchemaCache.Store(key, schema)
+	}
+
+	return schema
+}
+
+// ClearSchemaCache clears the global schema cache - useful for testing and memory management
+func ClearSchemaCache() {
+	globalSchemaCache.Range(func(key, value interface{}) bool {
+		globalSchemaCache.Delete(key)
+		return true
+	})
+}
+
+// GetCacheStats returns statistics about the global schema cache - useful for monitoring
+func GetCacheStats() map[string]int {
+	stats := map[string]int{
+		"cached_schemas": 0,
+	}
+
+	globalSchemaCache.Range(func(key, value interface{}) bool {
+		stats["cached_schemas"]++
+		return true
+	})
+
+	return stats
+}
+
+// generateSchemaWithDependencyAnalysis generates schema using jschemagen-style dependency analysis
+func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType reflect.Type) (*Schema, error) {
+	// Handle pointers
+	for structType.Kind() == reflect.Ptr {
+		structType = structType.Elem()
+	}
+
+	// Ensure it's a struct
+	if structType.Kind() != reflect.Struct {
+		return nil, ErrExpectedStructType
+	}
+
+	// Check current visiting state using jschemagen-style three-state tracking
+	state := g.visited[structType]
+	switch state {
+	case 1: // Currently visiting - circular reference detected
+		return g.createRefSchema(structType), nil
+	case 2: // Already completed
+		// Return existing schema if available in definitions
+		refName := g.getRefName(structType)
+		if schema, exists := g.definitions[refName]; exists {
+			return schema, nil
+		}
+	}
+
+	// Mark as visiting
+	g.visited[structType] = 1
+
+	// Generate unique reference name
+	refName := g.getRefName(structType)
+
+	// Parse struct fields using reflection (adapted from jschemagen analyzer logic)
+	var properties []Property
+	var required []string
+
+	// Use the real tagparser to parse struct fields
+	fieldInfos, err := g.tagParser.ParseStructTags(structType)
+	if err != nil {
+		g.visited[structType] = 0 // Reset on error
+		return nil, fmt.Errorf("%w: %w", ErrFailedToParseStructTags, err)
+	}
+
+	for _, fieldInfo := range fieldInfos {
+		// Skip fields without tags unless explicitly allowed
+		if !g.options.AllowUntaggedFields && fieldInfo.Tag == "" {
+			continue
+		}
+
+		// Generate schema for this field using reused jschemagen logic
+		fieldSchema, err := g.generateFieldSchemaWithValidators(fieldInfo.Type, fieldInfo.Rules)
+		if err != nil {
+			continue // Skip fields with errors for now
+		}
+
+		if fieldSchema != nil {
+			properties = append(properties, Prop(fieldInfo.JSONName, fieldSchema))
+
+			// Add to required if field is marked as required or default required is true
+			if fieldInfo.Required || (g.options.DefaultRequired && !fieldInfo.Optional) {
+				required = append(required, fieldInfo.JSONName)
+			}
+		}
+	}
+
+	// Create the object schema
+	var keywords []Keyword
+	if len(required) > 0 {
+		keywords = append(keywords, Required(required...))
+	}
+
+	// Convert properties to interface{} slice
+	items := make([]interface{}, len(properties))
+	for i, prop := range properties {
+		items[i] = prop
+	}
+
+	// Add keywords to items slice
+	for _, keyword := range keywords {
+		items = append(items, keyword)
+	}
+
+	schema := Object(items...)
+
+	// Store in definitions for potential $ref usage
+	g.definitions[refName] = schema
+	g.generatedRefs[structType] = refName
+
+	// Mark as completed
+	g.visited[structType] = 2
+
+	return schema, nil
+}
+
+// generateFieldSchemaWithValidators generates schema for a field using reused jschemagen validator logic
+func (g *structTagGenerator) generateFieldSchemaWithValidators(fieldType reflect.Type, rules []tagparser.TagRule) (*Schema, error) {
+	// Handle pointer types - make nullable
+	var isNullable bool
+	for fieldType.Kind() == reflect.Ptr {
+		isNullable = true
+		fieldType = fieldType.Elem()
+	}
+
+	// Get base schema from type using reused jschemagen type mapping
+	baseSchema, err := g.getSchemaFromTypeWithMapping(fieldType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse validation rules from tag using real tagparser rules
+	keywords := g.applyValidationRules(rules, fieldType)
+
+	// Handle nullable fields
+	if isNullable {
+		// Create anyOf with the base schema and null schema
+		nullSchema := Null()
+		return AnyOf(baseSchema, nullSchema), nil
+	}
+
+	// Apply keywords to base schema
+	if len(keywords) > 0 {
+		// Clone the schema and apply keywords
+		newSchema := g.cloneSchemaWithKeywords(baseSchema, keywords)
+		return newSchema, nil
+	}
+
+	return baseSchema, nil
+}
+
+// getSchemaFromTypeWithMapping converts Go types to JSON Schema using reused jschemagen logic
+func (g *structTagGenerator) getSchemaFromTypeWithMapping(fieldType reflect.Type) (*Schema, error) {
+	kind := fieldType.Kind()
+
+	// Handle basic types using reused type mapping
+	if constructor, exists := g.typeMapping[fieldType.String()]; exists {
+		return constructor(), nil
+	}
+
+	// Handle by kind if specific type not found
+	//exhaustive:ignore - we only handle types that are relevant for schema generation
+	switch kind {
+	case reflect.String:
+		return String(), nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return Integer(), nil
+	case reflect.Float32, reflect.Float64:
+		return Number(), nil
+	case reflect.Bool:
+		return Boolean(), nil
+	case reflect.Slice, reflect.Array:
+		return g.handleArrayType(fieldType)
+	case reflect.Map:
+		return Object(), nil
+	case reflect.Struct:
+		return g.handleStructType(fieldType)
+	case reflect.Interface:
+		return Any(), nil
+	default:
+		return nil, ErrUnsupportedType
+	}
+}
+
+// handleArrayType handles array/slice types with potential circular references
+func (g *structTagGenerator) handleArrayType(fieldType reflect.Type) (*Schema, error) {
+	elemType := fieldType.Elem()
+
+	// Handle pointer element types
+	for elemType.Kind() == reflect.Ptr {
+		elemType = elemType.Elem()
+	}
+
+	// If element is a struct, handle potential circular reference
+	if elemType.Kind() == reflect.Struct {
+		// Check for circular reference before generating schema
+		if g.visited[elemType] == 1 {
+			// For circular reference in array, create a $ref
+			refName := g.getRefName(elemType)
+
+			// Store a placeholder in definitions if not already there
+			if _, exists := g.definitions[refName]; !exists {
+				g.definitions[refName] = &Schema{Type: SchemaType{"object"}}
+			}
+
+			// Create array with $ref to the circular type
+			refSchema := Ref(fmt.Sprintf("#/$defs/%s", refName))
+			return Array(Items(refSchema)), nil
+		}
+
+		elemSchema, err := g.generateSchemaWithDependencyAnalysis(elemType)
+		if err != nil {
+			// Fall back to basic array schema if struct schema fails
+			// Return the error instead of ignoring it
+			return nil, err
+		}
+
+		// Create array schema with proper items constraint
+		return Array(Items(elemSchema)), nil
+	}
+
+	// For non-struct elements, just return basic array schema
+	return Array(), nil
+}
+
+// handleStructType handles struct types with circular reference detection
+func (g *structTagGenerator) handleStructType(fieldType reflect.Type) (*Schema, error) {
+	// Check for circular reference before generating schema
+	if g.visited[fieldType] == 1 {
+		// For circular reference, create a $ref
+		refName := g.getRefName(fieldType)
+
+		// Store a placeholder in definitions if not already there
+		if _, exists := g.definitions[refName]; !exists {
+			g.definitions[refName] = &Schema{Type: SchemaType{"object"}}
+		}
+
+		// Return $ref to the circular type
+		return Ref(fmt.Sprintf("#/$defs/%s", refName)), nil
+	}
+
+	return g.generateSchemaWithDependencyAnalysis(fieldType)
+}
+
+// applyValidationRules converts tagparser rules to Schema keywords using reused jschemagen logic
+func (g *structTagGenerator) applyValidationRules(rules []tagparser.TagRule, fieldType reflect.Type) []Keyword {
+	var keywords []Keyword
+
+	for _, rule := range rules {
+		if rule.Name == "required" {
+			continue // Required is handled at the object level
+		}
+
+		// Check built-in validators first
+		if validator, exists := g.validatorMap[rule.Name]; exists {
+			ruleKeywords := validator(fieldType, rule.Params)
+			keywords = append(keywords, ruleKeywords...)
+			continue
+		}
+
+		// Check custom validators
+		if customValidator, exists := globalValidatorRegistry.GetCustomValidator(rule.Name); exists {
+			ruleKeywords := customValidator(fieldType, rule.Params)
+			keywords = append(keywords, ruleKeywords...)
+			continue
+		}
+
+		// Check options-specific custom validators
+		if g.options.CustomValidators != nil {
+			if customFunc, exists := g.options.CustomValidators[rule.Name]; exists {
+				if validatorFunc, ok := customFunc.(CustomValidatorFunc); ok {
+					ruleKeywords := validatorFunc(fieldType, rule.Params)
+					keywords = append(keywords, ruleKeywords...)
+				} else if validatorFuncLegacy, ok := customFunc.(func(reflect.Type, []string) []Keyword); ok {
+					// Support legacy validator function signature
+					ruleKeywords := validatorFuncLegacy(fieldType, rule.Params)
+					keywords = append(keywords, ruleKeywords...)
+				}
+			}
+		}
+	}
+
+	return keywords
+}
+
+// getRefName generates a reference name for a struct type
+func (g *structTagGenerator) getRefName(structType reflect.Type) string {
+	if structType.Name() != "" {
+		return structType.Name()
+	}
+	return fmt.Sprintf("Type%p", structType) // fallback for anonymous structs
+}
+
+// createRefSchema creates a $ref schema for circular references
+func (g *structTagGenerator) createRefSchema(structType reflect.Type) *Schema {
+	refName := g.getRefName(structType)
+
+	// Store a placeholder in definitions if not already there
+	if _, exists := g.definitions[refName]; !exists {
+		g.definitions[refName] = &Schema{Type: SchemaType{"object"}}
+	}
+
+	// Store the ref name for this type
+	g.generatedRefs[structType] = refName
+
+	// Return a $ref schema
+	return Ref(fmt.Sprintf("#/$defs/%s", refName))
+}
+
+// cloneSchemaWithKeywords creates a new schema by applying keywords to an existing schema
+func (g *structTagGenerator) cloneSchemaWithKeywords(baseSchema *Schema, keywords []Keyword) *Schema {
+	// Start with a copy of the base schema
+	newSchema := &Schema{}
+	*newSchema = *baseSchema // Copy all fields
+
+	// Apply the additional keywords to the cloned schema
+	for _, keyword := range keywords {
+		keyword(newSchema)
+	}
+
+	return newSchema
+}
+
+// createCleanDefinition creates a clean copy of a schema for $defs to avoid circular references
+func (g *structTagGenerator) createCleanDefinition(schema *Schema) *Schema {
+	cleanSchema := &Schema{}
+	*cleanSchema = *schema // Copy all fields
+
+	// Ensure no circular references by not copying $defs in the definition
+	cleanSchema.Defs = nil
+
+	return cleanSchema
+}
+
+// createSchemaFromParam creates a Schema from a parameter string, handling primitive types and custom types
+// This is a standalone function that doesn't depend on generator instance for use in validator mappings
+func createSchemaFromParam(param string) *Schema {
+	// Handle primitive types
+	primitiveTypes := map[string]func() *Schema{
+		"string":  func() *Schema { return String() },
+		"integer": func() *Schema { return Integer() },
+		"number":  func() *Schema { return Number() },
+		"boolean": func() *Schema { return Boolean() },
+		"null":    func() *Schema { return Null() },
+		"object":  func() *Schema { return Object() },
+		"array":   func() *Schema { return Array() },
+	}
+
+	if constructor, exists := primitiveTypes[param]; exists {
+		return constructor()
+	}
+
+	// Handle boolean values
+	if param == "true" || param == "false" {
+		if param == "true" {
+			return &Schema{Type: SchemaType{"boolean"}, Const: &ConstValue{Value: true, IsSet: true}}
+		} else {
+			return &Schema{Type: SchemaType{"boolean"}, Const: &ConstValue{Value: false, IsSet: true}}
+		}
+	}
+
+	// Handle numeric values
+	if num, err := strconv.ParseFloat(param, 64); err == nil {
+		if num == float64(int64(num)) {
+			return &Schema{Type: SchemaType{"integer"}, Const: &ConstValue{Value: int64(num), IsSet: true}}
+		} else {
+			return &Schema{Type: SchemaType{"number"}, Const: &ConstValue{Value: num, IsSet: true}}
+		}
+	}
+
+	// Check if it's a custom struct type
+	if isCustomStructType(param) {
+		// For now, create a reference to the type
+		// TODO: In a full implementation, we might want to generate the schema for the referenced type
+		return &Schema{Type: SchemaType{"object"}, Description: &param}
+	}
+
+	// Default: treat as string constant
+	return &Schema{Type: SchemaType{"string"}, Const: &ConstValue{Value: param, IsSet: true}}
+}
+
+// isCustomStructType checks if a parameter string represents a custom struct type
+func isCustomStructType(typeName string) bool {
+	// Check if it's not a built-in type
+	builtinTypes := map[string]bool{
+		"string": true, "int": true, "int8": true, "int16": true, "int32": true, "int64": true,
+		"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
+		"float32": true, "float64": true, "bool": true, "interface{}": true,
+		"integer": true, "number": true, "boolean": true, "null": true, "object": true, "array": true,
+		"true": true, "false": true,
+	}
+
+	// Check if it starts with a package name (contains a dot)
+	if strings.Contains(typeName, ".") {
+		// External package type (like time.Time)
+		return !builtinTypes[typeName]
+	}
+
+	// Local type - assume it's a custom struct if it's capitalized and not builtin
+	if len(typeName) > 0 && typeName[0] >= 'A' && typeName[0] <= 'Z' {
+		return !builtinTypes[typeName]
+	}
+
+	return false
+}
+
+// createRuntimeTypeMapping creates the mapping from Go types to Schema constructors (reused from jschemagen)
+func createRuntimeTypeMapping() map[string]func(...Keyword) *Schema {
+	return map[string]func(...Keyword) *Schema{
+		"string":    String,
+		"int":       Integer,
+		"int8":      Integer,
+		"int16":     Integer,
+		"int32":     Integer,
+		"int64":     Integer,
+		"uint":      Integer,
+		"uint8":     Integer,
+		"uint16":    Integer,
+		"uint32":    Integer,
+		"uint64":    Integer,
+		"float32":   Number,
+		"float64":   Number,
+		"bool":      Boolean,
+		"time.Time": func(keywords ...Keyword) *Schema { return String(append(keywords, Format("date-time"))...) },
+	}
+}
+
+// createRuntimeValidatorMapping creates the mapping from validator names to runtime functions (reused from jschemagen)
+func createRuntimeValidatorMapping() map[string]validatorFunc {
+	return map[string]validatorFunc{
+		// String validators
+		"minLength": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if length, err := strconv.Atoi(params[0]); err == nil {
+				return []Keyword{MinLen(length)}
+			}
+			return nil
+		},
+		"maxLength": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if length, err := strconv.Atoi(params[0]); err == nil {
+				return []Keyword{MaxLen(length)}
+			}
+			return nil
+		},
+		"pattern": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			return []Keyword{Pattern(params[0])}
+		},
+		"format": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			return []Keyword{Format(params[0])}
+		},
+
+		// Numeric validators
+		"minimum": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if value, err := strconv.ParseFloat(params[0], 64); err == nil {
+				return []Keyword{Min(value)}
+			}
+			return nil
+		},
+		"maximum": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if value, err := strconv.ParseFloat(params[0], 64); err == nil {
+				return []Keyword{Max(value)}
+			}
+			return nil
+		},
+		"exclusiveMinimum": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if value, err := strconv.ParseFloat(params[0], 64); err == nil {
+				return []Keyword{ExclusiveMin(value)}
+			}
+			return nil
+		},
+		"exclusiveMaximum": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if value, err := strconv.ParseFloat(params[0], 64); err == nil {
+				return []Keyword{ExclusiveMax(value)}
+			}
+			return nil
+		},
+		"multipleOf": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if value, err := strconv.ParseFloat(params[0], 64); err == nil {
+				return []Keyword{MultipleOf(value)}
+			}
+			return nil
+		},
+
+		// Array validators
+		"minItems": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if count, err := strconv.Atoi(params[0]); err == nil {
+				return []Keyword{MinItems(count)}
+			}
+			return nil
+		},
+		"maxItems": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if count, err := strconv.Atoi(params[0]); err == nil {
+				return []Keyword{MaxItems(count)}
+			}
+			return nil
+		},
+		"uniqueItems": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 || params[0] == "true" {
+				return []Keyword{UniqueItems(true)}
+			}
+			if unique, err := strconv.ParseBool(params[0]); err == nil {
+				return []Keyword{UniqueItems(unique)}
+			}
+			return nil
+		},
+
+		// Object validators
+		"additionalProperties": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if allowed, err := strconv.ParseBool(params[0]); err == nil {
+				return []Keyword{AdditionalProps(allowed)}
+			}
+			return nil
+		},
+		"minProperties": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if count, err := strconv.Atoi(params[0]); err == nil {
+				return []Keyword{MinProps(count)}
+			}
+			return nil
+		},
+		"maxProperties": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if count, err := strconv.Atoi(params[0]); err == nil {
+				return []Keyword{MaxProps(count)}
+			}
+			return nil
+		},
+
+		// Enum and const validators
+		"enum": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			values := make([]interface{}, len(params))
+			for i, param := range params {
+				// Convert based on field type
+				//exhaustive:ignore - we only handle types that need conversion for enum values
+				switch fieldType.Kind() {
+				case reflect.String:
+					values[i] = param
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					if intVal, err := strconv.Atoi(param); err == nil {
+						values[i] = intVal
+					} else {
+						values[i] = param
+					}
+				case reflect.Float32, reflect.Float64:
+					if floatVal, err := strconv.ParseFloat(param, 64); err == nil {
+						values[i] = floatVal
+					} else {
+						values[i] = param
+					}
+				case reflect.Bool:
+					if boolVal, err := strconv.ParseBool(param); err == nil {
+						values[i] = boolVal
+					} else {
+						values[i] = param
+					}
+				default:
+					values[i] = param
+				}
+			}
+			return []Keyword{func(schema *Schema) {
+				schema.Enum = values
+			}}
+		},
+
+		"const": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			value := params[0]
+
+			// Convert value based on field type
+			var constValue interface{} = value
+			//exhaustive:ignore - we only handle types that need conversion for const values
+			switch fieldType.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				if intVal, err := strconv.Atoi(value); err == nil {
+					constValue = intVal
+				}
+			case reflect.Float32, reflect.Float64:
+				if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
+					constValue = floatVal
+				}
+			case reflect.Bool:
+				if boolVal, err := strconv.ParseBool(value); err == nil {
+					constValue = boolVal
+				}
+			}
+
+			return []Keyword{func(schema *Schema) {
+				schema.Const = &ConstValue{Value: constValue, IsSet: true}
+			}}
+		},
+
+		// Metadata validators
+		"title": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			return []Keyword{Title(params[0])}
+		},
+		"description": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			return []Keyword{Description(params[0])}
+		},
+		"default": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+
+			// Convert default value based on field type
+			value := params[0]
+			//exhaustive:ignore - we only handle types that need conversion for default values
+			switch fieldType.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				if intVal, err := strconv.Atoi(value); err == nil {
+					return []Keyword{Default(intVal)}
+				}
+			case reflect.Float32, reflect.Float64:
+				if floatVal, err := strconv.ParseFloat(value, 64); err == nil {
+					return []Keyword{Default(floatVal)}
+				}
+			case reflect.Bool:
+				if boolVal, err := strconv.ParseBool(value); err == nil {
+					return []Keyword{Default(boolVal)}
+				}
+			}
+			return []Keyword{Default(value)}
+		},
+		"examples": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			examples := make([]interface{}, len(params))
+			for i, param := range params {
+				examples[i] = param // Could add type conversion here
+			}
+			return []Keyword{Examples(examples...)}
+		},
+		"deprecated": func(fieldType reflect.Type, params []string) []Keyword {
+			deprecated := true
+			if len(params) > 0 {
+				if val, err := strconv.ParseBool(params[0]); err == nil {
+					deprecated = val
+				}
+			}
+			return []Keyword{Deprecated(deprecated)}
+		},
+		"readOnly": func(fieldType reflect.Type, params []string) []Keyword {
+			readOnly := true
+			if len(params) > 0 {
+				if val, err := strconv.ParseBool(params[0]); err == nil {
+					readOnly = val
+				}
+			}
+			return []Keyword{ReadOnly(readOnly)}
+		},
+		"writeOnly": func(fieldType reflect.Type, params []string) []Keyword {
+			writeOnly := true
+			if len(params) > 0 {
+				if val, err := strconv.ParseBool(params[0]); err == nil {
+					writeOnly = val
+				}
+			}
+			return []Keyword{WriteOnly(writeOnly)}
+		},
+
+		// Content validators
+		"contentEncoding": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			return []Keyword{ContentEncoding(params[0])}
+		},
+		"contentMediaType": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			return []Keyword{ContentMediaType(params[0])}
+		},
+
+		// Logical combination validators
+		"allOf": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			var schemas []*Schema
+			for _, schemaType := range params {
+				schema := createSchemaFromParam(schemaType)
+				if schema != nil {
+					schemas = append(schemas, schema)
+				}
+			}
+			if len(schemas) == 0 {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.AllOf = schemas
+			}}
+		},
+		"anyOf": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			var schemas []*Schema
+			for _, schemaType := range params {
+				schema := createSchemaFromParam(schemaType)
+				if schema != nil {
+					schemas = append(schemas, schema)
+				}
+			}
+			if len(schemas) == 0 {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.AnyOf = schemas
+			}}
+		},
+		"oneOf": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			var schemas []*Schema
+			for _, schemaType := range params {
+				schema := createSchemaFromParam(schemaType)
+				if schema != nil {
+					schemas = append(schemas, schema)
+				}
+			}
+			if len(schemas) == 0 {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.OneOf = schemas
+			}}
+		},
+		"not": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			schema := createSchemaFromParam(params[0])
+			if schema == nil {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.Not = schema
+			}}
+		},
+
+		// Array advanced validators
+		"contains": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			schema := createSchemaFromParam(params[0])
+			if schema == nil {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.Contains = schema
+			}}
+		},
+		"minContains": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if count, err := strconv.Atoi(params[0]); err == nil {
+				return []Keyword{func(s *Schema) {
+					countFloat := float64(count)
+					s.MinContains = &countFloat
+				}}
+			}
+			return nil
+		},
+		"maxContains": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			if count, err := strconv.Atoi(params[0]); err == nil {
+				return []Keyword{func(s *Schema) {
+					countFloat := float64(count)
+					s.MaxContains = &countFloat
+				}}
+			}
+			return nil
+		},
+
+		// TODO: Add more complex validators from jschemagen as needed
+		// (prefixItems, patternProperties, dependentRequired, dependentSchemas, if/then/else, etc.)
+
+		// Array advanced validators - prefixItems
+		"prefixItems": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			var schemas []*Schema
+			for _, schemaType := range params {
+				schema := createSchemaFromParam(schemaType)
+				if schema != nil {
+					schemas = append(schemas, schema)
+				}
+			}
+			if len(schemas) == 0 {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.PrefixItems = schemas
+			}}
+		},
+
+		// Object advanced validators
+		"patternProperties": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) < 2 {
+				return nil
+			}
+			pattern := params[0]
+			schemaType := params[1]
+
+			schema := createSchemaFromParam(schemaType)
+			if schema == nil {
+				return nil
+			}
+
+			return []Keyword{func(s *Schema) {
+				if s.PatternProperties == nil {
+					s.PatternProperties = &SchemaMap{}
+				}
+				(*s.PatternProperties)[pattern] = schema
+			}}
+		},
+		"propertyNames": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			schema := createSchemaFromParam(params[0])
+			if schema == nil {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.PropertyNames = schema
+			}}
+		},
+		"dependentRequired": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) < 2 {
+				return nil
+			}
+			property := params[0]
+			dependentFields := params[1:]
+
+			return []Keyword{func(s *Schema) {
+				if s.DependentRequired == nil {
+					s.DependentRequired = make(map[string][]string)
+				}
+				s.DependentRequired[property] = dependentFields
+			}}
+		},
+		"dependentSchemas": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) < 2 {
+				return nil
+			}
+			property := params[0]
+			schemaType := params[1]
+
+			schema := createSchemaFromParam(schemaType)
+			if schema == nil {
+				return nil
+			}
+
+			return []Keyword{func(s *Schema) {
+				if s.DependentSchemas == nil {
+					s.DependentSchemas = make(map[string]*Schema)
+				}
+				s.DependentSchemas[property] = schema
+			}}
+		},
+
+		// Conditional logic validators
+		"if": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			schema := createSchemaFromParam(params[0])
+			if schema == nil {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.If = schema
+			}}
+		},
+		"then": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			schema := createSchemaFromParam(params[0])
+			if schema == nil {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.Then = schema
+			}}
+		},
+		"else": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			schema := createSchemaFromParam(params[0])
+			if schema == nil {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.Else = schema
+			}}
+		},
+
+		// Advanced array validators
+		"unevaluatedItems": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return []Keyword{func(s *Schema) {
+					s.UnevaluatedItems = &Schema{Not: &Schema{}}
+				}}
+			}
+
+			switch params[0] {
+			case "false":
+				return []Keyword{func(s *Schema) {
+					s.UnevaluatedItems = &Schema{Not: &Schema{}}
+				}}
+			case "true":
+				return []Keyword{func(s *Schema) {
+					s.UnevaluatedItems = &Schema{}
+				}}
+			default:
+				schema := createSchemaFromParam(params[0])
+				if schema == nil {
+					return nil
+				}
+				return []Keyword{func(s *Schema) {
+					s.UnevaluatedItems = schema
+				}}
+			}
+		},
+
+		// Advanced object validators
+		"unevaluatedProperties": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return []Keyword{func(s *Schema) {
+					s.UnevaluatedProperties = &Schema{Not: &Schema{}}
+				}}
+			}
+
+			switch params[0] {
+			case "false":
+				return []Keyword{func(s *Schema) {
+					s.UnevaluatedProperties = &Schema{Not: &Schema{}}
+				}}
+			case "true":
+				return []Keyword{func(s *Schema) {
+					s.UnevaluatedProperties = &Schema{}
+				}}
+			default:
+				schema := createSchemaFromParam(params[0])
+				if schema == nil {
+					return nil
+				}
+				return []Keyword{func(s *Schema) {
+					s.UnevaluatedProperties = schema
+				}}
+			}
+		},
+
+		// Content validation
+		"contentSchema": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			schema := createSchemaFromParam(params[0])
+			if schema == nil {
+				return nil
+			}
+			return []Keyword{func(s *Schema) {
+				s.ContentSchema = schema
+			}}
+		},
+
+		// Manual reference support - for advanced use cases
+		"ref": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			refURI := params[0]
+			return []Keyword{func(s *Schema) {
+				s.Ref = refURI
+			}}
+		},
+		"defs": func(fieldType reflect.Type, params []string) []Keyword {
+			// This is more complex as it would need access to multiple schemas
+			// For now, we'll implement a basic version that just sets a marker
+			if len(params) == 0 {
+				return nil
+			}
+			// This would typically be handled at the schema level, not field level
+			// For now, return empty to indicate it's recognized but not implemented
+			return nil
+		},
+		"anchor": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			anchor := params[0]
+			return []Keyword{func(s *Schema) {
+				s.Anchor = anchor
+			}}
+		},
+		"dynamicRef": func(fieldType reflect.Type, params []string) []Keyword {
+			if len(params) == 0 {
+				return nil
+			}
+			dynamicRef := params[0]
+			return []Keyword{func(s *Schema) {
+				s.DynamicRef = dynamicRef
+			}}
+		},
+	}
+}

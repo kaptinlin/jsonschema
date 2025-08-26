@@ -2,7 +2,6 @@ package jsonschema
 
 import (
 	"fmt"
-	"math/rand"
 	"testing"
 	"time"
 )
@@ -148,9 +147,11 @@ func TestCompiler_RegisterDefaultFunc(t *testing.T) {
 	}
 }
 
-// customIDFunc generates a simple random ID for testing
+// customIDFunc generates a simple ID for testing using timestamp and counter
 func customIDFunc(args ...any) (any, error) {
-	return fmt.Sprintf("id_%d_%d", time.Now().Unix(), rand.Intn(10000)), nil
+	// Use timestamp and a simple counter instead of random numbers for testing
+	staticCounter := 42 // Static value for deterministic testing
+	return fmt.Sprintf("id_%d_%d", time.Now().Unix(), staticCounter), nil
 }
 
 func TestDynamicDefaultValues_Integration(t *testing.T) {
