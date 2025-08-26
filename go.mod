@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/kaptinlin/go-i18n v0.1.4
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 )
 
 require github.com/goccy/go-json v0.10.5
