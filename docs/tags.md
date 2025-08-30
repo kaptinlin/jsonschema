@@ -50,7 +50,7 @@ go get github.com/kaptinlin/jsonschema
 
 - **Default Optional**: Fields are optional unless marked `required`
 - **Comma Separated**: `"required,minLength=2,maxLength=50"`
-- **Parameters**: `"minLength=5"` or `"enum=red,green,blue"`
+- **Parameters**: `"minLength=5"` or `"enum=red green blue"`
 - **Skip Validation**: `jsonschema:"-"` to exclude field completely
 
 ```go
@@ -135,7 +135,7 @@ schema := jsonschema.FromStruct[User]()
 | | `deprecated=bool` | deprecated | `jsonschema:"deprecated=true"` |
 | | `readOnly=bool` | readOnly | `jsonschema:"readOnly=true"` |
 | | `writeOnly=bool` | writeOnly | `jsonschema:"writeOnly=true"` |
-| **Values** | `enum=values` | enum | `jsonschema:"enum=red,green,blue"` |
+| **Values** | `enum=values` | enum | `jsonschema:"enum=red green blue"` |
 | | `const=value` | const | `jsonschema:"const=active"` |
 
 ---
@@ -437,7 +437,7 @@ type Config struct {
 **If-Then-Else validation:**
 ```go
 type User struct {
-    Type        string `jsonschema:"required,enum=individual,business"`
+    Type        string `jsonschema:"required,enum=individual business"`
     Email       string `jsonschema:"required,format=email"`
     
     // Individual users
@@ -499,7 +499,7 @@ type StrictObject struct {
 **Dependent validation:**
 ```go
 type CreditCard struct {
-    Type   string `jsonschema:"required,enum=visa,mastercard,amex"`
+    Type   string `jsonschema:"required,enum=visa mastercard amex"`
     Number string `jsonschema:"required"`
     CVV    string `jsonschema:"dependentRequired=number"`  // CVV required when number present
 }
@@ -524,10 +524,10 @@ type User struct {
 **Enum with different types:**
 ```go
 type Status struct {
-    State    string  `jsonschema:"required,enum=active,inactive,pending"`
-    Priority int     `jsonschema:"enum=1,2,3,4,5"`
-    Level    float64 `jsonschema:"enum=0.1,0.5,1.0"`
-    Valid    bool    `jsonschema:"enum=true,false"`
+    State    string  `jsonschema:"required,enum=active inactive pending"`
+    Priority int     `jsonschema:"enum=1 2 3 4 5"`
+    Level    float64 `jsonschema:"enum=0.1 0.5 1.0"`
+    Valid    bool    `jsonschema:"enum=true false"`
 }
 ```
 
@@ -653,11 +653,11 @@ type User struct {
     Tags []string `jsonschema:"minItems=1,maxItems=10,uniqueItems=true"`
     
     // Conditional validation
-    Type        string `jsonschema:"required,enum=personal,business"`
+    Type        string `jsonschema:"required,enum=personal business"`
     CompanyName string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"business\"}}},then={\"required\":[\"companyName\"]},minLength=2"`
     
     // Metadata and default values
-    Status   string `jsonschema:"default=active,enum=active,inactive,pending,title=Account Status"`
+    Status   string `jsonschema:"default=active,enum=active inactive pending,title=Account Status"`
     CreateAt string `jsonschema:"format=date-time,readOnly=true,description=Account creation timestamp"`
 }
 ```

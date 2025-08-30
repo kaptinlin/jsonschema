@@ -263,10 +263,10 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 	case 1: // Currently visiting - circular reference detected
 		return g.createRefSchema(structType), nil
 	case 2: // Already completed
-		// Return existing schema if available in definitions
+		// Return reference to existing schema if available in definitions
 		refName := g.getRefName(structType)
-		if schema, exists := g.definitions[refName]; exists {
-			return schema, nil
+		if _, exists := g.definitions[refName]; exists {
+			return g.createRefSchema(structType), nil
 		}
 	}
 
@@ -275,6 +275,9 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 
 	// Generate unique reference name
 	refName := g.getRefName(structType)
+
+	// Always create a placeholder in definitions to ensure we can reference it
+	g.definitions[refName] = &Schema{Type: SchemaType{"object"}}
 
 	// Parse struct fields using reflection (adapted from jschemagen analyzer logic)
 	var properties []Property
@@ -328,13 +331,15 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 
 	schema := Object(items...)
 
-	// Store in definitions for potential $ref usage
+	// Store the final schema in definitions
 	g.definitions[refName] = schema
 	g.generatedRefs[structType] = refName
 
 	// Mark as completed
 	g.visited[structType] = 2
 
+	// Always return the actual schema (not a reference) from this function
+	// References are handled by the handleStructType function when needed
 	return schema, nil
 }
 
@@ -356,11 +361,41 @@ func (g *structTagGenerator) generateFieldSchemaWithValidators(fieldType reflect
 	// Parse validation rules from tag using real tagparser rules
 	keywords := g.applyValidationRules(rules, fieldType)
 
+	// Handle array schemas with object-level constraints
+	if fieldType.Kind() == reflect.Slice || fieldType.Kind() == reflect.Array {
+		arrayKeywords, itemKeywords := g.separateArrayAndItemKeywords(keywords, fieldType)
+
+		// Apply item-level constraints to the items schema if it exists
+		if len(itemKeywords) > 0 && baseSchema.Items != nil {
+			enhancedItemSchema := g.cloneSchemaWithKeywords(baseSchema.Items, itemKeywords)
+			baseSchema = g.cloneSchemaAndUpdateItems(baseSchema, enhancedItemSchema)
+		}
+
+		// Apply array-level constraints to the array schema
+		if len(arrayKeywords) > 0 {
+			baseSchema = g.cloneSchemaWithKeywords(baseSchema, arrayKeywords)
+		}
+
+		// Handle nullable array
+		if isNullable {
+			nullSchema := Null()
+			return AnyOf(baseSchema, nullSchema), nil
+		}
+
+		return baseSchema, nil
+	}
+
 	// Handle nullable fields
 	if isNullable {
-		// Create anyOf with the base schema and null schema
+		// Apply keywords to base schema first before creating anyOf
+		schemaWithRules := baseSchema
+		if len(keywords) > 0 {
+			schemaWithRules = g.cloneSchemaWithKeywords(baseSchema, keywords)
+		}
+
+		// Create anyOf with the enhanced schema and null schema
 		nullSchema := Null()
-		return AnyOf(baseSchema, nullSchema), nil
+		return AnyOf(schemaWithRules, nullSchema), nil
 	}
 
 	// Apply keywords to base schema
@@ -448,23 +483,39 @@ func (g *structTagGenerator) handleArrayType(fieldType reflect.Type) (*Schema, e
 	return Array(), nil
 }
 
-// handleStructType handles struct types with circular reference detection
+// handleStructType handles struct types with circular reference detection and deduplication
 func (g *structTagGenerator) handleStructType(fieldType reflect.Type) (*Schema, error) {
-	// Check for circular reference before generating schema
-	if g.visited[fieldType] == 1 {
-		// For circular reference, create a $ref
-		refName := g.getRefName(fieldType)
+	state := g.visited[fieldType]
+	refName := g.getRefName(fieldType)
 
+	switch state {
+	case 1: // Currently visiting - circular reference detected
 		// Store a placeholder in definitions if not already there
 		if _, exists := g.definitions[refName]; !exists {
 			g.definitions[refName] = &Schema{Type: SchemaType{"object"}}
 		}
-
 		// Return $ref to the circular type
 		return Ref(fmt.Sprintf("#/$defs/%s", refName)), nil
-	}
 
-	return g.generateSchemaWithDependencyAnalysis(fieldType)
+	case 2: // Already completed - reuse existing definition
+		// Struct has already been processed, use a reference
+		if _, exists := g.definitions[refName]; exists {
+			return Ref(fmt.Sprintf("#/$defs/%s", refName)), nil
+		}
+		// Fallback: regenerate if definition doesn't exist (shouldn't happen)
+		return g.generateSchemaWithDependencyAnalysis(fieldType)
+
+	default: // 0 or unvisited
+		// Generate the schema first to populate definitions
+		_, err := g.generateSchemaWithDependencyAnalysis(fieldType)
+		if err != nil {
+			return nil, err
+		}
+
+		// After generation, always return a reference to avoid duplication
+		// This ensures all struct types are referenced from $defs
+		return Ref(fmt.Sprintf("#/$defs/%s", refName)), nil
+	}
 }
 
 // applyValidationRules converts tagparser rules to Schema keywords using reused jschemagen logic
@@ -1289,4 +1340,84 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}}
 		},
 	}
+}
+
+// separateArrayAndItemKeywords separates validation keywords into array-level and item-level constraints
+func (g *structTagGenerator) separateArrayAndItemKeywords(keywords []Keyword, fieldType reflect.Type) ([]Keyword, []Keyword) {
+	var arrayKeywords []Keyword
+	var itemKeywords []Keyword
+
+	// Get the element type to determine if item-level constraints make sense
+	elemType := fieldType.Elem()
+	for elemType.Kind() == reflect.Ptr {
+		elemType = elemType.Elem()
+	}
+
+	// For each keyword, determine if it should be applied to array or items
+	for _, keyword := range keywords {
+		keywordType := getKeywordType(keyword)
+
+		switch {
+		case isObjectConstraint(keywordType) && (elemType.Kind() == reflect.Struct || elemType.Kind() == reflect.Map):
+			// Object-specific constraints should go on items if elements are objects
+			itemKeywords = append(itemKeywords, keyword)
+		case isArrayConstraint(keywordType):
+			// Array-specific constraints go on the array
+			arrayKeywords = append(arrayKeywords, keyword)
+		default:
+			// Default: apply to array level (backward compatibility)
+			arrayKeywords = append(arrayKeywords, keyword)
+		}
+	}
+
+	return arrayKeywords, itemKeywords
+}
+
+// cloneSchemaAndUpdateItems creates a copy of an array schema with updated items
+func (g *structTagGenerator) cloneSchemaAndUpdateItems(arraySchema *Schema, newItemSchema *Schema) *Schema {
+	newSchema := &Schema{}
+	*newSchema = *arraySchema // Copy all fields
+	newSchema.Items = newItemSchema
+	return newSchema
+}
+
+// getKeywordType inspects a keyword function to determine its type
+func getKeywordType(keyword Keyword) string {
+	// This is a simplified implementation - in practice, we would need to inspect
+	// the keyword function to determine what it does. For now, we'll use a test schema
+	// to see what fields the keyword modifies.
+	testSchema := &Schema{}
+	keyword(testSchema)
+
+	// Check which fields were modified
+	if testSchema.MaxProperties != nil || testSchema.MinProperties != nil {
+		return "object"
+	}
+	if testSchema.MaxItems != nil || testSchema.MinItems != nil || testSchema.UniqueItems != nil {
+		return "array"
+	}
+	if testSchema.MaxLength != nil || testSchema.MinLength != nil || testSchema.Pattern != nil {
+		return "string"
+	}
+	if testSchema.Maximum != nil || testSchema.Minimum != nil || testSchema.MultipleOf != nil {
+		return "number"
+	}
+	if testSchema.Enum != nil || testSchema.Const != nil {
+		return "value"
+	}
+	if testSchema.Description != nil || testSchema.Title != nil {
+		return "metadata"
+	}
+
+	return "unknown"
+}
+
+// isObjectConstraint checks if a constraint type applies to objects
+func isObjectConstraint(constraintType string) bool {
+	return constraintType == "object"
+}
+
+// isArrayConstraint checks if a constraint type applies to arrays
+func isArrayConstraint(constraintType string) bool {
+	return constraintType == "array"
 }
