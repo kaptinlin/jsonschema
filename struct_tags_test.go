@@ -1041,3 +1041,225 @@ func stringContains(s, substr string) bool {
 	}
 	return false
 }
+
+// =============================================================================
+// Bug Fix Regression Tests - These tests ensure reported issues stay fixed
+// =============================================================================
+
+// Issue 1: Test maxProperties placement in array items
+func TestMaxPropertiesArrayPlacement(t *testing.T) {
+	type InnerStruct struct {
+		Key1 string `jsonschema:"description=example key1"`
+		Key2 string `jsonschema:"description=example key2"`
+	}
+
+	type TestStruct struct {
+		// Single struct field with maxProperties - should apply to the struct
+		Single InnerStruct `jsonschema:"maxProperties=1"`
+		// Array of structs with maxProperties - should apply to each array item
+		Multiple []InnerStruct `jsonschema:"maxProperties=1"`
+	}
+
+	schema := FromStruct[TestStruct]()
+	if schema == nil {
+		t.Fatal("Schema generation failed")
+	}
+
+	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal schema: %v", err)
+	}
+
+	schemaStr := string(schemaJSON)
+
+	// Verify single struct has maxProperties at correct level
+	if !stringContains(schemaStr, `"Single"`) {
+		t.Error("Single field not found in schema")
+	}
+
+	// Verify array schema structure - maxProperties should be in items, not on array
+	if !stringContains(schemaStr, `"Multiple"`) {
+		t.Error("Multiple field not found in schema")
+	}
+
+	// Check that array items have maxProperties (not the array itself)
+	if !stringContains(schemaStr, `"items"`) {
+		t.Error("Array items not found in schema")
+	}
+
+	// Verify maxProperties appears in the right context
+	if !stringContains(schemaStr, `"maxProperties"`) {
+		t.Error("maxProperties constraint not found in schema")
+	}
+}
+
+// Issue 2: Test enum space separation
+func TestEnumSpaceSeparation(t *testing.T) {
+	type EnumTest struct {
+		Color    string `jsonschema:"enum=red green blue"`
+		Priority int    `jsonschema:"enum=1 2 3 4 5"`
+		Status   string `jsonschema:"required,enum=active inactive pending"`
+		Valid    bool   `jsonschema:"enum=true false"`
+	}
+
+	schema := FromStruct[EnumTest]()
+	if schema == nil {
+		t.Fatal("Schema generation failed")
+	}
+
+	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal schema: %v", err)
+	}
+
+	schemaStr := string(schemaJSON)
+
+	// Verify all enum values are included
+	expectedValues := []string{
+		`"red"`, `"green"`, `"blue"`,
+		`1`, `2`, `3`, `4`, `5`,
+		`"active"`, `"inactive"`, `"pending"`,
+		`true`, `false`,
+	}
+
+	for _, value := range expectedValues {
+		if !stringContains(schemaStr, value) {
+			t.Errorf("Expected enum value %s not found in schema", value)
+		}
+	}
+
+	// Verify enum arrays are properly formed
+	if !stringContains(schemaStr, `"enum": [`) {
+		t.Error("Enum arrays not properly formatted in schema")
+	}
+}
+
+// Issue 3: Test pointer field tag rules preservation
+func TestPointerFieldTagRules(t *testing.T) {
+	type PointerTest struct {
+		RequiredField  string  `jsonschema:"description=This is required"`
+		OptionalField  *string `jsonschema:"description=This is optional,maxLength=100"`
+		OptionalNumber *int    `jsonschema:"minimum=0,maximum=999"`
+	}
+
+	schema := FromStruct[PointerTest]()
+	if schema == nil {
+		t.Fatal("Schema generation failed")
+	}
+
+	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal schema: %v", err)
+	}
+
+	schemaStr := string(schemaJSON)
+
+	// Verify anyOf structure for nullable fields
+	if !stringContains(schemaStr, `"anyOf"`) {
+		t.Error("anyOf structure not found for nullable fields")
+	}
+
+	// Verify descriptions are preserved in nullable fields
+	if !stringContains(schemaStr, `"This is optional"`) {
+		t.Error("Description not preserved in nullable field")
+	}
+
+	// Verify validation rules are preserved
+	if !stringContains(schemaStr, `"maxLength": 100`) {
+		t.Error("maxLength validation rule not preserved in nullable field")
+	}
+
+	if !stringContains(schemaStr, `"minimum": 0`) {
+		t.Error("minimum validation rule not preserved in nullable field")
+	}
+
+	if !stringContains(schemaStr, `"maximum": 999`) {
+		t.Error("maximum validation rule not preserved in nullable field")
+	}
+
+	// Verify null type is included
+	if !stringContains(schemaStr, `"type": "null"`) {
+		t.Error("null type not found in nullable field anyOf")
+	}
+}
+
+// Issue 4: Test struct reference deduplication
+func TestStructReferenceDeduplication(t *testing.T) {
+	type SharedStruct struct {
+		CommonField string `jsonschema:"required,description=shared field"`
+	}
+
+	type TestStruct struct {
+		First  SharedStruct `jsonschema:"required"`
+		Second SharedStruct `jsonschema:"required"`
+		Third  SharedStruct `jsonschema:"required"`
+	}
+
+	schema := FromStruct[TestStruct]()
+	if schema == nil {
+		t.Fatal("Schema generation failed")
+	}
+
+	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal schema: %v", err)
+	}
+
+	schemaStr := string(schemaJSON)
+
+	// Verify $defs section exists
+	if !stringContains(schemaStr, `"$defs"`) {
+		t.Error("$defs section not found in schema")
+	}
+
+	// Verify $ref usage for shared struct
+	if !stringContains(schemaStr, `"$ref": "#/$defs/SharedStruct"`) {
+		t.Error("$ref to SharedStruct not found")
+	}
+
+	// Count occurrences of SharedStruct definition vs references
+	// Should have one definition in $defs and multiple $ref usages
+	definitionCount := countOccurrences(schemaStr, `"SharedStruct": {`)
+	refCount := countOccurrences(schemaStr, `"$ref": "#/$defs/SharedStruct"`)
+
+	if definitionCount != 1 {
+		t.Errorf("Expected 1 SharedStruct definition, got %d", definitionCount)
+	}
+
+	if refCount < 3 {
+		t.Errorf("Expected at least 3 $ref references to SharedStruct, got %d", refCount)
+	}
+
+	// Ensure the struct isn't duplicated inline
+	fieldDefinitionCount := countOccurrences(schemaStr, `"CommonField"`)
+
+	// Should appear once in the $defs definition
+	if fieldDefinitionCount < 1 {
+		t.Error("SharedStruct fields not found in $defs")
+	}
+}
+
+// Helper function to count occurrences of a substring
+func countOccurrences(s, substr string) int {
+	count := 0
+	start := 0
+	for {
+		index := stringIndex(s[start:], substr)
+		if index == -1 {
+			break
+		}
+		count++
+		start += index + len(substr)
+	}
+	return count
+}
+
+// Helper function to find substring index
+func stringIndex(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}
