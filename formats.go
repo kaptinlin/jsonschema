@@ -16,7 +16,7 @@ import (
 //
 // New Formats can be registered by adding to this map. Key is format name,
 // value is function that knows how to validate that format.
-var Formats = map[string]func(interface{}) bool{
+var Formats = map[string]func(any) bool{
 	"date-time":             IsDateTime,
 	"date":                  IsDate,
 	"time":                  IsTime,
@@ -37,14 +37,14 @@ var Formats = map[string]func(interface{}) bool{
 	"relative-json-pointer": IsRelativeJSONPointer,
 	"uuid":                  IsUUID,
 	"regex":                 IsRegex,
-	"unknown":               func(interface{}) bool { return true },
+	"unknown":               func(any) bool { return true },
 }
 
 // IsDateTime tells whether given string is a valid date representation
 // as defined by RFC 3339, section 5.6.
 //
 // see https://datatracker.ietf.org/doc/html/rfc3339#section-5.6, for details
-func IsDateTime(v interface{}) bool {
+func IsDateTime(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -62,7 +62,7 @@ func IsDateTime(v interface{}) bool {
 // as defined by RFC 3339, section 5.6.
 //
 // see https://datatracker.ietf.org/doc/html/rfc3339#section-5.6, for details
-func IsDate(v interface{}) bool {
+func IsDate(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -75,7 +75,7 @@ func IsDate(v interface{}) bool {
 // as defined by RFC 3339, section 5.6.
 //
 // see https://datatracker.ietf.org/doc/html/rfc3339#section-5.6, for details
-func IsTime(v interface{}) bool {
+func IsTime(v any) bool {
 	str, ok := v.(string)
 	if !ok {
 		return true
@@ -185,7 +185,7 @@ func IsTime(v interface{}) bool {
 // from the ISO 8601 ABNF as given in Appendix A of RFC 3339.
 //
 // see https://datatracker.ietf.org/doc/html/rfc3339#appendix-A, for details
-func IsDuration(v interface{}) bool {
+func IsDuration(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -239,7 +239,7 @@ func IsDuration(v interface{}) bool {
 // from the ISO 8601 ABNF as given in Appendix A of RFC 3339.
 //
 // see https://datatracker.ietf.org/doc/html/rfc3339#appendix-A, for details
-func IsPeriod(v interface{}) bool {
+func IsPeriod(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -260,7 +260,7 @@ func IsPeriod(v interface{}) bool {
 // RFC 1123 section 2.1.
 //
 // See https://en.wikipedia.org/wiki/Hostname#Restrictions_on_valid_host_names, for details.
-func IsHostname(v interface{}) bool {
+func IsHostname(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -306,7 +306,7 @@ func IsHostname(v interface{}) bool {
 // as defined by RFC 5322, section 3.4.1.
 //
 // See https://en.wikipedia.org/wiki/Email_address, for details.
-func IsEmail(v interface{}) bool {
+func IsEmail(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -349,7 +349,7 @@ func IsEmail(v interface{}) bool {
 
 // IsIPV4 tells whether given string is a valid representation of an IPv4 address
 // according to the "dotted-quad" ABNF syntax as defined in RFC 2673, section 3.2.
-func IsIPV4(v interface{}) bool {
+func IsIPV4(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -375,7 +375,7 @@ func IsIPV4(v interface{}) bool {
 
 // IsIPV6 tells whether given string is a valid representation of an IPv6 address
 // as defined in RFC 2373, section 2.2.
-func IsIPV6(v interface{}) bool {
+func IsIPV6(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -387,7 +387,7 @@ func IsIPV6(v interface{}) bool {
 }
 
 // IsURI tells whether given string is valid URI, according to RFC 3986.
-func IsURI(v interface{}) bool {
+func IsURI(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -417,7 +417,7 @@ func urlParse(s string) (*url.URL, error) {
 
 // IsURIReference tells whether given string is a valid URI Reference
 // (either a URI or a relative-reference), according to RFC 3986.
-func IsURIReference(v interface{}) bool {
+func IsURIReference(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -430,7 +430,7 @@ func IsURIReference(v interface{}) bool {
 // according to RFC6570.
 //
 // Current implementation does minimal validation.
-func IsURITemplate(v interface{}) bool {
+func IsURITemplate(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -465,7 +465,7 @@ func IsURITemplate(v interface{}) bool {
 // IsJSONPointer tells whether given string is a valid JSON Pointer.
 //
 // Note: It returns false for JSON Pointer URI fragments.
-func IsJSONPointer(v interface{}) bool {
+func IsJSONPointer(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -494,7 +494,7 @@ func IsJSONPointer(v interface{}) bool {
 // IsRelativeJSONPointer tells whether given string is a valid Relative JSON Pointer.
 //
 // see https://tools.ietf.org/html/draft-handrews-relative-json-pointer-01#section-3
-func IsRelativeJSONPointer(v interface{}) bool {
+func IsRelativeJSONPointer(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -519,7 +519,7 @@ func IsRelativeJSONPointer(v interface{}) bool {
 // as specified in RFC4122.
 //
 // see https://datatracker.ietf.org/doc/html/rfc4122#page-4, for details
-func IsUUID(v interface{}) bool {
+func IsUUID(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -555,7 +555,7 @@ func IsUUID(v interface{}) bool {
 }
 
 // IsRegex tells whether given string is a valid regex pattern
-func IsRegex(v interface{}) bool {
+func IsRegex(v any) bool {
 	pattern, ok := v.(string)
 	if !ok {
 		return true

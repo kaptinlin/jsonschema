@@ -31,7 +31,7 @@ func (s *Schema) compilePatterns() {
 // This function ensures that properties which match the patterns validate accordingly and aids the behavior of "additionalProperties" and "unevaluatedProperties".
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-patternproperties
-func evaluatePatternProperties(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluatePatternProperties(schema *Schema, object map[string]any, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.PatternProperties == nil {
 		return nil, nil // No patternProperties defined, nothing to do.
 	}
@@ -78,7 +78,7 @@ func evaluatePatternProperties(schema *Schema, object map[string]interface{}, ev
 	}
 
 	if len(invalid_properties) == 1 {
-		return results, NewEvaluationError("properties", "pattern_property_mismatch", "Property {property} does not match the pattern schema", map[string]interface{}{
+		return results, NewEvaluationError("properties", "pattern_property_mismatch", "Property {property} does not match the pattern schema", map[string]any{
 			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
 		})
 	} else if len(invalid_properties) > 1 {
@@ -86,7 +86,7 @@ func evaluatePatternProperties(schema *Schema, object map[string]interface{}, ev
 		for i, prop := range invalid_properties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
-		return results, NewEvaluationError("properties", "pattern_properties_mismatch", "Properties {properties} do not match their pattern schemas", map[string]interface{}{
+		return results, NewEvaluationError("properties", "pattern_properties_mismatch", "Properties {properties} do not match their pattern schemas", map[string]any{
 			"properties": strings.Join(quotedProperties, ", "),
 		})
 	}

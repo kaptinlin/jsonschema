@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/goccy/go-json"
+	"github.com/go-json-experiment/json"
 	"github.com/kaptinlin/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

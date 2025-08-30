@@ -61,7 +61,7 @@ func main() {
 
 	// Example 2: Map with some defaults overridden
 	fmt.Println("\n2. Map with some values provided:")
-	mapData := map[string]interface{}{
+	mapData := map[string]any{
 		"name":    "Bob",
 		"age":     30,
 		"country": "Canada", // Override default
@@ -127,7 +127,7 @@ func main() {
 
 	result = schema.Validate(data5)
 	if result.IsValid() {
-		var resultMap map[string]interface{}
+		var resultMap map[string]any
 		err = schema.Unmarshal(&resultMap, data5)
 		if err != nil {
 			log.Fatal(err)

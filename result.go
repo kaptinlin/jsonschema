@@ -3,13 +3,13 @@ package jsonschema
 import "github.com/kaptinlin/go-i18n"
 
 type EvaluationError struct {
-	Keyword string                 `json:"keyword"`
-	Code    string                 `json:"code"`
-	Message string                 `json:"message"`
-	Params  map[string]interface{} `json:"params"`
+	Keyword string         `json:"keyword"`
+	Code    string         `json:"code"`
+	Message string         `json:"message"`
+	Params  map[string]any `json:"params"`
 }
 
-func NewEvaluationError(keyword string, code string, message string, params ...map[string]interface{}) *EvaluationError {
+func NewEvaluationError(keyword string, code string, message string, params ...map[string]any) *EvaluationError {
 	if len(params) > 0 {
 		return &EvaluationError{
 			Keyword: keyword,
@@ -43,13 +43,13 @@ type Flag struct {
 }
 
 type List struct {
-	Valid            bool                   `json:"valid"`
-	EvaluationPath   string                 `json:"evaluationPath"`
-	SchemaLocation   string                 `json:"schemaLocation"`
-	InstanceLocation string                 `json:"instanceLocation"`
-	Annotations      map[string]interface{} `json:"annotations,omitempty"`
-	Errors           map[string]string      `json:"errors,omitempty"`
-	Details          []List                 `json:"details,omitempty"`
+	Valid            bool              `json:"valid"`
+	EvaluationPath   string            `json:"evaluationPath"`
+	SchemaLocation   string            `json:"schemaLocation"`
+	InstanceLocation string            `json:"instanceLocation"`
+	Annotations      map[string]any    `json:"annotations,omitempty"`
+	Errors           map[string]string `json:"errors,omitempty"`
+	Details          []List            `json:"details,omitempty"`
 }
 
 type EvaluationResult struct {
@@ -58,7 +58,7 @@ type EvaluationResult struct {
 	EvaluationPath   string                      `json:"evaluationPath"`
 	SchemaLocation   string                      `json:"schemaLocation"`
 	InstanceLocation string                      `json:"instanceLocation"`
-	Annotations      map[string]interface{}      `json:"annotations,omitempty"`
+	Annotations      map[string]any              `json:"annotations,omitempty"`
 	Errors           map[string]*EvaluationError `json:"errors,omitempty"` // Store error messages here
 	Details          []*EvaluationResult         `json:"details,omitempty"`
 }
@@ -128,9 +128,9 @@ func (e *EvaluationResult) AddDetail(detail *EvaluationResult) *EvaluationResult
 	return e
 }
 
-func (e *EvaluationResult) AddAnnotation(keyword string, annotation interface{}) *EvaluationResult {
+func (e *EvaluationResult) AddAnnotation(keyword string, annotation any) *EvaluationResult {
 	if e.Annotations == nil {
-		e.Annotations = make(map[string]interface{})
+		e.Annotations = make(map[string]any)
 	}
 
 	e.Annotations[keyword] = annotation
@@ -139,7 +139,7 @@ func (e *EvaluationResult) AddAnnotation(keyword string, annotation interface{})
 
 func (e *EvaluationResult) CollectAnnotations() *EvaluationResult {
 	if e.Annotations == nil {
-		e.Annotations = make(map[string]interface{})
+		e.Annotations = make(map[string]any)
 	}
 
 	if e.schema.Title != nil {

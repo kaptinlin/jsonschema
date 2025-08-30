@@ -194,11 +194,11 @@ func TestDynamicDefaultValues_Integration(t *testing.T) {
 	}
 
 	// Test with partial data
-	inputData := map[string]interface{}{
+	inputData := map[string]any{
 		"status": "pending",
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	err = schema.Unmarshal(&result, inputData)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
@@ -244,8 +244,8 @@ func TestSchemaSetCompiler(t *testing.T) {
 		Prop("field", String(Default("test()"))),
 	).SetCompiler(compiler)
 
-	data := map[string]interface{}{}
-	var result map[string]interface{}
+	data := map[string]any{}
+	var result map[string]any
 	err := schema.Unmarshal(&result, data)
 	if err != nil {
 		t.Errorf("Unmarshal() error = %v", err)
@@ -276,9 +276,9 @@ func TestSchemaCompilerIsolation(t *testing.T) {
 	).SetCompiler(compiler2)
 
 	// Verify isolation
-	data1 := map[string]interface{}{}
-	data2 := map[string]interface{}{}
-	var result1, result2 map[string]interface{}
+	data1 := map[string]any{}
+	data2 := map[string]any{}
+	var result1, result2 map[string]any
 	err := schema1.Unmarshal(&result1, data1)
 	if err != nil {
 		t.Errorf("schema1.Unmarshal() error = %v", err)
@@ -309,8 +309,8 @@ func TestSchemaSetCompilerChaining(t *testing.T) {
 		Prop("field", String(Default("test()"))),
 	).SetCompiler(compiler)
 
-	data := map[string]interface{}{}
-	var result map[string]interface{}
+	data := map[string]any{}
+	var result map[string]any
 	err := schema.Unmarshal(&result, data)
 	if err != nil {
 		t.Errorf("Unmarshal() error = %v", err)
@@ -332,8 +332,8 @@ func TestSchemaCompilerInheritance(t *testing.T) {
 		Prop("child", String(Default("test()"))), // Child Schema doesn't set compiler
 	).SetCompiler(compiler) // Only set on parent Schema
 
-	data := map[string]interface{}{}
-	var result map[string]interface{}
+	data := map[string]any{}
+	var result map[string]any
 	err := schema.Unmarshal(&result, data)
 	if err != nil {
 		t.Errorf("Unmarshal() error = %v", err)

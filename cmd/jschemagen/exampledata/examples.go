@@ -51,17 +51,17 @@ type Category struct {
 // ReferenceDemo demonstrates manual reference usage for advanced JSON Schema features
 type ReferenceDemo struct {
 	// Manual $ref usage - reference to another schema definition
-	UserRef interface{} `json:"user_ref" jsonschema:"ref=#/$defs/User"`
+	UserRef any `json:"user_ref" jsonschema:"ref=#/$defs/User"`
 
 	// Manual $anchor usage - creates an anchor point for referencing
 	MainField string `json:"main_field" jsonschema:"anchor=main,required"`
 
 	// Manual $defs usage - includes schema definitions (typically at root level)
-	Definitions interface{} `json:"definitions" jsonschema:"defs=User,Address"`
+	Definitions any `json:"definitions" jsonschema:"defs=User,Address"`
 
 	// Manual $dynamicRef usage - dynamic reference for recursive schemas
-	DynamicRef interface{} `json:"dynamic_ref" jsonschema:"dynamicRef=#meta"`
+	DynamicRef any `json:"dynamic_ref" jsonschema:"dynamicRef=#meta"`
 
 	// Mixed usage - field with both reference and additional validation
-	ValidatedRef interface{} `json:"validated_ref" jsonschema:"ref=#/$defs/Product,description=Product reference with validation"`
+	ValidatedRef any `json:"validated_ref" jsonschema:"ref=#/$defs/Product,description=Product reference with validation"`
 }

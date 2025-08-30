@@ -23,7 +23,7 @@ package jsonschema
 // 	uri, err := url.Parse(id)
 // 	if err != nil {
 // 		// Invalid URI format
-// 		return NewEvaluationError("$id", "id_invalid", "Invalid `$id` URI: {error}", map[string]interface{}{
+// 		return NewEvaluationError("$id", "id_invalid", "Invalid `$id` URI: {error}", map[string]any{
 // 			"error": err.Error(),
 // 		})
 // 	}

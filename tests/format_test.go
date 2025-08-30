@@ -115,14 +115,14 @@ func TestCompileBatchFormatValidation(t *testing.T) {
 	require.NotNil(t, schema1, "Schema should not be nil")
 
 	// Test valid IPv4 address
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"ip_addr": "192.168.1.1",
 	}
 	result := schema1.Validate(validData)
 	assert.True(t, result.IsValid(), "Valid IPv4 address should pass validation")
 
 	// Test invalid IPv4 address - this should fail when AssertFormat is true
-	invalidData := map[string]interface{}{
+	invalidData := map[string]any{
 		"ip_addr": "256.256.256.256",
 	}
 	result = schema1.Validate(invalidData)
@@ -201,7 +201,7 @@ func TestCompileBatchVsRegularCompileFormatValidation(t *testing.T) {
 	batchSchema := batchSchemas["test"]
 
 	// Test data with invalid formats
-	testData := map[string]interface{}{
+	testData := map[string]any{
 		"email":   "invalid-email",
 		"ip_addr": "256.256.256.256",
 	}

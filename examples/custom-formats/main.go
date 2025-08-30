@@ -11,7 +11,7 @@ import (
 // --- OpenAPI Format Validators ---
 
 // validateInt32 checks if the value is a valid 32-bit integer.
-func validateInt32(v interface{}) bool {
+func validateInt32(v any) bool {
 	switch val := v.(type) {
 	case int:
 		return val >= math.MinInt32 && val <= math.MaxInt32
@@ -28,7 +28,7 @@ func validateInt32(v interface{}) bool {
 }
 
 // validateInt64 checks if the value is a valid 64-bit integer.
-func validateInt64(v interface{}) bool {
+func validateInt64(v any) bool {
 	switch val := v.(type) {
 	case int, int32, int64:
 		return true
@@ -41,7 +41,7 @@ func validateInt64(v interface{}) bool {
 }
 
 // validateFloat checks if the value is a valid 32-bit float.
-func validateFloat(v interface{}) bool {
+func validateFloat(v any) bool {
 	switch val := v.(type) {
 	case float32:
 		return true
@@ -53,13 +53,13 @@ func validateFloat(v interface{}) bool {
 }
 
 // validateDouble checks if the value is a valid 64-bit float (double).
-func validateDouble(v interface{}) bool {
+func validateDouble(v any) bool {
 	_, ok := v.(float64)
 	return ok
 }
 
 // validateByte checks if the value is a valid base64 string.
-func validateByte(v interface{}) bool {
+func validateByte(v any) bool {
 	s, ok := v.(string)
 	if !ok {
 		return true
@@ -69,13 +69,13 @@ func validateByte(v interface{}) bool {
 }
 
 // validateBinary always returns true, as it's for any binary data.
-func validateBinary(v interface{}) bool {
+func validateBinary(v any) bool {
 	_, ok := v.(string)
 	return ok
 }
 
 // validatePassword always returns true, as it's a hint for UI.
-func validatePassword(v interface{}) bool {
+func validatePassword(v any) bool {
 	_, ok := v.(string)
 	return ok
 }
@@ -137,7 +137,7 @@ func main() {
 
 	// --- Test with valid data ---
 	fmt.Println("\n--- 1. Validation with valid data ---")
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"userId": 9223372036854775807, // Max int64
 		"age":    30,
 		"avatar": "SGVsbG8sIHdvcmxkIQ==", // "Hello, world!" in base64
@@ -148,7 +148,7 @@ func main() {
 
 	// --- Test with invalid data ---
 	fmt.Println("\n--- 2. Validation with invalid data ---")
-	invalidData := map[string]interface{}{
+	invalidData := map[string]any{
 		"userId": 9223372036854775807,
 		"age":    2147483648,           // Exceeds max int32
 		"avatar": "this is not base64", // Not a valid base64 string

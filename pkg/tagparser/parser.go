@@ -434,7 +434,7 @@ func typeToString(t reflect.Type) string {
 		return "func" // Simplified for functions
 	case reflect.Interface:
 		if t.NumMethod() == 0 {
-			return "interface{}"
+			return "any"
 		}
 		return t.String() // Use the standard string representation for named interfaces
 	case reflect.Struct:

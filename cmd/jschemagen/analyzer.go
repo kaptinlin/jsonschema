@@ -245,7 +245,7 @@ func (a *StructAnalyzer) getTypeString(expr ast.Expr) string {
 		return pkg + "." + t.Sel.Name
 	case *ast.InterfaceType:
 		if len(t.Methods.List) == 0 {
-			return "interface{}"
+			return "any"
 		}
 		return "interface{...}" // Non-empty interface
 	default:
@@ -294,7 +294,7 @@ func isOptionalType(typeName string) bool {
 	return strings.HasPrefix(typeName, "*") ||
 		strings.HasPrefix(typeName, "[]") ||
 		strings.HasPrefix(typeName, "map[") ||
-		typeName == "interface{}"
+		typeName == "any"
 }
 
 // NeedsGeneration checks if a struct needs code generation

@@ -39,7 +39,7 @@ func basicTypesExample() {
 		jsonschema.Items(jsonschema.String()),
 		jsonschema.UniqueItems(true),
 	)
-	fmt.Printf("Tags validation: %t\n", tagsSchema.Validate([]interface{}{"go", "api"}).IsValid())
+	fmt.Printf("Tags validation: %t\n", tagsSchema.Validate([]any{"go", "api"}).IsValid())
 
 	fmt.Println()
 }
@@ -55,7 +55,7 @@ func objectSchemaExample() {
 		jsonschema.Required("name", "email"),
 	)
 
-	userData := map[string]interface{}{
+	userData := map[string]any{
 		"name":  "Alice",
 		"email": "alice@example.com",
 		"age":   30,
@@ -81,7 +81,7 @@ func schemaCompositionExample() {
 		),
 	)
 
-	emailAuth := map[string]interface{}{"email": "user@example.com"}
+	emailAuth := map[string]any{"email": "user@example.com"}
 	fmt.Printf("Email auth: %t\n", authSchema.Validate(emailAuth).IsValid())
 
 	// Conditional schema
@@ -91,7 +91,7 @@ func schemaCompositionExample() {
 		jsonschema.Object(jsonschema.Required("features")),
 	).ToSchema()
 
-	premiumUser := map[string]interface{}{
+	premiumUser := map[string]any{
 		"type":     "premium",
 		"features": []string{"advanced"},
 	}
@@ -127,8 +127,8 @@ func setCompilerExample() {
 	).SetCompiler(compiler)
 
 	// Test with empty input
-	var result map[string]interface{}
-	err := userSchema.Unmarshal(&result, map[string]interface{}{})
+	var result map[string]any
+	err := userSchema.Unmarshal(&result, map[string]any{})
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return

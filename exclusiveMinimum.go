@@ -13,7 +13,7 @@ func evaluateExclusiveMinimum(schema *Schema, value *Rat) *EvaluationError {
 	if schema.ExclusiveMinimum != nil {
 		if value.Cmp(schema.ExclusiveMinimum.Rat) <= 0 {
 			// Data does not meet the exclusive minimum value.
-			return NewEvaluationError("exclusiveMinimum", "exclusive_minimum_mismatch", "{value} should be greater than {exclusive_minimum}", map[string]interface{}{
+			return NewEvaluationError("exclusiveMinimum", "exclusive_minimum_mismatch", "{value} should be greater than {exclusive_minimum}", map[string]any{
 				"exclusive_minimum": FormatRat(schema.ExclusiveMinimum),
 				"value":             FormatRat(value),
 			})

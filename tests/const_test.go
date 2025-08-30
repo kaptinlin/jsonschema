@@ -7,7 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/goccy/go-json"
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/kaptinlin/jsonschema"
 )
 
@@ -25,7 +26,7 @@ func TestConstValueUnmarshalJSON(t *testing.T) {
 		{`null`, &jsonschema.ConstValue{Value: nil, IsSet: true}, nil},
 		{`123`, &jsonschema.ConstValue{Value: 123.0, IsSet: true}, nil}, // JSON numbers are decoded as float64 by default
 		{`"hello"`, &jsonschema.ConstValue{Value: "hello", IsSet: true}, nil},
-		{``, nil, &json.SyntaxError{}}, // Expecting syntax error due to empty string
+		{``, nil, &jsontext.SyntacticError{}}, // Expecting syntax error due to empty string
 	}
 
 	for _, tt := range tests {

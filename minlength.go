@@ -21,7 +21,7 @@ func evaluateMinLength(schema *Schema, value string) *EvaluationError {
 		length := utf8.RuneCountInString(value)
 		if length < int(*schema.MinLength) {
 			// String does not meet the minimum length.
-			return NewEvaluationError("minLength", "string_too_short", "Value should be at least {min_length} characters", map[string]interface{}{
+			return NewEvaluationError("minLength", "string_too_short", "Value should be at least {min_length} characters", map[string]any{
 				"min_length": *schema.MinLength,
 				"length":     length,
 			})

@@ -172,7 +172,7 @@ func TestFromStruct_BasicValidationRules(t *testing.T) {
 		Role   string `jsonschema:"const=user"`
 
 		// Object validation
-		Settings map[string]interface{} `jsonschema:"minProperties=1,maxProperties=10"`
+		Settings map[string]any `jsonschema:"minProperties=1,maxProperties=10"`
 
 		// Metadata validation
 		Bio      string `jsonschema:"title=User Biography,description=A short bio,maxLength=500"`
@@ -190,7 +190,7 @@ func TestFromStruct_BasicValidationRules(t *testing.T) {
 	}
 
 	// Test valid data
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"Username": "john_doe",
 		"Email":    "john@example.com",
 		"Age":      25,
@@ -198,7 +198,7 @@ func TestFromStruct_BasicValidationRules(t *testing.T) {
 		"Tags":     []string{"developer", "golang"},
 		"Status":   "active",
 		"Role":     "user",
-		"Settings": map[string]interface{}{"theme": "dark"},
+		"Settings": map[string]any{"theme": "dark"},
 		"Bio":      "Software developer",
 		"IsPublic": true,
 		"Version":  1,
@@ -216,10 +216,10 @@ func TestFromStruct_BasicValidationRules(t *testing.T) {
 
 func TestLogicalCombinationValidators(t *testing.T) {
 	type LogicalTest struct {
-		AllOfField string      `jsonschema:"allOf=string,minLength=5"`
-		AnyOfField interface{} `jsonschema:"anyOf=string,number"`
-		OneOfField interface{} `jsonschema:"oneOf=string,integer"`
-		NotField   interface{} `jsonschema:"not=string"`
+		AllOfField string `jsonschema:"allOf=string,minLength=5"`
+		AnyOfField any    `jsonschema:"anyOf=string,number"`
+		OneOfField any    `jsonschema:"oneOf=string,integer"`
+		NotField   any    `jsonschema:"not=string"`
 	}
 
 	schema := FromStruct[LogicalTest]()
@@ -233,13 +233,13 @@ func TestLogicalCombinationValidators(t *testing.T) {
 		t.Fatalf("Failed to marshal schema: %v", err)
 	}
 
-	var schemaMap map[string]interface{}
+	var schemaMap map[string]any
 	err = json.Unmarshal(jsonBytes, &schemaMap)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal schema: %v", err)
 	}
 
-	properties, ok := schemaMap["properties"].(map[string]interface{})
+	properties, ok := schemaMap["properties"].(map[string]any)
 	if !ok {
 		t.Fatal("Properties not found in schema")
 	}
@@ -249,7 +249,7 @@ func TestLogicalCombinationValidators(t *testing.T) {
 	logicalKeys := []string{"allOf", "anyOf", "oneOf", "not"}
 
 	for i, fieldName := range logicalFields {
-		field, ok := properties[fieldName].(map[string]interface{})
+		field, ok := properties[fieldName].(map[string]any)
 		if !ok {
 			t.Fatalf("%s not found in properties", fieldName)
 		}
@@ -259,7 +259,7 @@ func TestLogicalCombinationValidators(t *testing.T) {
 	}
 
 	// Test validation with logical combinations
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"AllOfField": "hello", // satisfies both string and minLength=5
 		"AnyOfField": "world", // satisfies string (one of anyOf options)
 		"OneOfField": 42,      // satisfies integer (exactly one of oneOf options)
@@ -275,16 +275,16 @@ func TestLogicalCombinationValidators(t *testing.T) {
 func TestArrayAdvancedValidators(t *testing.T) {
 	type ArrayTest struct {
 		// Contains validators
-		ContainsField     []interface{} `jsonschema:"contains=string"`
-		MinContainsField  []interface{} `jsonschema:"contains=string,minContains=2"`
-		MaxContainsField  []interface{} `jsonschema:"contains=string,maxContains=3"`
-		BothContainsField []interface{} `jsonschema:"contains=string,minContains=1,maxContains=5"`
+		ContainsField     []any `jsonschema:"contains=string"`
+		MinContainsField  []any `jsonschema:"contains=string,minContains=2"`
+		MaxContainsField  []any `jsonschema:"contains=string,maxContains=3"`
+		BothContainsField []any `jsonschema:"contains=string,minContains=1,maxContains=5"`
 
 		// Prefix items
-		PrefixArray []interface{} `jsonschema:"prefixItems=string,number,boolean"`
+		PrefixArray []any `jsonschema:"prefixItems=string,number,boolean"`
 
 		// Unevaluated items
-		UnevaluatedArr []interface{} `jsonschema:"unevaluatedItems=false"`
+		UnevaluatedArr []any `jsonschema:"unevaluatedItems=false"`
 	}
 
 	schema := FromStruct[ArrayTest]()
@@ -298,44 +298,44 @@ func TestArrayAdvancedValidators(t *testing.T) {
 		t.Fatalf("Failed to marshal schema: %v", err)
 	}
 
-	var schemaMap map[string]interface{}
+	var schemaMap map[string]any
 	err = json.Unmarshal(jsonBytes, &schemaMap)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal schema: %v", err)
 	}
 
-	properties := schemaMap["properties"].(map[string]interface{})
+	properties := schemaMap["properties"].(map[string]any)
 
 	// Verify contains constraints
 	arrayFields := []string{"ContainsField", "MinContainsField", "MaxContainsField", "BothContainsField"}
 	for _, fieldName := range arrayFields {
-		field := properties[fieldName].(map[string]interface{})
+		field := properties[fieldName].(map[string]any)
 		if _, exists := field["contains"]; !exists {
 			t.Errorf("%s should have contains constraint", fieldName)
 		}
 	}
 
 	// Verify minContains/maxContains
-	if field := properties["MinContainsField"].(map[string]interface{}); field["minContains"] == nil {
+	if field := properties["MinContainsField"].(map[string]any); field["minContains"] == nil {
 		t.Error("MinContainsField should have minContains constraint")
 	}
-	if field := properties["MaxContainsField"].(map[string]interface{}); field["maxContains"] == nil {
+	if field := properties["MaxContainsField"].(map[string]any); field["maxContains"] == nil {
 		t.Error("MaxContainsField should have maxContains constraint")
 	}
 
 	// Verify prefixItems
-	if field := properties["PrefixArray"].(map[string]interface{}); field["prefixItems"] == nil {
+	if field := properties["PrefixArray"].(map[string]any); field["prefixItems"] == nil {
 		t.Error("PrefixArray should have prefixItems constraint")
 	}
 
 	// Test validation
-	validData := map[string]interface{}{
-		"ContainsField":     []interface{}{"hello", 123},
-		"MinContainsField":  []interface{}{"one", "two", 123},
-		"MaxContainsField":  []interface{}{"test", 456},
-		"BothContainsField": []interface{}{"valid", 789},
-		"PrefixArray":       []interface{}{"hello", 42, true},
-		"UnevaluatedArr":    []interface{}{},
+	validData := map[string]any{
+		"ContainsField":     []any{"hello", 123},
+		"MinContainsField":  []any{"one", "two", 123},
+		"MaxContainsField":  []any{"test", 456},
+		"BothContainsField": []any{"valid", 789},
+		"PrefixArray":       []any{"hello", 42, true},
+		"UnevaluatedArr":    []any{},
 	}
 
 	result := schema.ValidateMap(validData)
@@ -347,17 +347,17 @@ func TestArrayAdvancedValidators(t *testing.T) {
 func TestObjectAdvancedValidators(t *testing.T) {
 	type ObjectTest struct {
 		// Pattern properties
-		PatternProps map[string]interface{} `jsonschema:"patternProperties=^S_,string"`
+		PatternProps map[string]any `jsonschema:"patternProperties=^S_,string"`
 
 		// Property names
-		PropertyNames map[string]interface{} `jsonschema:"propertyNames=string"`
+		PropertyNames map[string]any `jsonschema:"propertyNames=string"`
 
 		// Dependent validation
 		DependentRequired string `jsonschema:"dependentRequired=name,email"`
 		DependentSchemas  string `jsonschema:"dependentSchemas=status,string"`
 
 		// Unevaluated properties
-		UnevaluatedObj map[string]interface{} `jsonschema:"unevaluatedProperties=false"`
+		UnevaluatedObj map[string]any `jsonschema:"unevaluatedProperties=false"`
 	}
 
 	schema := FromStruct[ObjectTest]()
@@ -371,20 +371,20 @@ func TestObjectAdvancedValidators(t *testing.T) {
 		t.Fatalf("Failed to marshal schema: %v", err)
 	}
 
-	var schemaMap map[string]interface{}
+	var schemaMap map[string]any
 	err = json.Unmarshal(jsonBytes, &schemaMap)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal schema: %v", err)
 	}
 
-	properties := schemaMap["properties"].(map[string]interface{})
+	properties := schemaMap["properties"].(map[string]any)
 
 	// Verify object validation constraints
 	objectFields := []string{"PatternProps", "PropertyNames", "DependentRequired", "DependentSchemas", "UnevaluatedObj"}
 	objectKeys := []string{"patternProperties", "propertyNames", "dependentRequired", "dependentSchemas", "unevaluatedProperties"}
 
 	for i, fieldName := range objectFields {
-		field := properties[fieldName].(map[string]interface{})
+		field := properties[fieldName].(map[string]any)
 		// Note: Some constraints might not appear at field level but at object level
 		t.Logf("%s field has constraints: %v", fieldName, field)
 		_ = objectKeys[i] // Use the key for potential future verification
@@ -393,9 +393,9 @@ func TestObjectAdvancedValidators(t *testing.T) {
 
 func TestConditionalLogicValidators(t *testing.T) {
 	type ConditionalTest struct {
-		IfField   interface{} `jsonschema:"if=string"`
-		ThenField interface{} `jsonschema:"then=integer"`
-		ElseField interface{} `jsonschema:"else=boolean"`
+		IfField   any `jsonschema:"if=string"`
+		ThenField any `jsonschema:"then=integer"`
+		ElseField any `jsonschema:"else=boolean"`
 	}
 
 	schema := FromStruct[ConditionalTest]()
@@ -409,20 +409,20 @@ func TestConditionalLogicValidators(t *testing.T) {
 		t.Fatalf("Failed to marshal schema: %v", err)
 	}
 
-	var schemaMap map[string]interface{}
+	var schemaMap map[string]any
 	err = json.Unmarshal(jsonBytes, &schemaMap)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal schema: %v", err)
 	}
 
-	properties := schemaMap["properties"].(map[string]interface{})
+	properties := schemaMap["properties"].(map[string]any)
 
 	// Verify conditional logic constraints
 	conditionalFields := []string{"IfField", "ThenField", "ElseField"}
 	conditionalKeys := []string{"if", "then", "else"}
 
 	for i, fieldName := range conditionalFields {
-		field := properties[fieldName].(map[string]interface{})
+		field := properties[fieldName].(map[string]any)
 		if _, exists := field[conditionalKeys[i]]; !exists {
 			t.Errorf("%s should have %s constraint", fieldName, conditionalKeys[i])
 		}
@@ -435,9 +435,9 @@ func TestContentAndReferenceValidators(t *testing.T) {
 		ContentField string `jsonschema:"contentSchema=string"`
 
 		// Manual references
-		RefField    interface{} `jsonschema:"ref=#/$defs/MyType"`
-		AnchorField interface{} `jsonschema:"anchor=main"`
-		DynamicRef  interface{} `jsonschema:"dynamicRef=#meta"`
+		RefField    any `jsonschema:"ref=#/$defs/MyType"`
+		AnchorField any `jsonschema:"anchor=main"`
+		DynamicRef  any `jsonschema:"dynamicRef=#meta"`
 
 		// Examples and defaults
 		ExampleField string `jsonschema:"examples=test,sample,demo"`
@@ -454,20 +454,20 @@ func TestContentAndReferenceValidators(t *testing.T) {
 		t.Fatalf("Failed to marshal schema: %v", err)
 	}
 
-	var schemaMap map[string]interface{}
+	var schemaMap map[string]any
 	err = json.Unmarshal(jsonBytes, &schemaMap)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal schema: %v", err)
 	}
 
-	properties := schemaMap["properties"].(map[string]interface{})
+	properties := schemaMap["properties"].(map[string]any)
 
 	// Verify content and reference constraints
 	contentFields := []string{"ContentField", "RefField", "AnchorField", "DynamicRef"}
 	contentKeys := []string{"contentSchema", "$ref", "$anchor", "$dynamicRef"}
 
 	for i, fieldName := range contentFields {
-		field := properties[fieldName].(map[string]interface{})
+		field := properties[fieldName].(map[string]any)
 		if _, exists := field[contentKeys[i]]; !exists && fieldName != "DynamicRef" {
 			t.Errorf("%s should have %s constraint", fieldName, contentKeys[i])
 		}
@@ -522,12 +522,12 @@ func TestFromStruct_CircularReferences(t *testing.T) {
 	}
 
 	// Test validation with circular data
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"name": "root",
-		"friends": []interface{}{
-			map[string]interface{}{
+		"friends": []any{
+			map[string]any{
 				"name":    "child1",
-				"friends": []interface{}{},
+				"friends": []any{},
 			},
 		},
 	}
@@ -657,7 +657,7 @@ func TestCustomValidators(t *testing.T) {
 	}
 
 	// Test validation
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"CardNumber": "4111111111111111",
 		"CVV":        "123",
 	}
@@ -667,7 +667,7 @@ func TestCustomValidators(t *testing.T) {
 		t.Errorf("Valid payment data should pass validation: %v", result.Errors)
 	}
 
-	invalidData := map[string]interface{}{
+	invalidData := map[string]any{
 		"CardNumber": "411111111", // Too short
 		"CVV":        "123",
 	}
@@ -722,7 +722,7 @@ func TestFromStruct_APICompatibility_ValidationMethods(t *testing.T) {
 	}
 
 	// Test ValidateMap method
-	validMap := map[string]interface{}{
+	validMap := map[string]any{
 		"ID":    "550e8400-e29b-41d4-a716-446655440000", // Valid UUID
 		"Name":  "John Doe",
 		"Email": "john@example.com",
@@ -752,9 +752,9 @@ func TestFromStruct_APICompatibility_ConstructorInterop(t *testing.T) {
 	)
 
 	// Test that the combined schema works
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"name": "Alice",
-		"address": map[string]interface{}{
+		"address": map[string]any{
 			"Street": "123 Main St",
 			"City":   "Anytown",
 		},
@@ -769,9 +769,9 @@ func TestFromStruct_APICompatibility_ConstructorInterop(t *testing.T) {
 	}
 
 	// Test with invalid data
-	invalidData := map[string]interface{}{
+	invalidData := map[string]any{
 		"name": "Bob",
-		"address": map[string]interface{}{
+		"address": map[string]any{
 			"Street": "456 Oak Ave",
 			// Missing required City field
 		},
@@ -847,9 +847,9 @@ func TestFromStruct_APICompatibility_Composition(t *testing.T) {
 	// Test with AllOf composition
 	combinedSchema := AllOf(personSchema, addressSchema)
 
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"name":    "John",
-		"friends": []interface{}{},
+		"friends": []any{},
 		"Street":  "123 Main St",
 		"City":    "Anytown",
 	}
@@ -862,9 +862,9 @@ func TestFromStruct_APICompatibility_Composition(t *testing.T) {
 	// Test with OneOf composition
 	oneOfSchema := OneOf(personSchema, addressSchema)
 
-	personData := map[string]interface{}{
+	personData := map[string]any{
 		"name":    "Alice",
-		"friends": []interface{}{},
+		"friends": []any{},
 	}
 
 	result = oneOfSchema.Validate(personData)
@@ -886,7 +886,7 @@ func TestFromStruct_EdgeCases(t *testing.T) {
 		t.Error("Expected empty struct to have object type")
 	}
 
-	result := emptySchema.Validate(map[string]interface{}{})
+	result := emptySchema.Validate(map[string]any{})
 	if !result.IsValid() {
 		t.Error("Expected empty object to validate against empty struct schema")
 	}
@@ -900,13 +900,13 @@ func TestFromStruct_EdgeCases(t *testing.T) {
 	optionalSchema := FromStruct[OptionalStruct]()
 
 	// Should validate empty object
-	result = optionalSchema.Validate(map[string]interface{}{})
+	result = optionalSchema.Validate(map[string]any{})
 	if !result.IsValid() {
 		t.Error("Expected empty object to validate against optional-only struct")
 	}
 
 	// Should validate partial object
-	result = optionalSchema.Validate(map[string]interface{}{"Name": "test"})
+	result = optionalSchema.Validate(map[string]any{"Name": "test"})
 	if !result.IsValid() {
 		t.Error("Expected partial object to validate")
 	}

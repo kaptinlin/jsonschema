@@ -1,9 +1,11 @@
 package jsonschema
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
+
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // =============================================================================
@@ -17,17 +19,17 @@ type BasicUser struct {
 }
 
 type ComplexUser struct {
-	ID          int64                  `json:"id"`
-	Name        string                 `json:"name"`
-	Email       string                 `json:"email"`
-	Age         *int                   `json:"age,omitempty"`
-	IsActive    bool                   `json:"is_active"`
-	Balance     float64                `json:"balance"`
-	Tags        []string               `json:"tags,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	CreatedAt   time.Time              `json:"created_at"`
-	LastLogin   *time.Time             `json:"last_login,omitempty"`
-	Preferences UserPreferences        `json:"preferences"`
+	ID          int64           `json:"id"`
+	Name        string          `json:"name"`
+	Email       string          `json:"email"`
+	Age         *int            `json:"age,omitempty"`
+	IsActive    bool            `json:"is_active"`
+	Balance     float64         `json:"balance"`
+	Tags        []string        `json:"tags,omitempty"`
+	Metadata    map[string]any  `json:"metadata,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+	LastLogin   *time.Time      `json:"last_login,omitempty"`
+	Preferences UserPreferences `json:"preferences"`
 }
 
 type UserPreferences struct {
@@ -154,7 +156,7 @@ func TestBasicStructValidation(t *testing.T) {
 				if tt.wantErr {
 					t.Errorf("Expected validation to fail, but it passed")
 				} else {
-					details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+					details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 					t.Errorf("Expected validation to pass, but got errors: %s", string(details))
 				}
 			}
@@ -189,7 +191,7 @@ func TestAllBasicTypes(t *testing.T) {
 
 	result := schema.Validate(data)
 	if !result.IsValid() {
-		details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+		details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 		t.Errorf("Expected validation to pass for all basic types, but got errors: %s", string(details))
 	}
 }
@@ -217,7 +219,7 @@ func TestPointerTypes(t *testing.T) {
 		}
 		result := schema.Validate(data)
 		if !result.IsValid() {
-			details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+			details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 			t.Errorf("Expected validation to pass for pointer types with values: %s", string(details))
 		}
 	})
@@ -226,7 +228,7 @@ func TestPointerTypes(t *testing.T) {
 		data := PointerTypes{} // All fields are nil pointers
 		result := schema.Validate(data)
 		if !result.IsValid() {
-			details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+			details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 			t.Errorf("Expected validation to pass for nil pointers: %s", string(details))
 		}
 	})
@@ -258,7 +260,7 @@ func TestTimeHandling(t *testing.T) {
 
 	result := schema.Validate(data)
 	if !result.IsValid() {
-		details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+		details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 		t.Errorf("Expected validation to pass for time types: %s", string(details))
 	}
 }
@@ -292,7 +294,7 @@ func TestCustomJSONTags(t *testing.T) {
 
 	result := schema.Validate(data)
 	if !result.IsValid() {
-		details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+		details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 		t.Errorf("Expected validation to pass for custom JSON tags: %s", string(details))
 	}
 }
@@ -345,7 +347,7 @@ func TestOmitEmptyBehavior(t *testing.T) {
 		settings := Settings{Email: true, SMS: false, Push: true}
 		result := schema.Validate(settings)
 		if !result.IsValid() {
-			details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+			details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 			t.Errorf("Expected validation to pass for boolean fields with false values: %s", string(details))
 		}
 	})
@@ -390,7 +392,7 @@ func TestNestedStructs(t *testing.T) {
 	data := ComplexUser{
 		ID: 1, Name: "John Doe", Email: "john@example.com", Age: intPtr(30),
 		IsActive: true, Balance: 1000.50, Tags: []string{"premium", "active"},
-		Metadata:  map[string]interface{}{"source": "web", "campaign": "summer2024"},
+		Metadata:  map[string]any{"source": "web", "campaign": "summer2024"},
 		CreatedAt: now, LastLogin: &lastLogin,
 		Preferences: UserPreferences{
 			Theme: "dark", Language: "en", Timezone: "UTC",
@@ -400,7 +402,7 @@ func TestNestedStructs(t *testing.T) {
 
 	result := schema.Validate(data)
 	if !result.IsValid() {
-		details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+		details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 		t.Errorf("Expected validation to pass for complex nested structs: %s", string(details))
 	}
 }
@@ -436,7 +438,7 @@ func TestArrayTypes(t *testing.T) {
 
 	result := schema.Validate(data)
 	if !result.IsValid() {
-		details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+		details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 		t.Errorf("Expected validation to pass for array types: %s", string(details))
 	}
 }
@@ -450,7 +452,7 @@ func TestPropertyConstraints(t *testing.T) {
 	tests := []struct {
 		name        string
 		schemaJSON  string
-		data        interface{}
+		data        any
 		shouldError bool
 	}{
 		{
@@ -491,7 +493,7 @@ func TestPropertyConstraints(t *testing.T) {
 				if tt.shouldError {
 					t.Errorf("Expected validation to fail for %s", tt.name)
 				} else {
-					details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+					details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 					t.Errorf("Expected validation to pass for %s, but got: %s", tt.name, string(details))
 				}
 			}
@@ -595,7 +597,7 @@ func TestValueConstraints(t *testing.T) {
 			Value int `json:"value"`
 		}{Value: 15}
 
-		for _, data := range []interface{}{stringData, intData} {
+		for _, data := range []any{stringData, intData} {
 			result := schema.Validate(data)
 			if !result.IsValid() {
 				t.Errorf("Expected validation to pass for valid oneOf value")
@@ -630,7 +632,7 @@ func TestAdvancedSchemaFeatures(t *testing.T) {
 
 		result := schema.Validate(data)
 		if !result.IsValid() {
-			details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+			details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 			t.Errorf("Expected validation to pass for patternProperties: %s", string(details))
 		}
 	})
@@ -725,7 +727,7 @@ func TestEdgeCases(t *testing.T) {
 	tests := []struct {
 		name       string
 		schemaJSON string
-		data       interface{}
+		data       any
 		shouldPass bool
 	}{
 		{
@@ -766,7 +768,7 @@ func TestEdgeCases(t *testing.T) {
 			result := schema.Validate(tt.data)
 			if result.IsValid() != tt.shouldPass {
 				if tt.shouldPass {
-					details, _ := json.MarshalIndent(result.ToList(false), "", "  ")
+					details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
 					t.Errorf("Expected validation to pass for %s: %s", tt.name, string(details))
 				} else {
 					t.Errorf("Expected validation to fail for %s", tt.name)
@@ -787,7 +789,7 @@ func TestBackwardCompatibility(t *testing.T) {
 	schema := compileTestSchema(t, schemaJSON)
 
 	t.Run("original map validation", func(t *testing.T) {
-		data := map[string]interface{}{"name": "test"}
+		data := map[string]any{"name": "test"}
 		result := schema.Validate(data)
 		if !result.IsValid() {
 			t.Error("Original map validation should still work")
@@ -796,7 +798,7 @@ func TestBackwardCompatibility(t *testing.T) {
 
 	t.Run("mixed validation in same schema", func(t *testing.T) {
 		// Test both map and struct with same schema
-		mapData := map[string]interface{}{"name": "map test"}
+		mapData := map[string]any{"name": "map test"}
 		structData := struct {
 			Name string `json:"name"`
 		}{Name: "struct test"}
@@ -852,7 +854,7 @@ func BenchmarkMapValidation(b *testing.B) {
 	compiler := NewCompiler()
 	schema, _ := compiler.Compile([]byte(schemaJSON))
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"name": "John Doe", "age": 30, "email": "john@example.com",
 	}
 

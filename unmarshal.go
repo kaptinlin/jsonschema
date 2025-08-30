@@ -1,21 +1,12 @@
 package jsonschema
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"time"
 )
 
-// Static errors for better error handling
-var (
-	ErrTypeConversion     = errors.New("type conversion failed")
-	ErrTimeParseFailure   = errors.New("failed to parse time string")
-	ErrTimeTypeConversion = errors.New("cannot convert to time.Time")
-	ErrNilDestination     = errors.New("destination cannot be nil")
-	ErrNotPointer         = errors.New("destination must be a pointer")
-	ErrNilPointer         = errors.New("destination pointer cannot be nil")
-)
+// Note: Error definitions have been moved to errors.go for consistency
 
 // UnmarshalError represents an error that occurred during unmarshaling
 type UnmarshalError struct {
@@ -41,12 +32,12 @@ func (e *UnmarshalError) Unwrap() error {
 //
 // Supported source types:
 //   - []byte (JSON data - automatically parsed if valid JSON)
-//   - map[string]interface{} (parsed JSON object)
+//   - map[string]any (parsed JSON object)
 //   - Go structs and other types
 //
 // Supported destination types:
 //   - *struct (Go struct pointer)
-//   - *map[string]interface{} (map pointer)
+//   - *map[string]any (map pointer)
 //   - other pointer types (via JSON marshaling)
 //
 // Example usage:
@@ -67,7 +58,7 @@ func (e *UnmarshalError) Unwrap() error {
 // To use JSON strings, convert them to []byte first:
 //
 //	schema.Unmarshal(&target, []byte(jsonString))
-func (s *Schema) Unmarshal(dst, src interface{}) error {
+func (s *Schema) Unmarshal(dst, src any) error {
 	if err := s.validateDestination(dst); err != nil {
 		return err
 	}
@@ -85,7 +76,7 @@ func (s *Schema) Unmarshal(dst, src interface{}) error {
 }
 
 // validateDestination validates the destination parameter
-func (s *Schema) validateDestination(dst interface{}) error {
+func (s *Schema) validateDestination(dst any) error {
 	if dst == nil {
 		return &UnmarshalError{Type: "destination", Reason: ErrNilDestination.Error()}
 	}
@@ -103,8 +94,8 @@ func (s *Schema) validateDestination(dst interface{}) error {
 }
 
 // unmarshalObject handles object type unmarshaling with defaults but NO validation
-func (s *Schema) unmarshalObject(dst, intermediate interface{}) error {
-	objData, ok := intermediate.(map[string]interface{})
+func (s *Schema) unmarshalObject(dst, intermediate any) error {
+	objData, ok := intermediate.(map[string]any)
 	if !ok {
 		return &UnmarshalError{Type: "source", Reason: "expected object but got different type"}
 	}
@@ -119,7 +110,7 @@ func (s *Schema) unmarshalObject(dst, intermediate interface{}) error {
 }
 
 // unmarshalNonObject handles non-object type unmarshaling without validation
-func (s *Schema) unmarshalNonObject(dst, intermediate interface{}) error {
+func (s *Schema) unmarshalNonObject(dst, intermediate any) error {
 	// No validation for non-object types, use JSON marshaling directly
 	jsonData, err := s.GetCompiler().jsonEncoder(intermediate)
 	if err != nil {
@@ -135,11 +126,11 @@ func (s *Schema) unmarshalNonObject(dst, intermediate interface{}) error {
 
 // convertSource converts various source types to intermediate format for processing
 // Returns (data, isObject, error) where isObject indicates if the result is a JSON object
-func (s *Schema) convertSource(src interface{}) (interface{}, bool, error) {
+func (s *Schema) convertSource(src any) (any, bool, error) {
 	switch v := src.(type) {
 	case []byte:
 		return s.convertBytesSource(v)
-	case map[string]interface{}:
+	case map[string]any:
 		// Create a deep copy to avoid modifying the original
 		return deepCopyMap(v), true, nil
 	default:
@@ -148,11 +139,11 @@ func (s *Schema) convertSource(src interface{}) (interface{}, bool, error) {
 }
 
 // convertBytesSource handles []byte input with JSON parsing
-func (s *Schema) convertBytesSource(data []byte) (interface{}, bool, error) {
-	var parsed interface{}
+func (s *Schema) convertBytesSource(data []byte) (any, bool, error) {
+	var parsed any
 	if err := s.GetCompiler().jsonDecoder(data, &parsed); err == nil {
 		// Successfully parsed as JSON, check if it's an object
-		if objData, ok := parsed.(map[string]interface{}); ok {
+		if objData, ok := parsed.(map[string]any); ok {
 			return objData, true, nil
 		}
 		// Non-object JSON (array, string, number, boolean, null)
@@ -160,7 +151,7 @@ func (s *Schema) convertBytesSource(data []byte) (interface{}, bool, error) {
 	} else {
 		// Only return error if it looks like it was meant to be JSON
 		if len(data) > 0 && (data[0] == '{' || data[0] == '[') {
-			return nil, false, fmt.Errorf("%w: %w", ErrFailedToDecodeJSON, err)
+			return nil, false, fmt.Errorf("%w: %w", ErrJSONDecode, err)
 		}
 		// Otherwise, treat as raw bytes
 		return data, false, nil
@@ -168,26 +159,26 @@ func (s *Schema) convertBytesSource(data []byte) (interface{}, bool, error) {
 }
 
 // convertGenericSource handles structs and other types
-func (s *Schema) convertGenericSource(src interface{}) (interface{}, bool, error) {
+func (s *Schema) convertGenericSource(src any) (any, bool, error) {
 	// Handle structs and other types
-	// First try to see if it's already a map (for interface{} containing map)
-	if objData, ok := src.(map[string]interface{}); ok {
+	// First try to see if it's already a map (for any containing map)
+	if objData, ok := src.(map[string]any); ok {
 		return deepCopyMap(objData), true, nil
 	}
 
 	// For other types, use JSON round-trip to convert
 	data, err := s.GetCompiler().jsonEncoder(src)
 	if err != nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrFailedToEncodeSource, err)
+		return nil, false, fmt.Errorf("%w: %w", ErrSourceEncode, err)
 	}
 
-	var parsed interface{}
+	var parsed any
 	if err := s.GetCompiler().jsonDecoder(data, &parsed); err != nil {
-		return nil, false, fmt.Errorf("%w: %w", ErrFailedToDecodeIntermediateJSON, err)
+		return nil, false, fmt.Errorf("%w: %w", ErrIntermediateJSONDecode, err)
 	}
 
 	// Check if the result is an object
-	if objData, ok := parsed.(map[string]interface{}); ok {
+	if objData, ok := parsed.(map[string]any); ok {
 		return objData, true, nil
 	}
 
@@ -195,7 +186,7 @@ func (s *Schema) convertGenericSource(src interface{}) (interface{}, bool, error
 }
 
 // applyDefaults recursively applies default values from schema to data
-func (s *Schema) applyDefaults(data map[string]interface{}, schema *Schema) error {
+func (s *Schema) applyDefaults(data map[string]any, schema *Schema) error {
 	if schema == nil || schema.Properties == nil {
 		return nil
 	}
@@ -203,7 +194,7 @@ func (s *Schema) applyDefaults(data map[string]interface{}, schema *Schema) erro
 	// Apply defaults for current level properties
 	for propName, propSchema := range *schema.Properties {
 		if err := s.applyPropertyDefaults(data, propName, propSchema); err != nil {
-			return fmt.Errorf("%w: property '%s': %w", ErrFailedToApplyDefaults, propName, err)
+			return fmt.Errorf("%w: property '%s': %w", ErrDefaultApplication, propName, err)
 		}
 	}
 
@@ -211,13 +202,13 @@ func (s *Schema) applyDefaults(data map[string]interface{}, schema *Schema) erro
 }
 
 // applyPropertyDefaults applies defaults for a single property
-func (s *Schema) applyPropertyDefaults(data map[string]interface{}, propName string, propSchema *Schema) error {
+func (s *Schema) applyPropertyDefaults(data map[string]any, propName string, propSchema *Schema) error {
 	// Set default value if property doesn't exist
 	if _, exists := data[propName]; !exists && propSchema.Default != nil {
 		// Try to evaluate dynamic default value
 		defaultValue, err := s.evaluateDefaultValue(propSchema.Default)
 		if err != nil {
-			return fmt.Errorf("%w: property '%s': %w", ErrFailedToEvaluateDefaultValue, propName, err)
+			return fmt.Errorf("%w: property '%s': %w", ErrDefaultEvaluation, propName, err)
 		}
 		data[propName] = defaultValue
 	}
@@ -228,12 +219,12 @@ func (s *Schema) applyPropertyDefaults(data map[string]interface{}, propName str
 	}
 
 	// Recursively apply defaults for nested objects
-	if objData, ok := propData.(map[string]interface{}); ok {
+	if objData, ok := propData.(map[string]any); ok {
 		return s.applyDefaults(objData, propSchema)
 	}
 
 	// Handle arrays
-	if arrayData, ok := propData.([]interface{}); ok && propSchema.Items != nil {
+	if arrayData, ok := propData.([]any); ok && propSchema.Items != nil {
 		return s.applyArrayDefaults(arrayData, propSchema.Items, propName)
 	}
 
@@ -241,7 +232,7 @@ func (s *Schema) applyPropertyDefaults(data map[string]interface{}, propName str
 }
 
 // evaluateDefaultValue evaluates a default value, checking if it's a function call
-func (s *Schema) evaluateDefaultValue(defaultValue interface{}) (interface{}, error) {
+func (s *Schema) evaluateDefaultValue(defaultValue any) (any, error) {
 	// Check if it's a string that might be a function call
 	defaultStr, ok := defaultValue.(string)
 	if !ok {
@@ -252,7 +243,7 @@ func (s *Schema) evaluateDefaultValue(defaultValue interface{}) (interface{}, er
 	// Try to parse as function call
 	call, err := parseFunctionCall(defaultStr)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToParseFunctionCall, err)
+		return nil, fmt.Errorf("%w: %w", ErrFunctionCallParsing, err)
 	}
 
 	if call == nil {
@@ -285,11 +276,11 @@ func (s *Schema) evaluateDefaultValue(defaultValue interface{}) (interface{}, er
 }
 
 // applyArrayDefaults applies defaults for array items
-func (s *Schema) applyArrayDefaults(arrayData []interface{}, itemSchema *Schema, propName string) error {
+func (s *Schema) applyArrayDefaults(arrayData []any, itemSchema *Schema, propName string) error {
 	for _, item := range arrayData {
-		if itemMap, ok := item.(map[string]interface{}); ok {
+		if itemMap, ok := item.(map[string]any); ok {
 			if err := s.applyDefaults(itemMap, itemSchema); err != nil {
-				return fmt.Errorf("%w: array item in '%s': %w", ErrFailedToApplyArrayDefaults, propName, err)
+				return fmt.Errorf("%w: array item in '%s': %w", ErrArrayDefaultApplication, propName, err)
 			}
 		}
 	}
@@ -297,7 +288,7 @@ func (s *Schema) applyArrayDefaults(arrayData []interface{}, itemSchema *Schema,
 }
 
 // unmarshalToDestination converts the processed map to the destination type
-func (s *Schema) unmarshalToDestination(dst interface{}, data map[string]interface{}) error {
+func (s *Schema) unmarshalToDestination(dst any, data map[string]any) error {
 	dstVal := reflect.ValueOf(dst).Elem()
 
 	//nolint:exhaustive // Only handling Map, Struct, and Ptr kinds - other types use default fallback
@@ -318,16 +309,16 @@ func (s *Schema) unmarshalToDestination(dst interface{}, data map[string]interfa
 }
 
 // unmarshalViaJSON uses JSON round-trip for unsupported types
-func (s *Schema) unmarshalViaJSON(dst interface{}, data map[string]interface{}) error {
+func (s *Schema) unmarshalViaJSON(dst any, data map[string]any) error {
 	jsonData, err := s.GetCompiler().jsonEncoder(data)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrFailedToEncodeData, err)
+		return fmt.Errorf("%w: %w", ErrDataEncode, err)
 	}
 	return s.GetCompiler().jsonDecoder(jsonData, dst)
 }
 
 // unmarshalToMap converts data to a map destination
-func (s *Schema) unmarshalToMap(dstVal reflect.Value, data map[string]interface{}) error {
+func (s *Schema) unmarshalToMap(dstVal reflect.Value, data map[string]any) error {
 	if dstVal.IsNil() {
 		dstVal.Set(reflect.MakeMap(dstVal.Type()))
 	}
@@ -348,7 +339,7 @@ func (s *Schema) unmarshalToMap(dstVal reflect.Value, data map[string]interface{
 }
 
 // unmarshalToStruct converts data to a struct destination
-func (s *Schema) unmarshalToStruct(dstVal reflect.Value, data map[string]interface{}) error {
+func (s *Schema) unmarshalToStruct(dstVal reflect.Value, data map[string]any) error {
 	structType := dstVal.Type()
 	fieldCache := getFieldCache(structType)
 
@@ -364,7 +355,7 @@ func (s *Schema) unmarshalToStruct(dstVal reflect.Value, data map[string]interfa
 		}
 
 		if err := s.setFieldValue(fieldVal, value); err != nil {
-			return fmt.Errorf("%w: field '%s': %w", ErrFailedToSetField, jsonName, err)
+			return fmt.Errorf("%w: field '%s': %w", ErrFieldAssignment, jsonName, err)
 		}
 	}
 
@@ -372,7 +363,7 @@ func (s *Schema) unmarshalToStruct(dstVal reflect.Value, data map[string]interfa
 }
 
 // setFieldValue sets a struct field value with type conversion
-func (s *Schema) setFieldValue(fieldVal reflect.Value, value interface{}) error {
+func (s *Schema) setFieldValue(fieldVal reflect.Value, value any) error {
 	if value == nil {
 		return s.setNilValue(fieldVal)
 	}
@@ -434,16 +425,16 @@ func (s *Schema) setPointerValue(fieldVal reflect.Value, valueVal reflect.Value,
 }
 
 // setComplexValue handles nested structs and maps
-func (s *Schema) setComplexValue(fieldVal reflect.Value, value interface{}) error {
+func (s *Schema) setComplexValue(fieldVal reflect.Value, value any) error {
 	jsonData, err := s.GetCompiler().jsonEncoder(value)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrFailedToEncodeNestedValue, err)
+		return fmt.Errorf("%w: %w", ErrNestedValueEncode, err)
 	}
 	return s.GetCompiler().jsonDecoder(jsonData, fieldVal.Addr().Interface())
 }
 
 // setTimeValue handles time.Time field assignment from various string formats
-func (s *Schema) setTimeValue(fieldVal reflect.Value, value interface{}) error {
+func (s *Schema) setTimeValue(fieldVal reflect.Value, value any) error {
 	switch v := value.(type) {
 	case string:
 		return s.parseTimeString(fieldVal, v)
@@ -475,14 +466,14 @@ func (s *Schema) parseTimeString(fieldVal reflect.Value, timeStr string) error {
 	return fmt.Errorf("%w: %s", ErrTimeParseFailure, timeStr)
 }
 
-// deepCopyMap creates a deep copy of a map[string]interface{}
-func deepCopyMap(original map[string]interface{}) map[string]interface{} {
-	copy := make(map[string]interface{}, len(original))
+// deepCopyMap creates a deep copy of a map[string]any
+func deepCopyMap(original map[string]any) map[string]any {
+	copy := make(map[string]any, len(original))
 	for key, value := range original {
 		switch v := value.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			copy[key] = deepCopyMap(v)
-		case []interface{}:
+		case []any:
 			copy[key] = deepCopySlice(v)
 		default:
 			copy[key] = value
@@ -491,14 +482,14 @@ func deepCopyMap(original map[string]interface{}) map[string]interface{} {
 	return copy
 }
 
-// deepCopySlice creates a deep copy of a []interface{}
-func deepCopySlice(original []interface{}) []interface{} {
-	copy := make([]interface{}, len(original))
+// deepCopySlice creates a deep copy of a []any
+func deepCopySlice(original []any) []any {
+	copy := make([]any, len(original))
 	for i, value := range original {
 		switch v := value.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			copy[i] = deepCopyMap(v)
-		case []interface{}:
+		case []any:
 			copy[i] = deepCopySlice(v)
 		default:
 			copy[i] = value

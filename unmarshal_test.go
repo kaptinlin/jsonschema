@@ -50,7 +50,7 @@ func TestUnmarshalBasicTypes(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		input    interface{}
+		input    any
 		expected User
 	}{
 		{
@@ -65,7 +65,7 @@ func TestUnmarshalBasicTypes(t *testing.T) {
 		},
 		{
 			name: "Map with partial data",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"id":   2,
 				"name": "John",
 			},
@@ -184,7 +184,7 @@ func TestUnmarshalToMap(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `{"id": 1}`
-	var result map[string]interface{}
+	var result map[string]any
 	err = schema.Unmarshal(&result, []byte(input))
 	require.NoError(t, err)
 
@@ -335,8 +335,8 @@ func TestUnmarshalErrorCases(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		dst     interface{}
-		src     interface{}
+		dst     any
+		src     any
 		errType string
 	}{
 		{
@@ -405,7 +405,7 @@ func TestUnmarshalTimeHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := map[string]interface{}{
+			input := map[string]any{
 				"id":         1,
 				"created_at": tt.timeString,
 			}
@@ -440,7 +440,7 @@ func TestUnmarshalInputTypes(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		input    interface{}
+		input    any
 		expected User
 	}{
 		{
@@ -453,7 +453,7 @@ func TestUnmarshalInputTypes(t *testing.T) {
 		},
 		{
 			name: "Map input",
-			input: map[string]interface{}{
+			input: map[string]any{
 				"id": 3,
 			},
 			expected: User{
@@ -490,8 +490,8 @@ func TestUnmarshalNonObjectTypes(t *testing.T) {
 	tests := []struct {
 		name       string
 		schemaJSON string
-		input      interface{}
-		expected   interface{}
+		input      any
+		expected   any
 	}{
 		{
 			name:       "Array schema with JSON bytes",
@@ -576,7 +576,7 @@ func TestUnmarshalDefaults(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		src          interface{}
+		src          any
 		expectError  bool
 		expectedUser User
 	}{
@@ -594,7 +594,7 @@ func TestUnmarshalDefaults(t *testing.T) {
 		},
 		{
 			name:        "map with defaults",
-			src:         map[string]interface{}{"name": "Jane", "age": 30, "country": "CA"},
+			src:         map[string]any{"name": "Jane", "age": 30, "country": "CA"},
 			expectError: false,
 			expectedUser: User{
 				Name:    "Jane",

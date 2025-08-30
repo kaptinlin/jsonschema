@@ -18,7 +18,7 @@ func evaluatePattern(schema *Schema, instance string) *EvaluationError {
 		regExp, err := getCompiledPattern(schema)
 		if err != nil {
 			// Handle regular expression compilation errors.
-			return NewEvaluationError("pattern", "invalid_pattern", "Invalid regular expression pattern {pattern}", map[string]interface{}{
+			return NewEvaluationError("pattern", "invalid_pattern", "Invalid regular expression pattern {pattern}", map[string]any{
 				"pattern": *schema.Pattern,
 			})
 		}
@@ -26,7 +26,7 @@ func evaluatePattern(schema *Schema, instance string) *EvaluationError {
 		// Check if the regular expression matches the string value.
 		if !regExp.MatchString(instance) {
 			// Data does not match the pattern.
-			return NewEvaluationError("pattern", "pattern_mismatch", "Value does not match the required pattern {pattern}", map[string]interface{}{
+			return NewEvaluationError("pattern", "pattern_mismatch", "Value does not match the required pattern {pattern}", map[string]any{
 				"pattern": *schema.Pattern,
 				"value":   instance,
 			})

@@ -31,7 +31,7 @@ func main() {
 	// Example 1: Multiple validation errors
 	// Demonstrates how the validator reports multiple issues in the input data
 	fmt.Println("1. Multiple validation errors:")
-	invalidData := map[string]interface{}{
+	invalidData := map[string]any{
 		"name":  "J",            // too short
 		"age":   15,             // below minimum
 		"email": "not-an-email", // invalid email format
@@ -77,7 +77,7 @@ func main() {
 		Email string `json:"email"`
 	}
 
-	incompatibleData := map[string]interface{}{
+	incompatibleData := map[string]any{
 		"name":  "John Doe",
 		"age":   "not-a-number", // string instead of int
 		"email": "john@example.com",
@@ -98,7 +98,7 @@ func main() {
 	// Example 4b: Unmarshal error - destination is not a pointer
 	// Demonstrates that the destination must be a pointer
 	fmt.Println("\n4b. Unmarshal error - destination is not a pointer:")
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"name":  "John Doe",
 		"age":   25,
 		"email": "john@example.com",

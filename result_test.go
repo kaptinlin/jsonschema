@@ -5,7 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/goccy/go-json"
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Define the JSON schema
@@ -20,24 +21,24 @@ func TestValidationOutputs(t *testing.T) {
 
 	testCases := []struct {
 		description   string
-		instance      interface{}
+		instance      any
 		expectedValid bool
 	}{
 		{
 			description: "Valid input matching schema requirements",
-			instance: map[string]interface{}{
+			instance: map[string]any{
 				"foo": "foo bar baz baz",
 			},
 			expectedValid: true,
 		},
 		{
 			description:   "Input missing required property 'foo'",
-			instance:      map[string]interface{}{},
+			instance:      map[string]any{},
 			expectedValid: false,
 		},
 		{
 			description: "Invalid additional property",
-			instance: map[string]interface{}{
+			instance: map[string]any{
 				"foo": "foo valid", "extra": "data",
 			},
 			expectedValid: false,
@@ -77,7 +78,7 @@ func TestToLocalizeList(t *testing.T) {
 	assert.Nil(t, err, "Schema compilation should not fail")
 
 	// Test instance with multiple validation errors
-	instance := map[string]interface{}{
+	instance := map[string]any{
 		"name":  "Jo",
 		"age":   18,
 		"email": "not-an-email",
@@ -88,7 +89,7 @@ func TestToLocalizeList(t *testing.T) {
 	assert.False(t, result.IsValid(), "Schema validation should fail for the given instance")
 
 	// Localize and output the validation errors
-	details, err := json.MarshalIndent(result.ToLocalizeList(localizer), "", "  ")
+	details, err := json.Marshal(result.ToLocalizeList(localizer), jsontext.WithIndent("  "))
 	assert.Nil(t, err, "Marshaling the localized list should not fail")
 
 	// Check if the error message for "minLength" is correctly localized
@@ -102,7 +103,7 @@ func TestToList(t *testing.T) {
 		EvaluationPath:   "/",
 		SchemaLocation:   "http://example.com/schema",
 		InstanceLocation: "http://example.com/instance",
-		Annotations: map[string]interface{}{
+		Annotations: map[string]any{
 			"key1": "value1",
 			"key2": "value2",
 		},
@@ -111,7 +112,7 @@ func TestToList(t *testing.T) {
 				Keyword: "required",
 				Code:    "missing_required_property",
 				Message: "Required property {property} is missing",
-				Params: map[string]interface{}{
+				Params: map[string]any{
 					"property": "fieldName1",
 				},
 			},
@@ -119,7 +120,7 @@ func TestToList(t *testing.T) {
 				Keyword: "minLength",
 				Code:    "string_too_short",
 				Message: "Value should be at least {min_length} characters",
-				Params: map[string]interface{}{
+				Params: map[string]any{
 					"minLength": 5,
 				},
 			},
@@ -133,7 +134,7 @@ func TestToList(t *testing.T) {
 						Keyword: "format",
 						Code:    "format_mismatch",
 						Message: "Value does not match format {format}",
-						Params: map[string]interface{}{
+						Params: map[string]any{
 							"format": "email",
 						},
 					},

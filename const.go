@@ -13,7 +13,7 @@ import (
 // If they do not match, it returns a EvaluationError detailing the expected and actual values.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-const
-func evaluateConst(schema *Schema, instance interface{}) *EvaluationError {
+func evaluateConst(schema *Schema, instance any) *EvaluationError {
 	if schema.Const == nil || !schema.Const.IsSet {
 		return nil
 	}

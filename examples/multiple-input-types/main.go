@@ -60,7 +60,7 @@ func setupSchema() *jsonschema.Schema {
 func demonstrateInputTypes(schema *jsonschema.Schema) {
 	examples := []struct {
 		name  string
-		data  interface{}
+		data  any
 		emoji string
 	}{
 		{
@@ -75,7 +75,7 @@ func demonstrateInputTypes(schema *jsonschema.Schema) {
 		},
 		{
 			name: "Map Data",
-			data: map[string]interface{}{
+			data: map[string]any{
 				"name":  "Charlie",
 				"age":   42,
 				"email": "charlie@example.com",
@@ -111,7 +111,7 @@ func demonstrateUnmarshal(schema *jsonschema.Schema) {
 	// Example 2: Map with defaults
 	fmt.Println("  🗺️ From map data:")
 	var user2 User
-	mapData := map[string]interface{}{
+	mapData := map[string]any{
 		"name":    "Frank",
 		"age":     40,
 		"country": "Canada",

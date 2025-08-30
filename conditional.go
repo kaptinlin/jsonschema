@@ -11,7 +11,7 @@ package jsonschema
 // This function serves as a central feature for conditional logic application in JSON Schema validation.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-if
-func evaluateConditional(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateConditional(schema *Schema, instance any, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.If == nil {
 		// If there's no 'if' condition defined, nothing to validate conditionally.
 		return nil, nil

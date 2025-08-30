@@ -13,7 +13,7 @@ import (
 
 // --- Test Helpers for OpenAPI Formats ---
 
-func validateTestInt32(v interface{}) bool {
+func validateTestInt32(v any) bool {
 	switch val := v.(type) {
 	case int:
 		return val >= math.MinInt32 && val <= math.MaxInt32
@@ -26,7 +26,7 @@ func validateTestInt32(v interface{}) bool {
 	}
 }
 
-func validateTestInt64(v interface{}) bool {
+func validateTestInt64(v any) bool {
 	switch val := v.(type) {
 	case int, int64:
 		// Any int/int64 fits into int64 range and is already integral
@@ -52,7 +52,7 @@ func TestCustomFormatRegistration(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.SetAssertFormat(true)
 
-	compiler.RegisterFormat("identifier", func(v interface{}) bool {
+	compiler.RegisterFormat("identifier", func(v any) bool {
 		s, ok := v.(string)
 		if !ok {
 			return true
@@ -64,15 +64,15 @@ func TestCustomFormatRegistration(t *testing.T) {
 	schema, err := compiler.Compile([]byte(`{"properties": {"name": {"type": "string", "format": "identifier"}}}`))
 	require.NoError(t, err)
 
-	assert.True(t, schema.Validate(map[string]interface{}{"name": "validName"}).IsValid())
-	assert.False(t, schema.Validate(map[string]interface{}{"name": "123invalid"}).IsValid())
+	assert.True(t, schema.Validate(map[string]any{"name": "validName"}).IsValid())
+	assert.False(t, schema.Validate(map[string]any{"name": "123invalid"}).IsValid())
 }
 
 func TestTypeSpecificFormats(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.SetAssertFormat(true)
 
-	compiler.RegisterFormat("percentage", func(v interface{}) bool {
+	compiler.RegisterFormat("percentage", func(v any) bool {
 		switch val := v.(type) {
 		case float64:
 			return val >= 0 && val <= 100
@@ -85,30 +85,30 @@ func TestTypeSpecificFormats(t *testing.T) {
 	schema, err := compiler.Compile([]byte(`{"properties": {"score": {"type": "number", "format": "percentage"}, "name": {"type": "string", "format": "percentage"}}}`))
 	require.NoError(t, err)
 
-	assert.True(t, schema.Validate(map[string]interface{}{"score": 85.5, "name": "test"}).IsValid())
-	assert.False(t, schema.Validate(map[string]interface{}{"score": 150.0, "name": "test"}).IsValid())
+	assert.True(t, schema.Validate(map[string]any{"score": 85.5, "name": "test"}).IsValid())
+	assert.False(t, schema.Validate(map[string]any{"score": 150.0, "name": "test"}).IsValid())
 }
 
 func TestCustomFormatOverridesGlobal(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.SetAssertFormat(true)
 
-	compiler.RegisterFormat("email", func(v interface{}) bool {
+	compiler.RegisterFormat("email", func(v any) bool {
 		return strings.Contains(v.(string), "@") && len(v.(string)) > 5
 	}, "string")
 
 	schema, err := compiler.Compile([]byte(`{"properties": {"email": {"type": "string", "format": "email"}}}`))
 	require.NoError(t, err)
 
-	assert.True(t, schema.Validate(map[string]interface{}{"email": "test@example.com"}).IsValid())
-	assert.False(t, schema.Validate(map[string]interface{}{"email": "short"}).IsValid())
+	assert.True(t, schema.Validate(map[string]any{"email": "test@example.com"}).IsValid())
+	assert.False(t, schema.Validate(map[string]any{"email": "short"}).IsValid())
 }
 
 func TestUnregisterCustomFormat(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.SetAssertFormat(true)
 
-	compiler.RegisterFormat("test-format", func(v interface{}) bool { return false }, "string")
+	compiler.RegisterFormat("test-format", func(v any) bool { return false }, "string")
 	compiler.UnregisterFormat("test-format")
 
 	schema, err := compiler.Compile([]byte(`{"type": "string", "format": "test-format"}`))

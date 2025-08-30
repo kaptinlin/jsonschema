@@ -2,141 +2,100 @@ package jsonschema
 
 import "errors"
 
+// === Network and IO Related Errors ===
 var (
 	// ErrNoLoaderRegistered is returned when no loader is registered for the specified scheme.
 	ErrNoLoaderRegistered = errors.New("no loader registered for scheme")
 
-	// ErrFailedToReadData is returned when data cannot be read from the specified URL.
-	ErrFailedToReadData = errors.New("failed to read data from URL")
+	// ErrDataRead is returned when data cannot be read from the specified URL.
+	ErrDataRead = errors.New("data read failed") // Former: ErrFailedToReadData
 
-	// ErrJSONUnmarshalError is returned when there is an error unmarshalling JSON.
-	ErrJSONUnmarshalError = errors.New("json unmarshal error")
+	// ErrNetworkFetch is returned when there is an error fetching from the URL.
+	ErrNetworkFetch = errors.New("network fetch failed") // Former: ErrFailedToFetch
 
-	// ErrXMLUnmarshalError is returned when there is an error unmarshalling XML.
-	ErrXMLUnmarshalError = errors.New("xml unmarshal error")
+	// ErrInvalidStatusCode is returned when an invalid HTTP status code is returned.
+	ErrInvalidStatusCode = errors.New("invalid http status code") // Former: ErrInvalidHTTPStatusCode
 
-	// ErrYAMLUnmarshalError is returned when there is an error unmarshalling YAML.
-	ErrYAMLUnmarshalError = errors.New("yaml unmarshal error")
+	// ErrFileWrite is returned when file writing fails.
+	ErrFileWrite = errors.New("file write failed") // Former: ErrFailedToWriteFile
 
-	// ErrFailedToFetch is returned when there is an error fetching from the URL.
-	ErrFailedToFetch = errors.New("failed to fetch from URL")
+	// ErrFileCreation is returned when file creation fails.
+	ErrFileCreation = errors.New("file creation failed") // Former: ErrFailedToCreateFile
 
-	// ErrInvalidHTTPStatusCode is returned when an invalid HTTP status code is returned.
-	ErrInvalidHTTPStatusCode = errors.New("invalid HTTP status code returned")
+	// ErrDirectoryCreation is returned when directory creation fails.
+	ErrDirectoryCreation = errors.New("directory creation failed") // Former: ErrFailedToCreateDirectory
 
-	// ErrIPv6AddressNotEnclosed is returned when an IPv6 address is not enclosed in brackets.
-	ErrIPv6AddressNotEnclosed = errors.New("ipv6 address is not enclosed in brackets")
+	// ErrContentWrite is returned when writing content to file fails.
+	ErrContentWrite = errors.New("content write failed") // Former: ErrFailedToWriteContent
 
-	// ErrInvalidIPv6Address is returned when the IPv6 address is invalid.
-	ErrInvalidIPv6Address = errors.New("invalid ipv6 address")
+	// ErrInvalidFilenamePath is returned when filename path is invalid.
+	ErrInvalidFilenamePath = errors.New("invalid filename path")
+)
 
-	// ErrUnsupportedTypeForRat is returned when the type is unsupported for conversion to *big.Rat.
-	ErrUnsupportedTypeForRat = errors.New("unsupported type for conversion to *big.Rat")
+// === Serialization Related Errors ===
+var (
+	// ErrJSONUnmarshal is returned when there is an error unmarshalling JSON.
+	ErrJSONUnmarshal = errors.New("json unmarshal failed") // Former: ErrJSONUnmarshalError
 
-	// ErrFailedToConvertToRat is returned when a string fails to convert to *big.Rat.
-	ErrFailedToConvertToRat = errors.New("failed to convert string to *big.Rat")
+	// ErrXMLUnmarshal is returned when there is an error unmarshalling XML.
+	ErrXMLUnmarshal = errors.New("xml unmarshal failed") // Former: ErrXMLUnmarshalError
 
-	// ErrFailedToResolveGlobalReference is returned when a global reference cannot be resolved.
-	ErrFailedToResolveGlobalReference = errors.New("failed to resolve global reference")
+	// ErrYAMLUnmarshal is returned when there is an error unmarshalling YAML.
+	ErrYAMLUnmarshal = errors.New("yaml unmarshal failed") // Former: ErrYAMLUnmarshalError
 
-	// ErrFailedToDecodeSegmentWithJSONPointer is returned when a segment cannot be decoded.
-	ErrFailedToDecodeSegmentWithJSONPointer = errors.New("failed to decode segment")
+	// ErrJSONDecode is returned when JSON decoding fails.
+	ErrJSONDecode = errors.New("json decode failed") // Former: ErrFailedToDecodeJSON
 
-	// ErrSegmentNotFoundForJSONPointer is returned when a segment is not found in the schema context.
-	ErrSegmentNotFoundForJSONPointer = errors.New("segment not found in the schema context")
+	// ErrSourceEncode is returned when source encoding fails.
+	ErrSourceEncode = errors.New("source encode failed") // Former: ErrFailedToEncodeSource
 
-	// ErrFailedToResolveReference is returned when a reference cannot be resolved.
-	ErrFailedToResolveReference = errors.New("failed to resolve reference")
+	// ErrIntermediateJSONDecode is returned when intermediate JSON decoding fails.
+	ErrIntermediateJSONDecode = errors.New("intermediate json decode failed") // Former: ErrFailedToDecodeIntermediateJSON
 
-	// ErrFailedToResolveDefinitions is returned when definitions in $defs cannot be resolved.
-	ErrFailedToResolveDefinitions = errors.New("failed to resolve definitions in $defs")
+	// ErrDataEncode is returned when data encoding fails.
+	ErrDataEncode = errors.New("data encode failed") // Former: ErrFailedToEncodeData
 
-	// ErrFailedToResolveItems is returned when items in an array schema cannot be resolved.
-	ErrFailedToResolveItems = errors.New("failed to resolve items")
+	// ErrNestedValueEncode is returned when encoding nested values fails.
+	ErrNestedValueEncode = errors.New("nested value encode failed") // Former: ErrFailedToEncodeNestedValue
+)
 
-	// ErrInvalidJSONSchemaType is returned when the JSON schema type is invalid.
-	ErrInvalidJSONSchemaType = errors.New("invalid JSON schema type")
+// === Schema Compilation and Parsing Related Errors ===
+var (
+	// ErrSchemaCompilation is returned when a schema compilation fails.
+	ErrSchemaCompilation = errors.New("schema compilation failed") // Former: ErrFailedToCompileSchema
 
-	// ErrNilConstValue is returned when trying to unmarshal into a nil ConstValue.
-	ErrNilConstValue = errors.New("cannot unmarshal into nil ConstValue")
+	// ErrReferenceResolution is returned when a reference cannot be resolved.
+	ErrReferenceResolution = errors.New("reference resolution failed") // Former: ErrFailedToResolveReference
 
-	// ErrExpectedStructType is returned when a non-struct type is provided where a struct type is expected.
-	ErrExpectedStructType = errors.New("expected struct type")
+	// ErrGlobalReferenceResolution is returned when a global reference cannot be resolved.
+	ErrGlobalReferenceResolution = errors.New("global reference resolution failed") // Former: ErrFailedToResolveGlobalReference
 
-	// ErrFailedToParseStructTags is returned when struct tags cannot be parsed.
-	ErrFailedToParseStructTags = errors.New("failed to parse struct tags")
+	// ErrDefinitionResolution is returned when definitions in $defs cannot be resolved.
+	ErrDefinitionResolution = errors.New("definition resolution failed") // Former: ErrFailedToResolveDefinitions
 
-	// ErrUnsupportedType is returned when an unsupported type is encountered.
-	ErrUnsupportedType = errors.New("unsupported type")
+	// ErrItemResolution is returned when items in an array schema cannot be resolved.
+	ErrItemResolution = errors.New("item resolution failed") // Former: ErrFailedToResolveItems
 
-	// ErrFailedToCompileSchema is returned when a schema compilation fails.
-	ErrFailedToCompileSchema = errors.New("failed to compile schema")
+	// ErrJSONPointerSegmentDecode is returned when a segment cannot be decoded.
+	ErrJSONPointerSegmentDecode = errors.New("json pointer segment decode failed") // Former: ErrFailedToDecodeSegmentWithJSONPointer
 
-	// ErrFailedToDecodeJSON is returned when JSON decoding fails.
-	ErrFailedToDecodeJSON = errors.New("failed to decode JSON")
+	// ErrJSONPointerSegmentNotFound is returned when a segment is not found in the schema context.
+	ErrJSONPointerSegmentNotFound = errors.New("json pointer segment not found") // Former: ErrSegmentNotFoundForJSONPointer
 
-	// ErrFailedToEncodeSource is returned when source encoding fails.
-	ErrFailedToEncodeSource = errors.New("failed to encode source")
+	// ErrInvalidSchemaType is returned when the JSON schema type is invalid.
+	ErrInvalidSchemaType = errors.New("invalid schema type") // Former: ErrInvalidJSONSchemaType
 
-	// ErrFailedToDecodeIntermediateJSON is returned when intermediate JSON decoding fails.
-	ErrFailedToDecodeIntermediateJSON = errors.New("failed to decode intermediate JSON")
+	// ErrSchemaIsNil is returned when schema is nil.
+	ErrSchemaIsNil = errors.New("schema is nil")
 
-	// ErrFailedToApplyDefaults is returned when applying defaults fails.
-	ErrFailedToApplyDefaults = errors.New("failed to apply defaults")
+	// ErrSchemaInternalsIsNil is returned when schema internals is nil.
+	ErrSchemaInternalsIsNil = errors.New("schema internals is nil")
+)
 
-	// ErrFailedToEvaluateDefaultValue is returned when evaluating default values fails.
-	ErrFailedToEvaluateDefaultValue = errors.New("failed to evaluate default value")
-
-	// ErrFailedToParseFunctionCall is returned when parsing function calls fails.
-	ErrFailedToParseFunctionCall = errors.New("failed to parse function call")
-
-	// ErrFailedToApplyArrayDefaults is returned when applying array defaults fails.
-	ErrFailedToApplyArrayDefaults = errors.New("failed to apply defaults for array item")
-
-	// ErrFailedToEncodeData is returned when data encoding fails.
-	ErrFailedToEncodeData = errors.New("failed to encode data for fallback")
-
-	// ErrFailedToSetField is returned when setting a field fails.
-	ErrFailedToSetField = errors.New("failed to set field")
-
-	// ErrFailedToEncodeNestedValue is returned when encoding nested values fails.
-	ErrFailedToEncodeNestedValue = errors.New("failed to encode nested value")
-
-	// ErrUnderlyingError is returned as a generic underlying error.
-	ErrUnderlyingError = errors.New("underlying error")
-
-	// ErrConfigCannotBeNil is returned when a configuration is nil.
-	ErrConfigCannotBeNil = errors.New("config cannot be nil")
-
-	// ErrUnsupportedTypeForGeneration is returned when an unsupported type is encountered during code generation.
-	ErrUnsupportedTypeForGeneration = errors.New("unsupported type for generation")
-
-	// ErrStructNodeNotFound is returned when a struct node cannot be found.
-	ErrStructNodeNotFound = errors.New("struct node not found")
-
-	// ErrFailedToCreateAnalyzer is returned when analyzer creation fails.
-	ErrFailedToCreateAnalyzer = errors.New("failed to create analyzer")
-
-	// ErrFailedToCreateWriter is returned when writer creation fails.
-	ErrFailedToCreateWriter = errors.New("failed to create writer")
-
-	// ErrFailedToAnalyzePackage is returned when package analysis fails.
-	ErrFailedToAnalyzePackage = errors.New("failed to analyze package")
-
-	// ErrFailedToGenerateCode is returned when code generation fails.
-	ErrFailedToGenerateCode = errors.New("failed to generate code")
-
-	// ErrFailedToGenerateProperty is returned when property generation fails.
-	ErrFailedToGenerateProperty = errors.New("failed to generate property")
-
-	// ErrFailedToParseJSONSchemaTag is returned when jsonschema tag parsing fails.
-	ErrFailedToParseJSONSchemaTag = errors.New("failed to parse jsonschema tag")
-
-	// ErrFailedToAnalyzeFields is returned when field analysis fails.
-	ErrFailedToAnalyzeFields = errors.New("failed to analyze fields")
-
-	// ErrFailedToParseGozodTag is returned when gozod tag parsing fails.
-	ErrFailedToParseGozodTag = errors.New("failed to parse gozod tag")
+// === Data Validation Related Errors ===
+var (
+	// ErrValueValidationFailed is returned when value validation fails.
+	ErrValueValidationFailed = errors.New("value validation failed")
 
 	// ErrInvalidRuleFormat is returned when rule format is invalid.
 	ErrInvalidRuleFormat = errors.New("invalid rule format")
@@ -147,147 +106,459 @@ var (
 	// ErrEmptyRuleName is returned when rule name is empty.
 	ErrEmptyRuleName = errors.New("empty rule name")
 
-	// ErrFailedToLoadTemplates is returned when template loading fails.
-	ErrFailedToLoadTemplates = errors.New("failed to load templates")
-
-	// ErrFailedToCreateOutputDirectory is returned when output directory creation fails.
-	ErrFailedToCreateOutputDirectory = errors.New("failed to create output directory")
-
-	// ErrFailedToWriteFile is returned when file writing fails.
-	ErrFailedToWriteFile = errors.New("failed to write file")
-
-	// ErrFailedToGenerateFieldSchemas is returned when field schema generation fails.
-	ErrFailedToGenerateFieldSchemas = errors.New("failed to generate field schemas")
-
-	// ErrFailedToExecuteTemplate is returned when template execution fails.
-	ErrFailedToExecuteTemplate = errors.New("failed to execute template")
-
-	// ErrFailedToParseMainTemplate is returned when main template parsing fails.
-	ErrFailedToParseMainTemplate = errors.New("failed to parse main template")
-
-	// ErrFailedToAnalyzeDependencies is returned when dependency analysis fails.
-	ErrFailedToAnalyzeDependencies = errors.New("failed to analyze dependencies")
-
 	// ErrValidatorAlreadyExists is returned when a validator with the same name already exists.
 	ErrValidatorAlreadyExists = errors.New("validator already exists")
+)
+
+// === Type Conversion Related Errors ===
+var (
+	// Basic type conversion
+	// ErrTypeConversion is returned when type conversion fails.
+	ErrTypeConversion = errors.New("type conversion failed")
+
+	// ErrTimeConversion is returned when time conversion fails.
+	ErrTimeConversion = errors.New("time conversion failed") // Former: ErrTimeTypeConversion
+
+	// ErrTimeParsing is returned when time parsing fails.
+	ErrTimeParsing = errors.New("time parsing failed") // Former: ErrTimeParseFailure
+
+	// ErrRatConversion is returned when rat conversion fails.
+	ErrRatConversion = errors.New("rat conversion failed") // Former: ErrFailedToConvertToRat
+
+	// Collection type conversion
+	// ErrSliceConversion is returned when slice conversion fails.
+	ErrSliceConversion = errors.New("slice conversion failed") // Former: ErrCannotConvertSlice
+
+	// ErrSliceElementConversion is returned when slice element conversion fails.
+	ErrSliceElementConversion = errors.New("slice element conversion failed") // Former: ErrCannotConvertSliceElement
+
+	// ErrFirstSliceConversion is returned when first slice conversion fails.
+	ErrFirstSliceConversion = errors.New("first slice conversion failed") // Former: ErrCannotConvertFirstSlice
+
+	// ErrSecondSliceConversion is returned when second slice conversion fails.
+	ErrSecondSliceConversion = errors.New("second slice conversion failed") // Former: ErrCannotConvertSecondSlice
+
+	// ErrNilConversion is returned when nil conversion fails.
+	ErrNilConversion = errors.New("nil conversion failed") // Former: ErrCannotConvertNil
+
+	// ErrNilPointerConversion is returned when nil pointer conversion fails.
+	ErrNilPointerConversion = errors.New("nil pointer conversion failed") // Former: ErrCannotConvertNilPointer
+
+	// ErrValueParsing is returned when value parsing fails.
+	ErrValueParsing = errors.New("value parsing failed") // Former: ErrCannotParseValue
+
+	// ErrValueAssignment is returned when value assignment fails.
+	ErrValueAssignment = errors.New("value assignment failed") // Former: ErrCannotAssignValue
+
+	// Specific type support
+	// ErrUnsupportedType is returned when an unsupported type is encountered.
+	ErrUnsupportedType = errors.New("unsupported type")
+
+	// ErrUnsupportedRatType is returned when the type is unsupported for conversion to *big.Rat.
+	ErrUnsupportedRatType = errors.New("unsupported rat type") // Former: ErrUnsupportedTypeForRat
 
 	// ErrUnsupportedInputType is returned when an unsupported input type is encountered.
 	ErrUnsupportedInputType = errors.New("unsupported input type")
 
+	// ErrUnsupportedGenerationType is returned when an unsupported type is encountered during code generation.
+	ErrUnsupportedGenerationType = errors.New("unsupported generation type") // Former: ErrUnsupportedTypeForGeneration
+
+	// ErrUnsupportedConversion is returned when conversion is not supported.
+	ErrUnsupportedConversion = errors.New("unsupported conversion")
+
 	// ErrUnrepresentableType is returned when a type cannot be represented.
 	ErrUnrepresentableType = errors.New("unrepresentable type")
 
-	// ErrArrayItemNotSchema is returned when an array item is not a schema.
-	ErrArrayItemNotSchema = errors.New("array item not schema")
+	// ErrInvalidTransformType is returned when type is invalid for transform.
+	ErrInvalidTransformType = errors.New("invalid transform type") // Former: ErrInvalidTypeForTransform
+)
 
-	// ErrCannotConvertSliceElement is returned when slice element conversion fails.
-	ErrCannotConvertSliceElement = errors.New("cannot convert slice element")
+// === Struct and Reflection Related Errors ===
+var (
+	// ErrExpectedStructType is returned when a non-struct type is provided where a struct type is expected.
+	ErrExpectedStructType = errors.New("expected struct type")
 
-	// ErrNotSliceArrayOrString is returned when input is not a slice, array, or string.
-	ErrNotSliceArrayOrString = errors.New("not slice, array, or string")
-
-	// ErrCannotConvertFirstSlice is returned when first slice conversion fails.
-	ErrCannotConvertFirstSlice = errors.New("cannot convert first slice")
-
-	// ErrCannotConvertSecondSlice is returned when second slice conversion fails.
-	ErrCannotConvertSecondSlice = errors.New("cannot convert second slice")
-
-	// ErrCannotConvertSlice is returned when slice conversion fails.
-	ErrCannotConvertSlice = errors.New("cannot convert slice")
-
-	// ErrCannotConvertNil is returned when nil conversion fails.
-	ErrCannotConvertNil = errors.New("cannot convert nil")
-
-	// ErrInvalidTypeForTransform is returned when type is invalid for transform.
-	ErrInvalidTypeForTransform = errors.New("invalid type for transform")
-
-	// ErrUnableToConvertValue is returned when value conversion fails.
-	ErrUnableToConvertValue = errors.New("unable to convert value")
-
-	// ErrSchemaDoesNotImplementInterface is returned when schema doesn't implement required interface.
-	ErrSchemaDoesNotImplementInterface = errors.New("schema does not implement required interface")
-
-	// ErrNilPointerToArray is returned when trying to convert nil pointer to array.
-	ErrNilPointerToArray = errors.New("nil pointer to array")
-
-	// ErrExpectedArrayOrSlice is returned when array or slice is expected.
-	ErrExpectedArrayOrSlice = errors.New("expected array or slice")
-
-	// ErrNilPointerToRecord is returned when trying to convert nil pointer to record.
-	ErrNilPointerToRecord = errors.New("nil pointer to record")
-
-	// ErrNonStringKeyFound is returned when non-string key is found in map.
-	ErrNonStringKeyFound = errors.New("non-string key found in map")
-
-	// ErrExpectedMapStringAny is returned when map[string]any is expected.
-	ErrExpectedMapStringAny = errors.New("expected map[string]any")
-
-	// ErrValueValidationFailed is returned when value validation fails.
-	ErrValueValidationFailed = errors.New("value validation failed")
-
-	// ErrNilPointerToObject is returned when trying to convert nil pointer to object.
-	ErrNilPointerToObject = errors.New("nil pointer to object")
+	// ErrStructTagParsing is returned when struct tags cannot be parsed.
+	ErrStructTagParsing = errors.New("struct tag parsing failed") // Former: ErrFailedToParseStructTags
 
 	// ErrFieldNotFound is returned when field is not found.
 	ErrFieldNotFound = errors.New("field not found")
 
-	// ErrCannotAssignValue is returned when value assignment fails.
-	ErrCannotAssignValue = errors.New("cannot assign value")
+	// ErrFieldAssignment is returned when field assignment fails.
+	ErrFieldAssignment = errors.New("field assignment failed") // Former: ErrFailedToSetField
 
-	// ErrSchemaIsNil is returned when schema is nil.
-	ErrSchemaIsNil = errors.New("schema is nil")
+	// ErrFieldAnalysis is returned when field analysis fails.
+	ErrFieldAnalysis = errors.New("field analysis failed") // Former: ErrFailedToAnalyzeFields
 
-	// ErrSchemaInternalsIsNil is returned when schema internals is nil.
-	ErrSchemaInternalsIsNil = errors.New("schema internals is nil")
+	// ErrNilDestination is returned when destination cannot be nil.
+	ErrNilDestination = errors.New("destination cannot be nil")
 
-	// ErrCannotConvertNilPointer is returned when nil pointer conversion fails.
-	ErrCannotConvertNilPointer = errors.New("cannot convert nil pointer")
+	// ErrNotPointer is returned when destination must be a pointer.
+	ErrNotPointer = errors.New("destination must be a pointer")
 
-	// ErrCannotParseValue is returned when value parsing fails.
-	ErrCannotParseValue = errors.New("cannot parse value")
+	// ErrNilPointer is returned when destination pointer cannot be nil.
+	ErrNilPointer = errors.New("destination pointer cannot be nil")
+)
 
+// === Default Value Handling Related Errors ===
+var (
+	// ErrDefaultApplication is returned when applying defaults fails.
+	ErrDefaultApplication = errors.New("default application failed") // Former: ErrFailedToApplyDefaults
+
+	// ErrDefaultEvaluation is returned when evaluating default values fails.
+	ErrDefaultEvaluation = errors.New("default evaluation failed") // Former: ErrFailedToEvaluateDefaultValue
+
+	// ErrArrayDefaultApplication is returned when applying array defaults fails.
+	ErrArrayDefaultApplication = errors.New("array default application failed") // Former: ErrFailedToApplyArrayDefaults
+
+	// ErrFunctionCallParsing is returned when parsing function calls fails.
+	ErrFunctionCallParsing = errors.New("function call parsing failed") // Former: ErrFailedToParseFunctionCall
+)
+
+// === Code Generation Related Errors ===
+var (
+	// ErrNilConfig is returned when a configuration is nil.
+	ErrNilConfig = errors.New("config cannot be nil") // Former: ErrConfigCannotBeNil
+
+	// ErrAnalyzerCreation is returned when analyzer creation fails.
+	ErrAnalyzerCreation = errors.New("analyzer creation failed") // Former: ErrFailedToCreateAnalyzer
+
+	// ErrWriterCreation is returned when writer creation fails.
+	ErrWriterCreation = errors.New("writer creation failed") // Former: ErrFailedToCreateWriter
+
+	// ErrPackageAnalysis is returned when package analysis fails.
+	ErrPackageAnalysis = errors.New("package analysis failed") // Former: ErrFailedToAnalyzePackage
+
+	// ErrCodeGeneration is returned when code generation fails.
+	ErrCodeGeneration = errors.New("code generation failed") // Former: ErrFailedToGenerateCode
+
+	// ErrPropertyGeneration is returned when property generation fails.
+	ErrPropertyGeneration = errors.New("property generation failed") // Former: ErrFailedToGenerateProperty
+
+	// ErrJSONSchemaTagParsing is returned when jsonschema tag parsing fails.
+	ErrJSONSchemaTagParsing = errors.New("json schema tag parsing failed") // Former: ErrFailedToParseJSONSchemaTag
+
+	// ErrGozodTagParsing is returned when gozod tag parsing fails.
+	ErrGozodTagParsing = errors.New("gozod tag parsing failed") // Former: ErrFailedToParseGozodTag
+
+	// ErrTemplateLoading is returned when template loading fails.
+	ErrTemplateLoading = errors.New("template loading failed") // Former: ErrFailedToLoadTemplates
+
+	// ErrOutputDirectoryCreation is returned when output directory creation fails.
+	ErrOutputDirectoryCreation = errors.New("output directory creation failed") // Former: ErrFailedToCreateOutputDirectory
+
+	// ErrFieldSchemaGeneration is returned when field schema generation fails.
+	ErrFieldSchemaGeneration = errors.New("field schema generation failed") // Former: ErrFailedToGenerateFieldSchemas
+
+	// ErrTemplateExecution is returned when template execution fails.
+	ErrTemplateExecution = errors.New("template execution failed") // Former: ErrFailedToExecuteTemplate
+
+	// ErrMainTemplateParsing is returned when main template parsing fails.
+	ErrMainTemplateParsing = errors.New("main template parsing failed") // Former: ErrFailedToParseMainTemplate
+
+	// ErrDependencyAnalysis is returned when dependency analysis fails.
+	ErrDependencyAnalysis = errors.New("dependency analysis failed") // Former: ErrFailedToAnalyzeDependencies
+
+	// ErrTemplateParsing is returned when template parsing fails.
+	ErrTemplateParsing = errors.New("template parsing failed") // Former: ErrFailedToParseTemplate
+
+	// ErrCodeFormatting is returned when code formatting fails.
+	ErrCodeFormatting = errors.New("code formatting failed") // Former: ErrFailedToFormatCode
+
+	// ErrStructNodeNotFound is returned when a struct node cannot be found.
+	ErrStructNodeNotFound = errors.New("struct node not found")
+)
+
+// === Array and Object Related Errors ===
+var (
+	// ErrArrayItemNotSchema is returned when an array item is not a schema.
+	ErrArrayItemNotSchema = errors.New("array item not schema")
+
+	// ErrExpectedArrayOrSlice is returned when array or slice is expected.
+	ErrExpectedArrayOrSlice = errors.New("expected array or slice")
+
+	// ErrNilPointerToArray is returned when trying to convert nil pointer to array.
+	ErrNilPointerToArray = errors.New("nil pointer to array")
+
+	// ErrNilPointerToRecord is returned when trying to convert nil pointer to record.
+	ErrNilPointerToRecord = errors.New("nil pointer to record")
+
+	// ErrNilPointerToObject is returned when trying to convert nil pointer to object.
+	ErrNilPointerToObject = errors.New("nil pointer to object")
+
+	// ErrExpectedMapStringAny is returned when map[string]any is expected.
+	ErrExpectedMapStringAny = errors.New("expected map[string]any")
+
+	// ErrNonStringKeyFound is returned when non-string key is found in map.
+	ErrNonStringKeyFound = errors.New("non-string key found in map")
+)
+
+// === Numeric and Format Related Errors ===
+var (
 	// ErrValueOverflows is returned when value overflows target type.
 	ErrValueOverflows = errors.New("value overflows target type")
 
 	// ErrEmptyInput is returned when input is empty.
 	ErrEmptyInput = errors.New("empty input")
 
-	// ErrNegativeValue is returned when negative value cannot be converted.
-	ErrNegativeValue = errors.New("negative value cannot be converted")
+	// ErrNegativeValueConversion is returned when negative value cannot be converted.
+	ErrNegativeValueConversion = errors.New("negative value conversion failed") // Former: ErrNegativeValue
 
-	// ErrNotWholeNumber is returned when value is not a whole number.
-	ErrNotWholeNumber = errors.New("not a whole number")
+	// ErrNonWholeNumber is returned when value is not a whole number.
+	ErrNonWholeNumber = errors.New("not a whole number") // Former: ErrNotWholeNumber
 
-	// ErrUnsupportedConversion is returned when conversion is not supported.
-	ErrUnsupportedConversion = errors.New("unsupported conversion")
+	// ErrInvalidSliceArrayString is returned when input is not a slice, array, or string.
+	ErrInvalidSliceArrayString = errors.New("invalid slice array string") // Former: ErrNotSliceArrayOrString
 
 	// ErrNilValue is returned when value is nil.
 	ErrNilValue = errors.New("nil value")
 
-	// ErrInvalidFilenamePath is returned when filename path is invalid.
-	ErrInvalidFilenamePath = errors.New("invalid filename path")
+	// ErrNilConstValue is returned when trying to unmarshal into a nil ConstValue.
+	ErrNilConstValue = errors.New("cannot unmarshal into nil ConstValue")
 
-	// ErrFailedToParseTemplate is returned when template parsing fails.
-	ErrFailedToParseTemplate = errors.New("failed to parse template")
+	// ErrIPv6AddressFormat is returned when an IPv6 address is not properly formatted.
+	ErrIPv6AddressFormat = errors.New("ipv6 address format error") // Former: ErrIPv6AddressNotEnclosed
 
-	// ErrFailedToFormatCode is returned when code formatting fails.
-	ErrFailedToFormatCode = errors.New("failed to format generated code")
+	// ErrInvalidIPv6 is returned when the IPv6 address is invalid.
+	ErrInvalidIPv6 = errors.New("invalid ipv6 address") // Former: ErrInvalidIPv6Address
+)
 
-	// ErrFailedToCreateDirectory is returned when directory creation fails.
-	ErrFailedToCreateDirectory = errors.New("failed to create directory")
+// === Path and Filesystem Related Errors ===
+var (
+	// ErrAbsolutePathResolution is returned when absolute path resolution fails.
+	ErrAbsolutePathResolution = errors.New("absolute path resolution failed") // Former: ErrFailedToResolveAbsolutePath
 
-	// ErrFailedToResolveAbsolutePath is returned when absolute path resolution fails.
-	ErrFailedToResolveAbsolutePath = errors.New("failed to resolve absolute path")
+	// ErrCurrentDirectoryAccess is returned when getting current directory fails.
+	ErrCurrentDirectoryAccess = errors.New("current directory access failed") // Former: ErrFailedToGetCurrentDirectory
 
-	// ErrFailedToGetCurrentDirectory is returned when getting current directory fails.
-	ErrFailedToGetCurrentDirectory = errors.New("failed to get current directory")
+	// ErrPathOutsideDirectory is returned when path is outside current directory.
+	ErrPathOutsideDirectory = errors.New("path outside directory") // Former: ErrPathOutsideCurrentDirectory
+)
 
-	// ErrPathOutsideCurrentDirectory is returned when path is outside current directory.
-	ErrPathOutsideCurrentDirectory = errors.New("path outside current directory")
+// === Legacy and Generic Errors (To be gradually deprecated) ===
+var (
+	// ErrUnderlyingError is returned as a generic underlying error.
+	ErrUnderlyingError = errors.New("underlying error") // To be deprecated: insufficient information
+)
 
-	// ErrFailedToCreateFile is returned when file creation fails.
-	ErrFailedToCreateFile = errors.New("failed to create file")
+// === Backward Compatibility Aliases ===
+// The following are deprecated aliases defined to maintain backward compatibility,
+// to be removed in future versions
 
-	// ErrFailedToWriteContent is returned when writing content to file fails.
-	ErrFailedToWriteContent = errors.New("failed to write content to file")
+var (
+	// === Network and IO Related Error Aliases ===
+	// Deprecated: Use ErrDataRead instead
+	ErrFailedToReadData = ErrDataRead
+
+	// Deprecated: Use ErrNetworkFetch instead
+	ErrFailedToFetch = ErrNetworkFetch
+
+	// Deprecated: Use ErrInvalidStatusCode instead
+	ErrInvalidHTTPStatusCode = ErrInvalidStatusCode
+
+	// Deprecated: Use ErrFileWrite instead
+	ErrFailedToWriteFile = ErrFileWrite
+
+	// Deprecated: Use ErrFileCreation instead
+	ErrFailedToCreateFile = ErrFileCreation
+
+	// Deprecated: Use ErrDirectoryCreation instead
+	ErrFailedToCreateDirectory = ErrDirectoryCreation
+
+	// Deprecated: Use ErrContentWrite instead
+	ErrFailedToWriteContent = ErrContentWrite
+
+	// === Serialization Related Error Aliases ===
+	// Deprecated: Use ErrJSONUnmarshal instead
+	ErrJSONUnmarshalError = ErrJSONUnmarshal
+
+	// Deprecated: Use ErrXMLUnmarshal instead
+	ErrXMLUnmarshalError = ErrXMLUnmarshal
+
+	// Deprecated: Use ErrYAMLUnmarshal instead
+	ErrYAMLUnmarshalError = ErrYAMLUnmarshal
+
+	// Deprecated: Use ErrJSONDecode instead
+	ErrFailedToDecodeJSON = ErrJSONDecode
+
+	// Deprecated: Use ErrSourceEncode instead
+	ErrFailedToEncodeSource = ErrSourceEncode
+
+	// Deprecated: Use ErrIntermediateJSONDecode instead
+	ErrFailedToDecodeIntermediateJSON = ErrIntermediateJSONDecode
+
+	// Deprecated: Use ErrDataEncode instead
+	ErrFailedToEncodeData = ErrDataEncode
+
+	// Deprecated: Use ErrNestedValueEncode instead
+	ErrFailedToEncodeNestedValue = ErrNestedValueEncode
+
+	// === Schema Compilation and Parsing Related Error Aliases ===
+	// Deprecated: Use ErrSchemaCompilation instead
+	ErrFailedToCompileSchema = ErrSchemaCompilation
+
+	// Deprecated: Use ErrReferenceResolution instead
+	ErrFailedToResolveReference = ErrReferenceResolution
+
+	// Deprecated: Use ErrGlobalReferenceResolution instead
+	ErrFailedToResolveGlobalReference = ErrGlobalReferenceResolution
+
+	// Deprecated: Use ErrDefinitionResolution instead
+	ErrFailedToResolveDefinitions = ErrDefinitionResolution
+
+	// Deprecated: Use ErrItemResolution instead
+	ErrFailedToResolveItems = ErrItemResolution
+
+	// Deprecated: Use ErrJSONPointerSegmentDecode instead
+	ErrFailedToDecodeSegmentWithJSONPointer = ErrJSONPointerSegmentDecode
+
+	// Deprecated: Use ErrJSONPointerSegmentNotFound instead
+	ErrSegmentNotFoundForJSONPointer = ErrJSONPointerSegmentNotFound
+
+	// Deprecated: Use ErrInvalidSchemaType instead
+	ErrInvalidJSONSchemaType = ErrInvalidSchemaType
+
+	// === Type Conversion Related Error Aliases ===
+	// Deprecated: Use ErrTimeConversion instead
+	ErrTimeTypeConversion = ErrTimeConversion
+
+	// Deprecated: Use ErrTimeParsing instead
+	ErrTimeParseFailure = ErrTimeParsing
+
+	// Deprecated: Use ErrRatConversion instead
+	ErrFailedToConvertToRat = ErrRatConversion
+
+	// Deprecated: Use ErrSliceConversion instead
+	ErrCannotConvertSlice = ErrSliceConversion
+
+	// Deprecated: Use ErrSliceElementConversion instead
+	ErrCannotConvertSliceElement = ErrSliceElementConversion
+
+	// Deprecated: Use ErrFirstSliceConversion instead
+	ErrCannotConvertFirstSlice = ErrFirstSliceConversion
+
+	// Deprecated: Use ErrSecondSliceConversion instead
+	ErrCannotConvertSecondSlice = ErrSecondSliceConversion
+
+	// Deprecated: Use ErrNilConversion instead
+	ErrCannotConvertNil = ErrNilConversion
+
+	// Deprecated: Use ErrNilPointerConversion instead
+	ErrCannotConvertNilPointer = ErrNilPointerConversion
+
+	// Deprecated: Use ErrValueParsing instead
+	ErrCannotParseValue = ErrValueParsing
+
+	// Deprecated: Use ErrValueAssignment instead
+	ErrCannotAssignValue = ErrValueAssignment
+
+	// Deprecated: Use ErrUnsupportedRatType instead
+	ErrUnsupportedTypeForRat = ErrUnsupportedRatType
+
+	// Deprecated: Use ErrUnsupportedGenerationType instead
+	ErrUnsupportedTypeForGeneration = ErrUnsupportedGenerationType
+
+	// Deprecated: Use ErrInvalidTransformType instead
+	ErrInvalidTypeForTransform = ErrInvalidTransformType
+
+	// === Struct and Reflection Related Error Aliases ===
+	// Deprecated: Use ErrStructTagParsing instead
+	ErrFailedToParseStructTags = ErrStructTagParsing
+
+	// Deprecated: Use ErrFieldAssignment instead
+	ErrFailedToSetField = ErrFieldAssignment
+
+	// Deprecated: Use ErrFieldAnalysis instead
+	ErrFailedToAnalyzeFields = ErrFieldAnalysis
+
+	// === Default Value Handling Related Error Aliases ===
+	// Deprecated: Use ErrDefaultApplication instead
+	ErrFailedToApplyDefaults = ErrDefaultApplication
+
+	// Deprecated: Use ErrDefaultEvaluation instead
+	ErrFailedToEvaluateDefaultValue = ErrDefaultEvaluation
+
+	// Deprecated: Use ErrArrayDefaultApplication instead
+	ErrFailedToApplyArrayDefaults = ErrArrayDefaultApplication
+
+	// Deprecated: Use ErrFunctionCallParsing instead
+	ErrFailedToParseFunctionCall = ErrFunctionCallParsing
+
+	// === Code Generation Related Error Aliases ===
+	// Deprecated: Use ErrNilConfig instead
+	ErrConfigCannotBeNil = ErrNilConfig
+
+	// Deprecated: Use ErrAnalyzerCreation instead
+	ErrFailedToCreateAnalyzer = ErrAnalyzerCreation
+
+	// Deprecated: Use ErrWriterCreation instead
+	ErrFailedToCreateWriter = ErrWriterCreation
+
+	// Deprecated: Use ErrPackageAnalysis instead
+	ErrFailedToAnalyzePackage = ErrPackageAnalysis
+
+	// Deprecated: Use ErrCodeGeneration instead
+	ErrFailedToGenerateCode = ErrCodeGeneration
+
+	// Deprecated: Use ErrPropertyGeneration instead
+	ErrFailedToGenerateProperty = ErrPropertyGeneration
+
+	// Deprecated: Use ErrJSONSchemaTagParsing instead
+	ErrFailedToParseJSONSchemaTag = ErrJSONSchemaTagParsing
+
+	// Deprecated: Use ErrGozodTagParsing instead
+	ErrFailedToParseGozodTag = ErrGozodTagParsing
+
+	// Deprecated: Use ErrTemplateLoading instead
+	ErrFailedToLoadTemplates = ErrTemplateLoading
+
+	// Deprecated: Use ErrOutputDirectoryCreation instead
+	ErrFailedToCreateOutputDirectory = ErrOutputDirectoryCreation
+
+	// Deprecated: Use ErrFieldSchemaGeneration instead
+	ErrFailedToGenerateFieldSchemas = ErrFieldSchemaGeneration
+
+	// Deprecated: Use ErrTemplateExecution instead
+	ErrFailedToExecuteTemplate = ErrTemplateExecution
+
+	// Deprecated: Use ErrMainTemplateParsing instead
+	ErrFailedToParseMainTemplate = ErrMainTemplateParsing
+
+	// Deprecated: Use ErrDependencyAnalysis instead
+	ErrFailedToAnalyzeDependencies = ErrDependencyAnalysis
+
+	// Deprecated: Use ErrTemplateParsing instead
+	ErrFailedToParseTemplate = ErrTemplateParsing
+
+	// Deprecated: Use ErrCodeFormatting instead
+	ErrFailedToFormatCode = ErrCodeFormatting
+
+	// === Numeric and Format Related Error Aliases ===
+	// Deprecated: Use ErrNegativeValueConversion instead
+	ErrNegativeValue = ErrNegativeValueConversion
+
+	// Deprecated: Use ErrNonWholeNumber instead
+	ErrNotWholeNumber = ErrNonWholeNumber
+
+	// Deprecated: Use ErrInvalidSliceArrayString instead
+	ErrNotSliceArrayOrString = ErrInvalidSliceArrayString
+
+	// Deprecated: Use ErrIPv6AddressFormat instead
+	ErrIPv6AddressNotEnclosed = ErrIPv6AddressFormat
+
+	// Deprecated: Use ErrInvalidIPv6 instead
+	ErrInvalidIPv6Address = ErrInvalidIPv6
+
+	// === Path and Filesystem Related Error Aliases ===
+	// Deprecated: Use ErrAbsolutePathResolution instead
+	ErrFailedToResolveAbsolutePath = ErrAbsolutePathResolution
+
+	// Deprecated: Use ErrCurrentDirectoryAccess instead
+	ErrFailedToGetCurrentDirectory = ErrCurrentDirectoryAccess
+
+	// Deprecated: Use ErrPathOutsideDirectory instead
+	ErrPathOutsideCurrentDirectory = ErrPathOutsideDirectory
+
+	// === Aliases from unmarshal.go ===
+	// Note: ErrTimeParseFailure and ErrTimeTypeConversion aliases are already defined above
 )

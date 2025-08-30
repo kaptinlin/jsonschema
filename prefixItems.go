@@ -15,7 +15,7 @@ import (
 //   - Omitting this keyword implies an empty array behavior, meaning no validation is enforced on the array items.
 //
 // If validation fails, it returns a EvaluationError detailing the index and discrepancy.
-func evaluatePrefixItems(schema *Schema, array []interface{}, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluatePrefixItems(schema *Schema, array []any, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if len(schema.PrefixItems) == 0 {
 		return nil, nil // If no prefixItems are defined, there is nothing to validate against.
 	}
@@ -44,11 +44,11 @@ func evaluatePrefixItems(schema *Schema, array []interface{}, _ map[string]bool,
 	}
 
 	if len(invalid_indexs) == 1 {
-		return results, NewEvaluationError("prefixItems", "prefix_item_mismatch", "Item at index {index} does not match the prefixItems schema", map[string]interface{}{
+		return results, NewEvaluationError("prefixItems", "prefix_item_mismatch", "Item at index {index} does not match the prefixItems schema", map[string]any{
 			"index": invalid_indexs[0],
 		})
 	} else if len(invalid_indexs) > 1 {
-		return results, NewEvaluationError("prefixItems", "prefix_items_mismatch", "Items at index {indexs} do not match the prefixItems schemas", map[string]interface{}{
+		return results, NewEvaluationError("prefixItems", "prefix_items_mismatch", "Items at index {indexs} do not match the prefixItems schemas", map[string]any{
 			"indexs": strings.Join(invalid_indexs, ", "),
 		})
 	}

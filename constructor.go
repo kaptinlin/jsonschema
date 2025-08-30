@@ -25,7 +25,7 @@ func Prop(name string, schema *Schema) Property {
 }
 
 // Object creates an object Schema with properties and keywords
-func Object(items ...interface{}) *Schema {
+func Object(items ...any) *Schema {
 	schema := &Schema{Type: SchemaType{"object"}}
 
 	var properties []Property
@@ -131,7 +131,7 @@ func Any(keywords ...Keyword) *Schema {
 }
 
 // Const creates a const Schema
-func Const(value interface{}) *Schema {
+func Const(value any) *Schema {
 	schema := &Schema{
 		Const: &ConstValue{Value: value, IsSet: true},
 	}
@@ -140,7 +140,7 @@ func Const(value interface{}) *Schema {
 }
 
 // Enum creates an enum Schema
-func Enum(values ...interface{}) *Schema {
+func Enum(values ...any) *Schema {
 	schema := &Schema{Enum: values}
 	schema.initializeSchema(nil, nil)
 	return schema

@@ -24,7 +24,7 @@ func TestValidateMethodDelegation(t *testing.T) {
 	assert.Equal(t, result1.IsValid(), result2.IsValid())
 
 	// Test map delegation
-	mapData := map[string]interface{}{"name": "John"}
+	mapData := map[string]any{"name": "John"}
 	result3 := schema.Validate(mapData)
 	result4 := schema.ValidateMap(mapData)
 	assert.Equal(t, result3.IsValid(), result4.IsValid())
@@ -108,7 +108,7 @@ func TestValidateStruct(t *testing.T) {
 	tests := []struct {
 		name        string
 		schema      string
-		data        interface{}
+		data        any
 		expectValid bool
 	}{
 		{
@@ -154,31 +154,31 @@ func TestValidateMap(t *testing.T) {
 	tests := []struct {
 		name        string
 		schema      string
-		data        map[string]interface{}
+		data        map[string]any
 		expectValid bool
 	}{
 		{
 			name:        "valid map",
 			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name"]}`,
-			data:        map[string]interface{}{"name": "John", "age": 30},
+			data:        map[string]any{"name": "John", "age": 30},
 			expectValid: true,
 		},
 		{
 			name:        "map missing required field",
 			schema:      `{"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}`,
-			data:        map[string]interface{}{"age": 30},
+			data:        map[string]any{"age": 30},
 			expectValid: false,
 		},
 		{
 			name:        "map with invalid type",
 			schema:      `{"type": "object", "properties": {"age": {"type": "number"}}}`,
-			data:        map[string]interface{}{"age": "thirty"},
+			data:        map[string]any{"age": "thirty"},
 			expectValid: false,
 		},
 		{
 			name:        "empty map with no required fields",
 			schema:      `{"type": "object", "properties": {"name": {"type": "string"}}}`,
-			data:        map[string]interface{}{},
+			data:        map[string]any{},
 			expectValid: true,
 		},
 	}
@@ -210,14 +210,14 @@ func TestValidateTypeConstraints(t *testing.T) {
 		compiledSchema, err := compiler.Compile([]byte(schema))
 		require.NoError(t, err)
 
-		validData := map[string]interface{}{
+		validData := map[string]any{
 			"age":   25,
 			"score": 95.5,
 		}
 		result := compiledSchema.ValidateMap(validData)
 		assert.True(t, result.IsValid())
 
-		invalidData := map[string]interface{}{
+		invalidData := map[string]any{
 			"age":   200,   // Exceeds maximum
 			"score": 95.33, // Not multiple of 0.1
 		}
@@ -237,11 +237,11 @@ func TestValidateTypeConstraints(t *testing.T) {
 		compiledSchema, err := compiler.Compile([]byte(schema))
 		require.NoError(t, err)
 
-		validData := map[string]interface{}{"name": "John"}
+		validData := map[string]any{"name": "John"}
 		result := compiledSchema.ValidateMap(validData)
 		assert.True(t, result.IsValid())
 
-		invalidData := map[string]interface{}{"name": "J"} // Too short
+		invalidData := map[string]any{"name": "J"} // Too short
 		result = compiledSchema.ValidateMap(invalidData)
 		assert.False(t, result.IsValid())
 	})
@@ -322,14 +322,14 @@ func TestValidateInputTypes(t *testing.T) {
 
 	tests := []struct {
 		name string
-		data interface{}
+		data any
 		want bool
 	}{
 		{"JSON bytes", []byte(`{"name": "John", "age": 30}`), true},
-		{"Map", map[string]interface{}{"name": "Jane", "age": 25}, true},
+		{"Map", map[string]any{"name": "Jane", "age": 25}, true},
 		{"Struct", Person{Name: "Bob", Age: 35}, true},
 		{"Invalid JSON", []byte(`{invalid`), false},
-		{"Missing required", map[string]interface{}{"age": 30}, false},
+		{"Missing required", map[string]any{"age": 30}, false},
 	}
 
 	for _, tt := range tests {
@@ -354,7 +354,7 @@ func BenchmarkValidate(b *testing.B) {
 	}`))
 
 	jsonData := []byte(`{"name": "John Doe", "age": 30, "email": "john@example.com"}`)
-	mapData := map[string]interface{}{"name": "John Doe", "age": 30, "email": "john@example.com"}
+	mapData := map[string]any{"name": "John Doe", "age": 30, "email": "john@example.com"}
 
 	b.Run("ValidateJSON", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

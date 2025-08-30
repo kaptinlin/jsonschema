@@ -10,8 +10,8 @@ func TestStringKeywords(t *testing.T) {
 	tests := []struct {
 		name    string
 		schema  *jsonschema.Schema
-		valid   interface{}
-		invalid interface{}
+		valid   any
+		invalid any
 	}{
 		{
 			name:    "MinLen valid",
@@ -82,8 +82,8 @@ func TestNumberKeywords(t *testing.T) {
 	tests := []struct {
 		name    string
 		schema  *jsonschema.Schema
-		valid   interface{}
-		invalid interface{}
+		valid   any
+		invalid any
 	}{
 		{
 			name:    "Min valid",
@@ -178,56 +178,56 @@ func TestArrayKeywords(t *testing.T) {
 	tests := []struct {
 		name    string
 		schema  *jsonschema.Schema
-		valid   interface{}
-		invalid interface{}
+		valid   any
+		invalid any
 	}{
 		{
 			name:    "Items valid",
 			schema:  jsonschema.Array(jsonschema.Items(jsonschema.String())),
-			valid:   []interface{}{"a", "b", "c"},
-			invalid: []interface{}{"a", 123, "c"},
+			valid:   []any{"a", "b", "c"},
+			invalid: []any{"a", 123, "c"},
 		},
 		{
 			name:    "Items invalid",
 			schema:  jsonschema.Array(jsonschema.Items(jsonschema.Integer())),
-			valid:   []interface{}{1, 2, 3},
-			invalid: []interface{}{1, "two", 3},
+			valid:   []any{1, 2, 3},
+			invalid: []any{1, "two", 3},
 		},
 		{
 			name:    "MinItems valid",
 			schema:  jsonschema.Array(jsonschema.MinItems(2)),
-			valid:   []interface{}{1, 2, 3},
-			invalid: []interface{}{1},
+			valid:   []any{1, 2, 3},
+			invalid: []any{1},
 		},
 		{
 			name:    "MinItems invalid",
 			schema:  jsonschema.Array(jsonschema.MinItems(3)),
-			valid:   []interface{}{1, 2, 3, 4},
-			invalid: []interface{}{1, 2},
+			valid:   []any{1, 2, 3, 4},
+			invalid: []any{1, 2},
 		},
 		{
 			name:    "MaxItems valid",
 			schema:  jsonschema.Array(jsonschema.MaxItems(3)),
-			valid:   []interface{}{1, 2},
-			invalid: []interface{}{1, 2, 3, 4},
+			valid:   []any{1, 2},
+			invalid: []any{1, 2, 3, 4},
 		},
 		{
 			name:    "MaxItems invalid",
 			schema:  jsonschema.Array(jsonschema.MaxItems(2)),
-			valid:   []interface{}{1, 2},
-			invalid: []interface{}{1, 2, 3},
+			valid:   []any{1, 2},
+			invalid: []any{1, 2, 3},
 		},
 		{
 			name:    "UniqueItems valid",
 			schema:  jsonschema.Array(jsonschema.UniqueItems(true)),
-			valid:   []interface{}{1, 2, 3},
-			invalid: []interface{}{1, 2, 2, 3},
+			valid:   []any{1, 2, 3},
+			invalid: []any{1, 2, 2, 3},
 		},
 		{
 			name:    "UniqueItems invalid",
 			schema:  jsonschema.Array(jsonschema.UniqueItems(true)),
-			valid:   []interface{}{"a", "b", "c"},
-			invalid: []interface{}{"a", "b", "a"},
+			valid:   []any{"a", "b", "c"},
+			invalid: []any{"a", "b", "a"},
 		},
 		{
 			name: "Combined array keywords",
@@ -237,8 +237,8 @@ func TestArrayKeywords(t *testing.T) {
 				jsonschema.MaxItems(5),
 				jsonschema.UniqueItems(true),
 			),
-			valid:   []interface{}{"a", "b", "c"},
-			invalid: []interface{}{"a"},
+			valid:   []any{"a", "b", "c"},
+			invalid: []any{"a"},
 		},
 	}
 
@@ -263,8 +263,8 @@ func TestObjectKeywords(t *testing.T) {
 	tests := []struct {
 		name    string
 		schema  *jsonschema.Schema
-		valid   interface{}
-		invalid interface{}
+		valid   any
+		invalid any
 	}{
 		{
 			name: "Required valid",
@@ -272,8 +272,8 @@ func TestObjectKeywords(t *testing.T) {
 				jsonschema.Prop("name", jsonschema.String()),
 				jsonschema.Required("name"),
 			),
-			valid:   map[string]interface{}{"name": "John"},
-			invalid: map[string]interface{}{"age": 25},
+			valid:   map[string]any{"name": "John"},
+			invalid: map[string]any{"age": 25},
 		},
 		{
 			name: "Required invalid",
@@ -282,40 +282,40 @@ func TestObjectKeywords(t *testing.T) {
 				jsonschema.Prop("age", jsonschema.Integer()),
 				jsonschema.Required("name", "age"),
 			),
-			valid:   map[string]interface{}{"name": "John", "age": 25},
-			invalid: map[string]interface{}{"name": "John"},
+			valid:   map[string]any{"name": "John", "age": 25},
+			invalid: map[string]any{"name": "John"},
 		},
 		{
 			name: "MinProps valid",
 			schema: jsonschema.Object(
 				jsonschema.MinProps(2),
 			),
-			valid:   map[string]interface{}{"a": 1, "b": 2, "c": 3},
-			invalid: map[string]interface{}{"a": 1},
+			valid:   map[string]any{"a": 1, "b": 2, "c": 3},
+			invalid: map[string]any{"a": 1},
 		},
 		{
 			name: "MinProps invalid",
 			schema: jsonschema.Object(
 				jsonschema.MinProps(3),
 			),
-			valid:   map[string]interface{}{"a": 1, "b": 2, "c": 3},
-			invalid: map[string]interface{}{"a": 1, "b": 2},
+			valid:   map[string]any{"a": 1, "b": 2, "c": 3},
+			invalid: map[string]any{"a": 1, "b": 2},
 		},
 		{
 			name: "MaxProps valid",
 			schema: jsonschema.Object(
 				jsonschema.MaxProps(3),
 			),
-			valid:   map[string]interface{}{"a": 1, "b": 2},
-			invalid: map[string]interface{}{"a": 1, "b": 2, "c": 3, "d": 4},
+			valid:   map[string]any{"a": 1, "b": 2},
+			invalid: map[string]any{"a": 1, "b": 2, "c": 3, "d": 4},
 		},
 		{
 			name: "MaxProps invalid",
 			schema: jsonschema.Object(
 				jsonschema.MaxProps(2),
 			),
-			valid:   map[string]interface{}{"a": 1, "b": 2},
-			invalid: map[string]interface{}{"a": 1, "b": 2, "c": 3},
+			valid:   map[string]any{"a": 1, "b": 2},
+			invalid: map[string]any{"a": 1, "b": 2, "c": 3},
 		},
 		{
 			name: "AdditionalProps false valid",
@@ -323,8 +323,8 @@ func TestObjectKeywords(t *testing.T) {
 				jsonschema.Prop("name", jsonschema.String()),
 				jsonschema.AdditionalProps(false),
 			),
-			valid:   map[string]interface{}{"name": "John"},
-			invalid: map[string]interface{}{"name": "John", "age": 25},
+			valid:   map[string]any{"name": "John"},
+			invalid: map[string]any{"name": "John", "age": 25},
 		},
 		{
 			name: "AdditionalProps false invalid",
@@ -332,8 +332,8 @@ func TestObjectKeywords(t *testing.T) {
 				jsonschema.Prop("name", jsonschema.String()),
 				jsonschema.AdditionalProps(false),
 			),
-			valid:   map[string]interface{}{"name": "John"},
-			invalid: map[string]interface{}{"name": "John", "extra": "value"},
+			valid:   map[string]any{"name": "John"},
+			invalid: map[string]any{"name": "John", "extra": "value"},
 		},
 	}
 
@@ -358,8 +358,8 @@ func TestBasicConvenienceFunctions(t *testing.T) {
 	tests := []struct {
 		name    string
 		schema  *jsonschema.Schema
-		valid   interface{}
-		invalid interface{}
+		valid   any
+		invalid any
 	}{
 		{
 			name:    "PositiveInt valid",
@@ -451,10 +451,10 @@ func TestKeywordCombinations(t *testing.T) {
 		jsonschema.Description("Schema for user registration data"),
 	)
 
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"username": "john_doe",
 		"age":      25,
-		"tags":     []interface{}{"developer", "golang"},
+		"tags":     []any{"developer", "golang"},
 	}
 
 	result := schema.Validate(validData)
@@ -462,7 +462,7 @@ func TestKeywordCombinations(t *testing.T) {
 		t.Errorf("Expected valid data to pass validation, got errors: %v", result.Errors)
 	}
 
-	invalidData := map[string]interface{}{
+	invalidData := map[string]any{
 		"username": "jo", // Too short
 		"age":      200,  // Too old
 		"extra":    "not allowed",

@@ -51,7 +51,7 @@ func main() {
 	englishLocalizer := i18nBundle.NewLocalizer("en")
 
 	// Test data with various validation errors
-	invalidData := map[string]interface{}{
+	invalidData := map[string]any{
 		"name":  "X",             // Too short
 		"age":   16,              // Below minimum
 		"email": "invalid-email", // Invalid format
@@ -98,7 +98,7 @@ func main() {
 	// Production pattern with i18n
 	fmt.Println("\nProduction pattern:")
 	fmt.Println("==================")
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"name":  "Alice",
 		"age":   25,
 		"email": "alice@example.com",
@@ -112,7 +112,7 @@ func main() {
 }
 
 // processUser demonstrates production usage with i18n
-func processUser(schema *jsonschema.Schema, data interface{}, localizer *i18n.Localizer) error {
+func processUser(schema *jsonschema.Schema, data any, localizer *i18n.Localizer) error {
 	// Step 1: Validate
 	result := schema.Validate(data)
 	if !result.IsValid() {

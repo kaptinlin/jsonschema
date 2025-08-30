@@ -13,7 +13,7 @@ func evaluateMaximum(schema *Schema, value *Rat) *EvaluationError {
 	if schema.Maximum.Rat != nil {
 		if value.Cmp(schema.Maximum.Rat) > 0 {
 			// If the data value exceeds the maximum value, construct and return an error.
-			return NewEvaluationError("maximum", "value_above_maximum", "{value} should be at most {maximum}", map[string]interface{}{
+			return NewEvaluationError("maximum", "value_above_maximum", "{value} should be at most {maximum}", map[string]any{
 				"value":   FormatRat(value),
 				"maximum": FormatRat(schema.Maximum),
 			})

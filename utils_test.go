@@ -9,47 +9,47 @@ import (
 func TestReplace(t *testing.T) {
 	tests := []struct {
 		template string
-		params   map[string]interface{}
+		params   map[string]any
 		expected string
 	}{
 		{
 			"Additional property {property} does not match the schema",
-			map[string]interface{}{"property": "age"},
+			map[string]any{"property": "age"},
 			"Additional property age does not match the schema",
 		},
 		{
 			"Value should be at most {maximum}",
-			map[string]interface{}{"maximum": 100},
+			map[string]any{"maximum": 100},
 			"Value should be at most 100",
 		},
 		{
 			"Found duplicates at the following index groups: {duplicates}",
-			map[string]interface{}{"duplicates": []int{1, 2, 3}},
+			map[string]any{"duplicates": []int{1, 2, 3}},
 			"Found duplicates at the following index groups: [1 2 3]",
 		},
 		{
 			"Encoding '{encoding}' is not supported",
-			map[string]interface{}{"encoding": "utf-8"},
+			map[string]any{"encoding": "utf-8"},
 			"Encoding 'utf-8' is not supported",
 		},
 		{
 			"Required properties {properties} are missing",
-			map[string]interface{}{"properties": []string{"name", "address"}},
+			map[string]any{"properties": []string{"name", "address"}},
 			"Required properties [name address] are missing",
 		},
 		{
 			"No placeholders here",
-			map[string]interface{}{"placeholder": "value"},
+			map[string]any{"placeholder": "value"},
 			"No placeholders here",
 		},
 		{
 			"{value} should be greater than {exclusive_minimum}",
-			map[string]interface{}{"value": 5, "exclusive_minimum": 3},
+			map[string]any{"value": 5, "exclusive_minimum": 3},
 			"5 should be greater than 3",
 		},
 		{
 			"Unsupported format {format}",
-			map[string]interface{}{"format": "date-time"},
+			map[string]any{"format": "date-time"},
 			"Unsupported format date-time",
 		},
 	}

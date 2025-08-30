@@ -11,14 +11,14 @@ package jsonschema
 // It handles formats as annotations by default, but can assert format validation if configured.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-format
-func evaluateFormat(schema *Schema, value interface{}) *EvaluationError {
+func evaluateFormat(schema *Schema, value any) *EvaluationError {
 	if schema.Format == nil {
 		return nil
 	}
 
 	formatName := *schema.Format
 	var formatDef *FormatDef
-	var customValidator func(interface{}) bool
+	var customValidator func(any) bool
 
 	// 1. Check compiler-specific custom formats first
 	if schema.compiler != nil {
@@ -45,7 +45,7 @@ func evaluateFormat(schema *Schema, value interface{}) *EvaluationError {
 	if customValidator != nil {
 		if !customValidator(value) {
 			if schema.compiler != nil && schema.compiler.AssertFormat {
-				return NewEvaluationError("format", "format_mismatch", "Value does not match format '{format}'", map[string]interface{}{"format": formatName})
+				return NewEvaluationError("format", "format_mismatch", "Value does not match format '{format}'", map[string]any{"format": formatName})
 			}
 		}
 		return nil // Validation passed or not asserted
@@ -53,7 +53,7 @@ func evaluateFormat(schema *Schema, value interface{}) *EvaluationError {
 
 	// If no validator was found and AssertFormat is true, fail
 	if schema.compiler != nil && schema.compiler.AssertFormat {
-		return NewEvaluationError("format", "unknown_format", "Unknown format '{format}'", map[string]interface{}{"format": formatName})
+		return NewEvaluationError("format", "unknown_format", "Unknown format '{format}'", map[string]any{"format": formatName})
 	}
 
 	return nil // Default behavior: ignore unknown formats

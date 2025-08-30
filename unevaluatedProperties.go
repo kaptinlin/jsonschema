@@ -14,7 +14,7 @@ import (
 // - The annotations influence the evaluation order, meaning all related properties and applicators must be processed first.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-unevaluatedproperties
-func evaluateUnevaluatedProperties(schema *Schema, data interface{}, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateUnevaluatedProperties(schema *Schema, data any, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.UnevaluatedProperties == nil {
 		return nil, nil // If "unevaluatedProperties" is not defined, all properties are considered evaluated.
 	}
@@ -22,7 +22,7 @@ func evaluateUnevaluatedProperties(schema *Schema, data interface{}, evaluatedPr
 	invalid_properties := []string{}
 	results := []*EvaluationResult{}
 
-	object, ok := data.(map[string]interface{})
+	object, ok := data.(map[string]any)
 	if !ok {
 		return nil, nil // If data is not an object, then skip the unevaluatedProperties validation.
 	}
@@ -49,7 +49,7 @@ func evaluateUnevaluatedProperties(schema *Schema, data interface{}, evaluatedPr
 	}
 
 	if len(invalid_properties) == 1 {
-		return results, NewEvaluationError("properties", "unevaluated_property_mismatch", "Property {property} does not match the unevaluatedProperties schema", map[string]interface{}{
+		return results, NewEvaluationError("properties", "unevaluated_property_mismatch", "Property {property} does not match the unevaluatedProperties schema", map[string]any{
 			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
 		})
 	} else if len(invalid_properties) > 1 {
@@ -57,7 +57,7 @@ func evaluateUnevaluatedProperties(schema *Schema, data interface{}, evaluatedPr
 		for i, prop := range invalid_properties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
-		return results, NewEvaluationError("properties", "unevaluated_properties_mismatch", "Properties {properties} do not match the unevaluatedProperties schema", map[string]interface{}{
+		return results, NewEvaluationError("properties", "unevaluated_properties_mismatch", "Properties {properties} do not match the unevaluatedProperties schema", map[string]any{
 			"properties": strings.Join(quotedProperties, ", "),
 		})
 	}

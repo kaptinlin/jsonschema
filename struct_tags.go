@@ -52,13 +52,13 @@ func (e *StructTagError) Unwrap() error {
 
 // StructTagOptions holds configuration for struct tag schema generation
 type StructTagOptions struct {
-	TagName             string                 // tag name to parse (default: "jsonschema")
-	AllowUntaggedFields bool                   // whether to include fields without tags (default: false)
-	DefaultRequired     bool                   // whether fields are required by default (default: false)
-	FieldNameMapper     func(string) string    // function to map Go field names to JSON names
-	CustomValidators    map[string]interface{} // custom validators (for future extension)
-	CacheEnabled        bool                   // whether to enable schema caching (default: true)
-	ErrorHandler        func(error)            // optional error handler for processing errors
+	TagName             string              // tag name to parse (default: "jsonschema")
+	AllowUntaggedFields bool                // whether to include fields without tags (default: false)
+	DefaultRequired     bool                // whether fields are required by default (default: false)
+	FieldNameMapper     func(string) string // function to map Go field names to JSON names
+	CustomValidators    map[string]any      // custom validators (for future extension)
+	CacheEnabled        bool                // whether to enable schema caching (default: true)
+	ErrorHandler        func(error)         // optional error handler for processing errors
 }
 
 // CustomValidatorFunc represents a custom validator function
@@ -96,7 +96,7 @@ func DefaultStructTagOptions() *StructTagOptions {
 		AllowUntaggedFields: false,
 		DefaultRequired:     false,
 		FieldNameMapper:     nil, // use default field naming
-		CustomValidators:    make(map[string]interface{}),
+		CustomValidators:    make(map[string]any),
 		CacheEnabled:        true,
 	}
 }
@@ -225,7 +225,7 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 
 // ClearSchemaCache clears the global schema cache - useful for testing and memory management
 func ClearSchemaCache() {
-	globalSchemaCache.Range(func(key, value interface{}) bool {
+	globalSchemaCache.Range(func(key, value any) bool {
 		globalSchemaCache.Delete(key)
 		return true
 	})
@@ -237,7 +237,7 @@ func GetCacheStats() map[string]int {
 		"cached_schemas": 0,
 	}
 
-	globalSchemaCache.Range(func(key, value interface{}) bool {
+	globalSchemaCache.Range(func(key, value any) bool {
 		stats["cached_schemas"]++
 		return true
 	})
@@ -284,7 +284,7 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 	fieldInfos, err := g.tagParser.ParseStructTags(structType)
 	if err != nil {
 		g.visited[structType] = 0 // Reset on error
-		return nil, fmt.Errorf("%w: %w", ErrFailedToParseStructTags, err)
+		return nil, fmt.Errorf("%w: %w", ErrStructTagParsing, err)
 	}
 
 	for _, fieldInfo := range fieldInfos {
@@ -315,8 +315,8 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 		keywords = append(keywords, Required(required...))
 	}
 
-	// Convert properties to interface{} slice
-	items := make([]interface{}, len(properties))
+	// Convert properties to any slice
+	items := make([]any, len(properties))
 	for i, prop := range properties {
 		items[i] = prop
 	}
@@ -610,7 +610,7 @@ func isCustomStructType(typeName string) bool {
 	builtinTypes := map[string]bool{
 		"string": true, "int": true, "int8": true, "int16": true, "int32": true, "int64": true,
 		"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
-		"float32": true, "float64": true, "bool": true, "interface{}": true,
+		"float32": true, "float64": true, "bool": true, "any": true,
 		"integer": true, "number": true, "boolean": true, "null": true, "object": true, "array": true,
 		"true": true, "false": true,
 	}
@@ -795,7 +795,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			if len(params) == 0 {
 				return nil
 			}
-			values := make([]interface{}, len(params))
+			values := make([]any, len(params))
 			for i, param := range params {
 				// Convert based on field type
 				//exhaustive:ignore - we only handle types that need conversion for enum values
@@ -836,7 +836,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			value := params[0]
 
 			// Convert value based on field type
-			var constValue interface{} = value
+			var constValue any = value
 			//exhaustive:ignore - we only handle types that need conversion for const values
 			switch fieldType.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -899,7 +899,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			if len(params) == 0 {
 				return nil
 			}
-			examples := make([]interface{}, len(params))
+			examples := make([]any, len(params))
 			for i, param := range params {
 				examples[i] = param // Could add type conversion here
 			}

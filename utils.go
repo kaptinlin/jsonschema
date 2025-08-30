@@ -7,12 +7,10 @@ import (
 	"path"
 	"reflect"
 	"strings"
-
-	"github.com/goccy/go-json"
 )
 
 // replace substitutes placeholders in a template string with actual parameter values.
-func replace(template string, params map[string]interface{}) string {
+func replace(template string, params map[string]any) string {
 	for key, value := range params {
 		placeholder := "{" + key + "}"
 		template = strings.ReplaceAll(template, placeholder, fmt.Sprint(value))
@@ -38,24 +36,14 @@ func mergeStringMaps(map1, map2 map[string]bool) map[string]bool {
 }
 
 // getDataType identifies the JSON schema type for a given Go value.
-func getDataType(v interface{}) string {
+func getDataType(v any) string {
 	switch v := v.(type) {
 	case nil:
 		return "null"
 	case bool:
 		return "boolean"
-	case json.Number:
-		// Try as an integer first
-		if _, ok := new(big.Int).SetString(string(v), 10); ok {
-			return "integer" // json.Number without a decimal part, can be considered an integer
-		}
-		// Fallback to big float to check if it is an integer
-		if bigFloat, ok := new(big.Float).SetString(string(v)); ok {
-			if _, acc := bigFloat.Int(nil); acc == big.Exact {
-				return "integer"
-			}
-			return "number"
-		}
+	// json.Number is not available in go-json-experiment/json
+	// Numbers are handled as float64 by default
 	case float32, float64:
 		// Convert to big.Float to check if it can be considered an integer
 		bigFloat := new(big.Float).SetFloat64(reflect.ValueOf(v).Float())
@@ -67,21 +55,20 @@ func getDataType(v interface{}) string {
 		return "integer"
 	case string:
 		return "string"
-	case []interface{}:
+	case []any:
 		return "array"
-	case []bool, []json.Number, []float32, []float64, []int, []int8, []int16, []int32, []int64, []uint, []uint8, []uint16, []uint32, []uint64, []string:
+	case []bool, []float32, []float64, []int, []int8, []int16, []int32, []int64, []uint, []uint8, []uint16, []uint32, []uint64, []string:
 		return "array"
-	case map[string]interface{}:
+	case map[string]any:
 		return "object"
 	default:
 		// Use reflection for other types (struct, slices, maps, etc.)
 		return getDataTypeReflect(v)
 	}
-	return "unknown"
 }
 
 // getDataTypeReflect uses reflection to determine the JSON schema type for complex Go types.
-func getDataTypeReflect(v interface{}) string {
+func getDataTypeReflect(v any) string {
 	rv := reflect.ValueOf(v)
 
 	// Handle pointers by dereferencing them

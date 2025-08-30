@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/goccy/go-json"
+	"github.com/go-json-experiment/json"
 )
 
 // Rat wraps a big.Rat to enable custom JSON marshaling and unmarshaling.
@@ -15,7 +15,7 @@ type Rat struct {
 
 // UnmarshalJSON implements the json.Unmarshaler interface for Rat.
 func (r *Rat) UnmarshalJSON(data []byte) error {
-	var tmp interface{}
+	var tmp any
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (r *Rat) MarshalJSON() ([]byte, error) {
 }
 
 // convertToBigRat converts various types to big.Rat.
-func convertToBigRat(data interface{}) (*big.Rat, error) {
+func convertToBigRat(data any) (*big.Rat, error) {
 	var str string
 	switch v := data.(type) {
 	case float64, float32, int, int64, int32, int16, int8, uint, uint64, uint32, uint16, uint8:
@@ -54,13 +54,13 @@ func convertToBigRat(data interface{}) (*big.Rat, error) {
 
 	numRat := new(big.Rat)
 	if _, ok := numRat.SetString(str); !ok {
-		return nil, ErrFailedToConvertToRat
+		return nil, ErrRatConversion
 	}
 	return numRat, nil
 }
 
 // NewRat creates a new Rat instance from a given value.
-func NewRat(value interface{}) *Rat {
+func NewRat(value any) *Rat {
 	converted, err := convertToBigRat(value)
 	if err != nil {
 		return nil

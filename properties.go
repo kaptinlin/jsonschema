@@ -16,7 +16,7 @@ import (
 // If a property does not conform, it returns a EvaluationError detailing the issue with that property.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-properties
-func evaluateProperties(schema *Schema, object map[string]interface{}, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateProperties(schema *Schema, object map[string]any, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.Properties == nil {
 		return nil, nil // No properties defined, nothing to do.
 	}
@@ -62,7 +62,7 @@ func evaluateProperties(schema *Schema, object map[string]interface{}, evaluated
 	}
 
 	if len(invalid_properties) == 1 {
-		return results, NewEvaluationError("properties", "property_mismatch", "Property {property} does not match the schema", map[string]interface{}{
+		return results, NewEvaluationError("properties", "property_mismatch", "Property {property} does not match the schema", map[string]any{
 			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
 		})
 	} else if len(invalid_properties) > 1 {
@@ -71,7 +71,7 @@ func evaluateProperties(schema *Schema, object map[string]interface{}, evaluated
 		for i, prop := range invalid_properties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
-		return results, NewEvaluationError("properties", "properties_mismatch", "Properties {properties} do not match their schemas", map[string]interface{}{
+		return results, NewEvaluationError("properties", "properties_mismatch", "Properties {properties} do not match their schemas", map[string]any{
 			"properties": strings.Join(quotedProperties, ", "),
 		})
 	}

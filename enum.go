@@ -7,7 +7,7 @@ import (
 )
 
 // valuesEqual checks if two values are equal, handling type conversions for numeric types
-func valuesEqual(a, b interface{}) bool {
+func valuesEqual(a, b any) bool {
 	// Try direct comparison first
 	if reflect.DeepEqual(a, b) {
 		return true
@@ -47,7 +47,7 @@ func isNumeric(v reflect.Value) bool {
 }
 
 // toFloat64 converts various numeric types to float64
-func toFloat64(value interface{}) (float64, bool) {
+func toFloat64(value any) (float64, bool) {
 	switch v := value.(type) {
 	case int:
 		return float64(v), true
@@ -89,7 +89,7 @@ func toFloat64(value interface{}) (float64, bool) {
 // If the instance does not match any of the enumerated values, it returns a EvaluationError detailing the allowed values.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-enum
-func evaluateEnum(schema *Schema, instance interface{}) *EvaluationError {
+func evaluateEnum(schema *Schema, instance any) *EvaluationError {
 	if len(schema.Enum) == 0 {
 		return nil // No enum values, so no validation needed
 	}
@@ -105,7 +105,7 @@ func evaluateEnum(schema *Schema, instance interface{}) *EvaluationError {
 	}
 
 	// No match found.
-	return NewEvaluationError("enum", "value_not_in_enum", "Value {received} should be one of the allowed values: {expected}", map[string]interface{}{
+	return NewEvaluationError("enum", "value_not_in_enum", "Value {received} should be one of the allowed values: {expected}", map[string]any{
 		"expected": strings.Join(allowed, ", "),
 		"received": instance,
 	})

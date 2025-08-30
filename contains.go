@@ -15,7 +15,7 @@ import "fmt"
 // This function provides detailed feedback on element validation and gathers comprehensive annotations.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-contains
-func evaluateContains(schema *Schema, data []interface{}, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateContains(schema *Schema, data []any, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.Contains == nil {
 		// No 'contains' constraint is defined, skip further checks.
 		return nil, nil
@@ -49,7 +49,7 @@ func evaluateContains(schema *Schema, data []interface{}, _ map[string]bool, eva
 	if minContains == 0 && validCount == 0 {
 		// Valid scenario when minContains is 0. Still need to check maxContains.
 	} else if validCount < minContains {
-		return results, NewEvaluationError("minContains", "contains_too_few_items", "Value should contain at least {min_contains} matching items", map[string]interface{}{
+		return results, NewEvaluationError("minContains", "contains_too_few_items", "Value should contain at least {min_contains} matching items", map[string]any{
 			"min_contains": minContains,
 			"count":        validCount,
 		})
@@ -57,7 +57,7 @@ func evaluateContains(schema *Schema, data []interface{}, _ map[string]bool, eva
 
 	// Handle 'maxContains' logic
 	if schema.MaxContains != nil && validCount > int(*schema.MaxContains) {
-		return results, NewEvaluationError("maxContains", "contains_too_many_items", "Value should contain no more than {max_contains} matching items", map[string]interface{}{
+		return results, NewEvaluationError("maxContains", "contains_too_many_items", "Value should contain no more than {max_contains} matching items", map[string]any{
 			"max_contains": *schema.MaxContains,
 			"count":        validCount,
 		})

@@ -243,14 +243,14 @@ func Description(desc string) Keyword {
 }
 
 // Default sets the default keyword
-func Default(value interface{}) Keyword {
+func Default(value any) Keyword {
 	return func(s *Schema) {
 		s.Default = value
 	}
 }
 
 // Examples sets the examples keyword
-func Examples(examples ...interface{}) Keyword {
+func Examples(examples ...any) Keyword {
 	return func(s *Schema) {
 		s.Examples = examples
 	}

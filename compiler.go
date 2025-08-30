@@ -22,7 +22,7 @@ type FormatDef struct {
 	Type string
 
 	// Validate is the validation function
-	Validate func(interface{}) bool
+	Validate func(any) bool
 }
 
 // Compiler represents a JSON Schema compiler that manages schema compilation and caching.
@@ -32,14 +32,14 @@ type Compiler struct {
 	allSchemas     []*Schema                                          // All compiled schemas, including those without IDs
 	unresolvedRefs map[string][]*Schema                               // Track schemas that have unresolved references by URI
 	Decoders       map[string]func(string) ([]byte, error)            // Decoders for various encoding formats.
-	MediaTypes     map[string]func([]byte) (interface{}, error)       // Media type handlers for unmarshalling data.
+	MediaTypes     map[string]func([]byte) (any, error)               // Media type handlers for unmarshalling data.
 	Loaders        map[string]func(url string) (io.ReadCloser, error) // Functions to load schemas from URLs.
 	DefaultBaseURI string                                             // Base URI used to resolve relative references.
 	AssertFormat   bool                                               // Flag to enforce format validation.
 
 	// JSON encoder/decoder configuration
-	jsonEncoder func(v interface{}) ([]byte, error)
-	jsonDecoder func(data []byte, v interface{}) error
+	jsonEncoder func(v any) ([]byte, error)
+	jsonDecoder func(data []byte, v any) error
 
 	// Default function registry
 	defaultFuncs map[string]DefaultFunc // Registry for dynamic default value functions
@@ -59,7 +59,7 @@ func NewCompiler() *Compiler {
 		allSchemas:     make([]*Schema, 0),
 		unresolvedRefs: make(map[string][]*Schema),
 		Decoders:       make(map[string]func(string) ([]byte, error)),
-		MediaTypes:     make(map[string]func([]byte) (interface{}, error)),
+		MediaTypes:     make(map[string]func([]byte) (any, error)),
 		Loaders:        make(map[string]func(url string) (io.ReadCloser, error)),
 		DefaultBaseURI: "",
 		AssertFormat:   false,
@@ -75,13 +75,13 @@ func NewCompiler() *Compiler {
 }
 
 // WithEncoderJSON configures custom JSON encoder implementation
-func (c *Compiler) WithEncoderJSON(encoder func(v interface{}) ([]byte, error)) *Compiler {
+func (c *Compiler) WithEncoderJSON(encoder func(v any) ([]byte, error)) *Compiler {
 	c.jsonEncoder = encoder
 	return c
 }
 
 // WithDecoderJSON configures custom JSON decoder implementation
-func (c *Compiler) WithDecoderJSON(decoder func(data []byte, v interface{}) error) *Compiler {
+func (c *Compiler) WithDecoderJSON(decoder func(data []byte, v any) error) *Compiler {
 	c.jsonDecoder = decoder
 	return c
 }
@@ -193,7 +193,7 @@ func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
 
 	data, err := io.ReadAll(body)
 	if err != nil {
-		return nil, ErrFailedToReadData
+		return nil, ErrDataRead
 	}
 
 	compiledSchema, err := c.Compile(data, id)
@@ -254,7 +254,7 @@ func (c *Compiler) RegisterDecoder(encodingName string, decoderFunc func(string)
 }
 
 // RegisterMediaType adds a new unmarshal function for a specific media type.
-func (c *Compiler) RegisterMediaType(mediaTypeName string, unmarshalFunc func([]byte) (interface{}, error)) *Compiler {
+func (c *Compiler) RegisterMediaType(mediaTypeName string, unmarshalFunc func([]byte) (any, error)) *Compiler {
 	c.MediaTypes[mediaTypeName] = unmarshalFunc
 	return c
 }
@@ -295,26 +295,26 @@ func (c *Compiler) initDefaults() {
 
 // setupMediaTypes configures default media type handlers.
 func (c *Compiler) setupMediaTypes() {
-	c.MediaTypes["application/json"] = func(data []byte) (interface{}, error) {
-		var temp interface{}
+	c.MediaTypes["application/json"] = func(data []byte) (any, error) {
+		var temp any
 		if err := c.jsonDecoder(data, &temp); err != nil {
-			return nil, ErrJSONUnmarshalError
+			return nil, ErrJSONUnmarshal
 		}
 		return temp, nil
 	}
 
-	c.MediaTypes["application/xml"] = func(data []byte) (interface{}, error) {
-		var temp interface{}
+	c.MediaTypes["application/xml"] = func(data []byte) (any, error) {
+		var temp any
 		if err := xml.Unmarshal(data, &temp); err != nil {
-			return nil, ErrXMLUnmarshalError
+			return nil, ErrXMLUnmarshal
 		}
 		return temp, nil
 	}
 
-	c.MediaTypes["application/yaml"] = func(data []byte) (interface{}, error) {
-		var temp interface{}
+	c.MediaTypes["application/yaml"] = func(data []byte) (any, error) {
+		var temp any
 		if err := yaml.Unmarshal(data, &temp); err != nil {
-			return nil, ErrYAMLUnmarshalError
+			return nil, ErrYAMLUnmarshal
 		}
 		return temp, nil
 	}
@@ -334,7 +334,7 @@ func (c *Compiler) setupLoaders() {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return nil, ErrFailedToFetch
+			return nil, ErrNetworkFetch
 		}
 
 		if resp.StatusCode != http.StatusOK {
@@ -342,7 +342,7 @@ func (c *Compiler) setupLoaders() {
 			if err != nil {
 				return nil, err
 			}
-			return nil, ErrInvalidHTTPStatusCode
+			return nil, ErrInvalidStatusCode
 		}
 
 		return resp.Body, nil
@@ -362,7 +362,7 @@ func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, 
 	for id, schemaBytes := range schemas {
 		schema, err := newSchema(schemaBytes)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s: %w", ErrFailedToCompileSchema, id, err)
+			return nil, fmt.Errorf("%w: %s: %w", ErrSchemaCompilation, id, err)
 		}
 
 		if schema.ID == "" {
@@ -396,7 +396,7 @@ func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, 
 // RegisterFormat registers a custom format.
 // The optional typeName parameter specifies which JSON Schema type the format applies to
 // (e.g., "string", "number"). If omitted, the format applies to all types.
-func (c *Compiler) RegisterFormat(name string, validator func(interface{}) bool, typeName ...string) *Compiler {
+func (c *Compiler) RegisterFormat(name string, validator func(any) bool, typeName ...string) *Compiler {
 	c.customFormatsRW.Lock()
 	defer c.customFormatsRW.Unlock()
 

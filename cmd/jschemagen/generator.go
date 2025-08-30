@@ -1157,8 +1157,8 @@ func (g *CodeGenerator) generateFieldSchema(field tagparser.FieldInfo) (string, 
 		return g.generateMapSchema(typeName, field)
 	}
 
-	// Handle interface{} type
-	if typeName == "interface{}" {
+	// Handle any type
+	if typeName == "any" {
 		return "jsonschema.Any", nil
 	}
 
@@ -1173,7 +1173,7 @@ func (g *CodeGenerator) generateFieldSchema(field tagparser.FieldInfo) (string, 
 	}
 
 	// Unknown type
-	return "", fmt.Errorf("%w: %s", jsonschema.ErrUnsupportedTypeForGeneration, typeName)
+	return "", fmt.Errorf("%w: %s", jsonschema.ErrUnsupportedGenerationType, typeName)
 }
 
 // generateArraySchema generates schema for array/slice types with proper Items support
@@ -1200,7 +1200,7 @@ func isCustomStructType(typeName string) bool {
 	builtinTypes := map[string]bool{
 		"string": true, "int": true, "int8": true, "int16": true, "int32": true, "int64": true,
 		"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
-		"float32": true, "float64": true, "bool": true, "interface{}": true,
+		"float32": true, "float64": true, "bool": true, "any": true,
 	}
 
 	// Check if it starts with a package name (contains a dot)

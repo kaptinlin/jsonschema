@@ -184,8 +184,8 @@ func TestSetCompilerWithConstructors(t *testing.T) {
 	).SetCompiler(customCompiler)
 
 	// Verify the child schema can use the parent's compiler
-	data := map[string]interface{}{}
-	var result map[string]interface{}
+	data := map[string]any{}
+	var result map[string]any
 	err := schema.Unmarshal(&result, data)
 	assert.NoError(t, err)
 	assert.Contains(t, result, "timestamp", "Default value should be applied")
@@ -216,8 +216,8 @@ func TestConstructorCompilerBehavior(t *testing.T) {
 	schema.SetCompiler(customCompiler)
 
 	// Test that child inherits parent's compiler for function execution
-	data := map[string]interface{}{}
-	var result map[string]interface{}
+	data := map[string]any{}
+	var result map[string]any
 	err := schema.Unmarshal(&result, data)
 	assert.NoError(t, err)
 	assert.Equal(t, "custom_value", result["field"], "Child should inherit parent's custom compiler")

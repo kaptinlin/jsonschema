@@ -149,8 +149,8 @@ func isMissingValue(rv reflect.Value) bool {
 	}
 }
 
-// extractValue safely gets the interface{} value from a reflect.Value
-func extractValue(rv reflect.Value) interface{} {
+// extractValue safely gets the any value from a reflect.Value
+func extractValue(rv reflect.Value) any {
 	// Handle pointers by dereferencing them first
 	for rv.Kind() == reflect.Ptr {
 		if rv.IsNil() {
@@ -246,8 +246,8 @@ func evaluateObjectStruct(schema *Schema, structValue reflect.Value, evaluatedPr
 
 // evaluateObjectReflectMap handles validation for reflect map types
 func evaluateObjectReflectMap(schema *Schema, mapValue reflect.Value, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
-	// Convert reflect map to map[string]interface{} and use existing logic
-	object := make(map[string]interface{})
+	// Convert reflect map to map[string]any and use existing logic
+	object := make(map[string]any)
 
 	for _, key := range mapValue.MapKeys() {
 		if key.Kind() == reflect.String {
@@ -356,14 +356,14 @@ func evaluatePropertyCountStruct(schema *Schema, structValue reflect.Value, fiel
 
 	if schema.MaxProperties != nil && float64(actualCount) > *schema.MaxProperties {
 		return NewEvaluationError("maxProperties", "too_many_properties",
-			"Value should have at most {max_properties} properties", map[string]interface{}{
+			"Value should have at most {max_properties} properties", map[string]any{
 				"max_properties": *schema.MaxProperties,
 			})
 	}
 
 	if schema.MinProperties != nil && float64(actualCount) < *schema.MinProperties {
 		return NewEvaluationError("minProperties", "too_few_properties",
-			"Value should have at least {min_properties} properties", map[string]interface{}{
+			"Value should have at least {min_properties} properties", map[string]any{
 				"min_properties": *schema.MinProperties,
 			})
 	}
@@ -504,7 +504,7 @@ func evaluateDependentRequiredStruct(schema *Schema, structValue reflect.Value, 
 				depFieldInfo, depExists := fieldCache.FieldsByName[requiredProp]
 				if !depExists {
 					return NewEvaluationError("dependentRequired", "dependent_required_missing",
-						"Property {property} is required when {dependent_property} is present", map[string]interface{}{
+						"Property {property} is required when {dependent_property} is present", map[string]any{
 							"property":           requiredProp,
 							"dependent_property": propName,
 						})
@@ -513,7 +513,7 @@ func evaluateDependentRequiredStruct(schema *Schema, structValue reflect.Value, 
 				depFieldValue := structValue.Field(depFieldInfo.Index)
 				if isMissingValue(depFieldValue) {
 					return NewEvaluationError("dependentRequired", "dependent_required_missing",
-						"Property {property} is required when {dependent_property} is present", map[string]interface{}{
+						"Property {property} is required when {dependent_property} is present", map[string]any{
 							"property":           requiredProp,
 							"dependent_property": propName,
 						})
@@ -528,11 +528,11 @@ func evaluateDependentRequiredStruct(schema *Schema, structValue reflect.Value, 
 // createValidationError creates a validation error with proper formatting for single or multiple items
 func createValidationError(errorType, keyword string, singleTemplate, multiTemplate string, invalidItems []string) *EvaluationError {
 	if len(invalidItems) == 1 {
-		return NewEvaluationError(keyword, errorType, singleTemplate, map[string]interface{}{
+		return NewEvaluationError(keyword, errorType, singleTemplate, map[string]any{
 			"property": invalidItems[0],
 		})
 	} else if len(invalidItems) > 1 {
-		return NewEvaluationError(keyword, errorType, multiTemplate, map[string]interface{}{
+		return NewEvaluationError(keyword, errorType, multiTemplate, map[string]any{
 			"properties": strings.Join(invalidItems, ", "),
 		})
 	}

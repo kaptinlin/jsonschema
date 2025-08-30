@@ -80,7 +80,7 @@ func TestCodeGenerator_RefsAndDefs(t *testing.T) {
 			name: "additionalProperties with struct",
 			field: tagparser.FieldInfo{
 				Name:     "Metadata",
-				TypeName: "map[string]interface{}",
+				TypeName: "map[string]any",
 				JSONName: "metadata",
 			},
 			ruleName:      "additionalProperties",
@@ -91,7 +91,7 @@ func TestCodeGenerator_RefsAndDefs(t *testing.T) {
 			name: "allOf combination",
 			field: tagparser.FieldInfo{
 				Name:     "Combined",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "combined",
 			},
 			ruleName:      "allOf",
@@ -228,7 +228,7 @@ func TestCodeGenerator_ComplexReferenceScenarios(t *testing.T) {
 			// Map with struct values
 			{
 				Name:     "Settings",
-				TypeName: "map[string]interface{}",
+				TypeName: "map[string]any",
 				JSONName: "settings",
 				Rules: []tagparser.TagRule{
 					{Name: "additionalProperties", Params: []string{"Setting"}},
@@ -237,7 +237,7 @@ func TestCodeGenerator_ComplexReferenceScenarios(t *testing.T) {
 			// Logical combination with structs
 			{
 				Name:     "Contact",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "contact",
 				Rules: []tagparser.TagRule{
 					{Name: "anyOf", Params: []string{"EmailContact", "PhoneContact"}},
@@ -246,7 +246,7 @@ func TestCodeGenerator_ComplexReferenceScenarios(t *testing.T) {
 			// Conditional logic with structs
 			{
 				Name:     "Auth",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "auth",
 				Rules: []tagparser.TagRule{
 					{Name: "if", Params: []string{"AdminUser"}},
@@ -343,7 +343,7 @@ func TestCodeGenerator_ReferenceResolutionDemo(t *testing.T) {
 			},
 			{
 				Name:     "MapRef",
-				TypeName: "map[string]interface{}",
+				TypeName: "map[string]any",
 				JSONName: "map_ref",
 				Rules: []tagparser.TagRule{
 					{Name: "additionalProperties", Params: []string{"Setting"}},

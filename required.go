@@ -15,7 +15,7 @@ import (
 // If a required property is missing, it returns a EvaluationError detailing the missing properties.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-required
-func evaluateRequired(schema *Schema, object map[string]interface{}) *EvaluationError {
+func evaluateRequired(schema *Schema, object map[string]any) *EvaluationError {
 	if schema.Required == nil {
 		// No required properties defined, nothing to do.
 		return nil
@@ -31,7 +31,7 @@ func evaluateRequired(schema *Schema, object map[string]interface{}) *Evaluation
 
 	if len(missingProps) > 0 {
 		if len(missingProps) == 1 {
-			return NewEvaluationError("required", "missing_required_property", "Required property {property} is missing", map[string]interface{}{
+			return NewEvaluationError("required", "missing_required_property", "Required property {property} is missing", map[string]any{
 				"property": fmt.Sprintf("'%s'", missingProps[0]),
 			})
 		} else {
@@ -39,7 +39,7 @@ func evaluateRequired(schema *Schema, object map[string]interface{}) *Evaluation
 			for i, prop := range missingProps {
 				quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 			}
-			return NewEvaluationError("required", "missing_required_properties", "Required properties {properties} are missing", map[string]interface{}{
+			return NewEvaluationError("required", "missing_required_properties", "Required properties {properties} are missing", map[string]any{
 				"properties": strings.Join(quotedProperties, ", "),
 			})
 		}

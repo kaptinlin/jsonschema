@@ -19,8 +19,8 @@ import (
 // If an unevaluated array element does not conform, it returns a EvaluationError detailing the issue.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-unevaluateditems
-func evaluateUnevaluatedItems(schema *Schema, data interface{}, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
-	items, ok := data.([]interface{})
+func evaluateUnevaluatedItems(schema *Schema, data any, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+	items, ok := data.([]any)
 	if !ok {
 		return nil, nil // If data is not an array, then skip the array-specific validations.
 	}
@@ -47,7 +47,7 @@ func evaluateUnevaluatedItems(schema *Schema, data interface{}, _ map[string]boo
 			}
 		}
 		if len(unevaluatedIndexes) > 0 {
-			return nil, NewEvaluationError("unevaluatedItems", "unevaluated_items_not_allowed", "Unevaluated items are not allowed at indexes: {indexes}", map[string]interface{}{
+			return nil, NewEvaluationError("unevaluatedItems", "unevaluated_items_not_allowed", "Unevaluated items are not allowed at indexes: {indexes}", map[string]any{
 				"indexes": strings.Join(unevaluatedIndexes, ", "),
 			})
 		}
@@ -82,11 +82,11 @@ func evaluateUnevaluatedItems(schema *Schema, data interface{}, _ map[string]boo
 	}
 
 	if len(invalid_indexes) == 1 {
-		return results, NewEvaluationError("unevaluatedItems", "unevaluated_item_mismatch", "Item at index {index} does not match the unevaluatedItems schema", map[string]interface{}{
+		return results, NewEvaluationError("unevaluatedItems", "unevaluated_item_mismatch", "Item at index {index} does not match the unevaluatedItems schema", map[string]any{
 			"index": invalid_indexes[0],
 		})
 	} else if len(invalid_indexes) > 1 {
-		return results, NewEvaluationError("unevaluatedItems", "unevaluated_items_mismatch", "Items at indexes {indexes} do not match the unevaluatedItems schema", map[string]interface{}{
+		return results, NewEvaluationError("unevaluatedItems", "unevaluated_items_mismatch", "Items at indexes {indexes} do not match the unevaluatedItems schema", map[string]any{
 			"indexes": strings.Join(invalid_indexes, ", "),
 		})
 	}

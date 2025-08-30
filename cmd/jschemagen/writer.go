@@ -89,7 +89,7 @@ func NewFileWriter(outputSuffix, packageName string, dryRun, verbose bool) (*Fil
 	// Parse and initialize templates
 	templates, err := template.New("schema").Parse(schemaFileTemplate)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", jsonschema.ErrFailedToParseTemplate, err)
+		return nil, fmt.Errorf("%w: %w", jsonschema.ErrTemplateParsing, err)
 	}
 
 	return &FileWriter{
@@ -117,13 +117,13 @@ func (w *FileWriter) WriteGeneratedCode(filePath, packageName string, methods []
 	var buf bytes.Buffer
 	err := w.templates.Execute(&buf, templateData)
 	if err != nil {
-		return fmt.Errorf("%w: %w", jsonschema.ErrFailedToExecuteTemplate, err)
+		return fmt.Errorf("%w: %w", jsonschema.ErrTemplateExecution, err)
 	}
 
 	// Format the generated code
 	formattedCode, err := w.formatCode(buf.String())
 	if err != nil {
-		return fmt.Errorf("%w: %w", jsonschema.ErrFailedToFormatCode, err)
+		return fmt.Errorf("%w: %w", jsonschema.ErrCodeFormatting, err)
 	}
 
 	if w.dryRun {
@@ -137,7 +137,7 @@ func (w *FileWriter) WriteGeneratedCode(filePath, packageName string, methods []
 	// Write to file
 	err = w.writeToFile(outputFile, formattedCode)
 	if err != nil {
-		return fmt.Errorf("%w: %w", jsonschema.ErrFailedToWriteFile, err)
+		return fmt.Errorf("%w: %w", jsonschema.ErrFileWrite, err)
 	}
 
 	if w.verbose {
@@ -171,7 +171,7 @@ func (w *FileWriter) formatCode(code string) (string, error) {
 	formatted, err := format.Source([]byte(code))
 	if err != nil {
 		// If formatting fails, return original code with error
-		return code, fmt.Errorf("%w: %w", jsonschema.ErrFailedToFormatCode, err)
+		return code, fmt.Errorf("%w: %w", jsonschema.ErrCodeFormatting, err)
 	}
 	return string(formatted), nil
 }
@@ -181,7 +181,7 @@ func (w *FileWriter) writeToFile(filename, content string) error {
 	// Ensure directory exists
 	dir := filepath.Dir(filename)
 	if err := os.MkdirAll(dir, 0750); err != nil {
-		return fmt.Errorf("%w: %s: %w", jsonschema.ErrFailedToCreateDirectory, dir, err)
+		return fmt.Errorf("%w: %s: %w", jsonschema.ErrDirectoryCreation, dir, err)
 	}
 
 	// Validate filename path to prevent directory traversal attacks
@@ -194,22 +194,22 @@ func (w *FileWriter) writeToFile(filename, content string) error {
 	// Ensure the cleaned path is within the current working directory
 	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
-		return fmt.Errorf("%w: %w", jsonschema.ErrFailedToResolveAbsolutePath, err)
+		return fmt.Errorf("%w: %w", jsonschema.ErrAbsolutePathResolution, err)
 	}
 
 	currentDir, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("%w: %w", jsonschema.ErrFailedToGetCurrentDirectory, err)
+		return fmt.Errorf("%w: %w", jsonschema.ErrCurrentDirectoryAccess, err)
 	}
 
 	if !strings.HasPrefix(absPath, currentDir) {
-		return fmt.Errorf("%w: %s", jsonschema.ErrPathOutsideCurrentDirectory, filename)
+		return fmt.Errorf("%w: %s", jsonschema.ErrPathOutsideDirectory, filename)
 	}
 
 	// Write file
 	file, err := os.Create(cleanPath)
 	if err != nil {
-		return fmt.Errorf("%w: %s: %w", jsonschema.ErrFailedToCreateFile, cleanPath, err)
+		return fmt.Errorf("%w: %s: %w", jsonschema.ErrFileCreation, cleanPath, err)
 	}
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil {
@@ -222,7 +222,7 @@ func (w *FileWriter) writeToFile(filename, content string) error {
 
 	_, err = file.WriteString(content)
 	if err != nil {
-		return fmt.Errorf("%w: %s: %w", jsonschema.ErrFailedToWriteContent, filename, err)
+		return fmt.Errorf("%w: %s: %w", jsonschema.ErrContentWrite, filename, err)
 	}
 
 	return nil

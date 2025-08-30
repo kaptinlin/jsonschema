@@ -16,7 +16,7 @@ import (
 // If the instance does not conform, it returns a EvaluationResult detailing the expected and actual types.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-type
-func evaluateType(schema *Schema, instance interface{}) *EvaluationError {
+func evaluateType(schema *Schema, instance any) *EvaluationError {
 	// Evaluate only if type constraints are specified in the schema
 	if len(schema.Type) == 0 {
 		return nil // No type constraints, so no validation needed
@@ -35,7 +35,7 @@ func evaluateType(schema *Schema, instance interface{}) *EvaluationError {
 	}
 
 	// If no valid type match is found, generate a EvaluationResult
-	return NewEvaluationError("type", "type_mismatch", "Value is {received} but should be {expected}", map[string]interface{}{
+	return NewEvaluationError("type", "type_mismatch", "Value is {received} but should be {expected}", map[string]any{
 		"expected": strings.Join(schema.Type, ", "), // Expected types
 		"received": instanceType,                    // Actual type of the input data
 	})

@@ -13,7 +13,7 @@ func evaluateMinimum(schema *Schema, value *Rat) *EvaluationError {
 	if schema.Minimum != nil {
 		if value.Cmp(schema.Minimum.Rat) < 0 {
 			// If the data value is below the minimum value, construct and return an error.
-			return NewEvaluationError("minimum", "value_below_minimum", "{value} should be at least {minimum}", map[string]interface{}{
+			return NewEvaluationError("minimum", "value_below_minimum", "{value} should be at least {minimum}", map[string]any{
 				"value":   FormatRat(value),
 				"minimum": FormatRat(schema.Minimum),
 			})

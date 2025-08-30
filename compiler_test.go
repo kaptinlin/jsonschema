@@ -173,7 +173,7 @@ func TestRegisterDecoder(t *testing.T) {
 
 func TestRegisterMediaType(t *testing.T) {
 	compiler := NewCompiler()
-	testUnmarshaler := func(data []byte) (interface{}, error) {
+	testUnmarshaler := func(data []byte) (any, error) {
 		return string(data), nil
 	}
 	compiler.RegisterMediaType("test/type", testUnmarshaler)
@@ -225,7 +225,7 @@ func TestWithEncoderJSON(t *testing.T) {
 	compiler := NewCompiler()
 
 	// Custom JSON encoder
-	customEncoder := func(v interface{}) ([]byte, error) {
+	customEncoder := func(v any) ([]byte, error) {
 		// Add an encoder with a custom prefix
 		defaultBytes, err := json.Marshal(v)
 		if err != nil {
@@ -252,7 +252,7 @@ func TestWithDecoderJSON(t *testing.T) {
 	compiler := NewCompiler()
 
 	// Custom JSON decoder
-	customDecoder := func(data []byte, v interface{}) error {
+	customDecoder := func(data []byte, v any) error {
 		// Remove the custom prefix
 		if bytes.HasPrefix(data, []byte("custom:")) {
 			data = bytes.TrimPrefix(data, []byte("custom:"))
@@ -310,8 +310,8 @@ func TestSchemaReferenceOrdering(t *testing.T) {
 	require.NotNil(t, childProp.ResolvedRef, "Reference should have been resolved after child schema compilation")
 
 	// Test valid data
-	validData := map[string]interface{}{
-		"child": map[string]interface{}{
+	validData := map[string]any{
+		"child": map[string]any{
 			"key": "valid",
 		},
 	}
@@ -319,15 +319,15 @@ func TestSchemaReferenceOrdering(t *testing.T) {
 	assert.True(t, result.IsValid(), "Valid data should pass validation")
 
 	// Test invalid data - string instead of object
-	invalidData1 := map[string]interface{}{
+	invalidData1 := map[string]any{
 		"child": "string",
 	}
 	result = parentCompiledSchema.Validate(invalidData1)
 	assert.False(t, result.IsValid(), "Invalid data (string instead of object) should fail validation")
 
 	// Test invalid data - wrong type for key
-	invalidData2 := map[string]interface{}{
-		"child": map[string]interface{}{
+	invalidData2 := map[string]any{
+		"child": map[string]any{
 			"key": false,
 		},
 	}
@@ -362,8 +362,8 @@ func TestSchemaReferenceOrderingReversed(t *testing.T) {
 	require.NoError(t, err, "Failed to compile parent schema")
 
 	// Test valid data
-	validData := map[string]interface{}{
-		"child": map[string]interface{}{
+	validData := map[string]any{
+		"child": map[string]any{
 			"key": "valid",
 		},
 	}
@@ -371,15 +371,15 @@ func TestSchemaReferenceOrderingReversed(t *testing.T) {
 	assert.True(t, result.IsValid(), "Valid data should pass validation")
 
 	// Test invalid data - string instead of object
-	invalidData1 := map[string]interface{}{
+	invalidData1 := map[string]any{
 		"child": "string",
 	}
 	result = parentCompiledSchema.Validate(invalidData1)
 	assert.False(t, result.IsValid(), "Invalid data (string instead of object) should fail validation")
 
 	// Test invalid data - wrong type for key
-	invalidData2 := map[string]interface{}{
-		"child": map[string]interface{}{
+	invalidData2 := map[string]any{
+		"child": map[string]any{
 			"key": false,
 		},
 	}
@@ -451,22 +451,22 @@ func TestCompileBatchWithCrossReferences(t *testing.T) {
 	require.NotNil(t, personSchema, "Person schema should be available")
 
 	// Valid test data
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"name": "John Doe",
-		"address": map[string]interface{}{
+		"address": map[string]any{
 			"street": "123 Main St",
 			"city":   "Anytown",
-			"country": map[string]interface{}{
+			"country": map[string]any{
 				"name": "United States",
 				"code": "US",
 			},
 		},
-		"employer": map[string]interface{}{
+		"employer": map[string]any{
 			"name": "Acme Corp",
-			"address": map[string]interface{}{
+			"address": map[string]any{
 				"street": "456 Business Ave",
 				"city":   "Corporate City",
-				"country": map[string]interface{}{
+				"country": map[string]any{
 					"name": "United States",
 					"code": "US",
 				},
@@ -478,8 +478,8 @@ func TestCompileBatchWithCrossReferences(t *testing.T) {
 	assert.True(t, result.IsValid(), "Valid data should pass validation")
 
 	// Invalid test data - missing required field
-	invalidData := map[string]interface{}{
-		"address": map[string]interface{}{
+	invalidData := map[string]any{
+		"address": map[string]any{
 			"street": "123 Main St",
 			"city":   "Anytown",
 		},
@@ -536,11 +536,11 @@ func TestCompileBatchWithNestedReferences(t *testing.T) {
 
 	// Test validation works through the entire reference chain
 	rootSchema := compiledSchemas["root.json"]
-	testData := map[string]interface{}{
-		"data": map[string]interface{}{
-			"nested": map[string]interface{}{
-				"deep": map[string]interface{}{
-					"reference": map[string]interface{}{
+	testData := map[string]any{
+		"data": map[string]any{
+			"nested": map[string]any{
+				"deep": map[string]any{
+					"reference": map[string]any{
 						"value": "test string",
 					},
 				},

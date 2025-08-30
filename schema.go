@@ -3,7 +3,8 @@ package jsonschema
 import (
 	"regexp"
 
-	"github.com/goccy/go-json"
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Schema represents a JSON Schema as per the 2020-12 draft, containing all
@@ -59,9 +60,9 @@ type Schema struct {
 	PropertyNames        *Schema    `json:"propertyNames,omitempty"`        // Can be a boolean or a schema, controls property names validation.
 
 	// Any validation keywords, see https://json-schema.org/draft/2020-12/json-schema-validation#section-6.1
-	Type  SchemaType    `json:"type,omitempty"`  // Can be a single type or an array of types.
-	Enum  []interface{} `json:"enum,omitempty"`  // Enumerated values for the property.
-	Const *ConstValue   `json:"const,omitempty"` // Constant value for the property.
+	Type  SchemaType  `json:"type,omitempty"`  // Can be a single type or an array of types.
+	Enum  []any       `json:"enum,omitempty"`  // Enumerated values for the property.
+	Const *ConstValue `json:"const,omitempty"` // Constant value for the property.
 
 	// Numeric validation keywords, see https://json-schema.org/draft/2020-12/json-schema-validation#section-6.2
 	MultipleOf       *Rat `json:"multipleOf,omitempty"`       // Number must be a multiple of this value, strictly greater than 0.
@@ -100,13 +101,13 @@ type Schema struct {
 	ContentSchema    *Schema `json:"contentSchema,omitempty"`    // Schema for validating the content.
 
 	// Meta-data for schema and instance description, see https://json-schema.org/draft/2020-12/json-schema-validation#name-a-vocabulary-for-basic-meta
-	Title       *string       `json:"title,omitempty"`       // A short summary of the schema.
-	Description *string       `json:"description,omitempty"` // A detailed description of the purpose of the schema.
-	Default     interface{}   `json:"default,omitempty"`     // Default value of the instance.
-	Deprecated  *bool         `json:"deprecated,omitempty"`  // Indicates that the schema is deprecated.
-	ReadOnly    *bool         `json:"readOnly,omitempty"`    // Indicates that the property is read-only.
-	WriteOnly   *bool         `json:"writeOnly,omitempty"`   // Indicates that the property is write-only.
-	Examples    []interface{} `json:"examples,omitempty"`    // Examples of the instance data that validates against this schema.
+	Title       *string `json:"title,omitempty"`       // A short summary of the schema.
+	Description *string `json:"description,omitempty"` // A detailed description of the purpose of the schema.
+	Default     any     `json:"default,omitempty"`     // Default value of the instance.
+	Deprecated  *bool   `json:"deprecated,omitempty"`  // Indicates that the schema is deprecated.
+	ReadOnly    *bool   `json:"readOnly,omitempty"`    // Indicates that the property is read-only.
+	WriteOnly   *bool   `json:"writeOnly,omitempty"`   // Indicates that the property is write-only.
+	Examples    []any   `json:"examples,omitempty"`    // Examples of the instance data that validates against this schema.
 }
 
 // newSchema parses JSON schema data and returns a Schema object.
@@ -425,7 +426,7 @@ func (s *Schema) getSchema(ref string) (*Schema, error) {
 		return schema.resolveAnchor(anchor)
 	}
 
-	return nil, ErrFailedToResolveReference
+	return nil, ErrReferenceResolution
 }
 
 // initializeSchemas iteratively initializes a list of nested schemas.
@@ -502,9 +503,27 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		return json.Marshal(s.Boolean)
 	}
 
-	// Marshal as a normal struct
+	// Custom marshaling to handle the const field properly
 	type Alias Schema
-	return json.Marshal((*Alias)(s))
+	alias := (*Alias)(s)
+
+	// Marshal to a map to handle const field manually
+	data, err := json.Marshal(alias)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+
+	// Handle the const field manually
+	if s.Const != nil {
+		result["const"] = s.Const.Value
+	}
+
+	return json.Marshal(result)
 }
 
 // UnmarshalJSON handles unmarshaling JSON data into the Schema type.
@@ -525,7 +544,7 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	*s = Schema(alias)
 
 	// Special handling for the const field
-	var raw map[string]json.RawMessage
+	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
@@ -592,7 +611,7 @@ func (r *SchemaType) UnmarshalJSON(data []byte) error {
 
 // ConstValue represents a constant value in a JSON Schema.
 type ConstValue struct {
-	Value interface{}
+	Value any
 	IsSet bool
 }
 
@@ -618,9 +637,6 @@ func (cv *ConstValue) UnmarshalJSON(data []byte) error {
 
 // MarshalJSON handles marshaling the ConstValue type back to JSON.
 func (cv ConstValue) MarshalJSON() ([]byte, error) {
-	if !cv.IsSet {
-		return []byte("null"), nil
-	}
 	if cv.Value == nil {
 		return []byte("null"), nil
 	}

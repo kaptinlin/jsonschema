@@ -86,7 +86,7 @@ func TestCodeGenerator_ComplexDataTypeGeneration(t *testing.T) {
 			name: "map field",
 			field: tagparser.FieldInfo{
 				Name:     "Metadata",
-				TypeName: "map[string]interface{}",
+				TypeName: "map[string]any",
 				JSONName: "metadata",
 				Rules: []tagparser.TagRule{
 					{Name: "additionalProperties", Params: []string{"true"}},
@@ -139,7 +139,7 @@ func TestCodeGenerator_AdvancedArrayFeatures(t *testing.T) {
 			name: "prefixItems",
 			field: tagparser.FieldInfo{
 				Name:     "MixedArray",
-				TypeName: "[]interface{}",
+				TypeName: "[]any",
 				JSONName: "mixed_array",
 				Rules: []tagparser.TagRule{
 					{Name: "prefixItems", Params: []string{"string", "number"}},
@@ -151,7 +151,7 @@ func TestCodeGenerator_AdvancedArrayFeatures(t *testing.T) {
 			name: "contains",
 			field: tagparser.FieldInfo{
 				Name:     "RequiredItems",
-				TypeName: "[]interface{}",
+				TypeName: "[]any",
 				JSONName: "required_items",
 				Rules: []tagparser.TagRule{
 					{Name: "contains", Params: []string{"string"}},
@@ -163,7 +163,7 @@ func TestCodeGenerator_AdvancedArrayFeatures(t *testing.T) {
 			name: "unevaluatedItems",
 			field: tagparser.FieldInfo{
 				Name:     "StrictArray",
-				TypeName: "[]interface{}",
+				TypeName: "[]any",
 				JSONName: "strict_array",
 				Rules: []tagparser.TagRule{
 					{Name: "unevaluatedItems", Params: []string{"false"}},
@@ -207,7 +207,7 @@ func TestCodeGenerator_AdvancedObjectFeatures(t *testing.T) {
 			name: "patternProperties",
 			field: tagparser.FieldInfo{
 				Name:     "DynamicFields",
-				TypeName: "map[string]interface{}",
+				TypeName: "map[string]any",
 				JSONName: "dynamic_fields",
 				Rules: []tagparser.TagRule{
 					{Name: "patternProperties", Params: []string{"^field_", "string"}},
@@ -219,7 +219,7 @@ func TestCodeGenerator_AdvancedObjectFeatures(t *testing.T) {
 			name: "propertyNames",
 			field: tagparser.FieldInfo{
 				Name:     "ValidatedObject",
-				TypeName: "map[string]interface{}",
+				TypeName: "map[string]any",
 				JSONName: "validated_object",
 				Rules: []tagparser.TagRule{
 					{Name: "propertyNames", Params: []string{"string"}},
@@ -231,7 +231,7 @@ func TestCodeGenerator_AdvancedObjectFeatures(t *testing.T) {
 			name: "unevaluatedProperties",
 			field: tagparser.FieldInfo{
 				Name:     "StrictObject",
-				TypeName: "map[string]interface{}",
+				TypeName: "map[string]any",
 				JSONName: "strict_object",
 				Rules: []tagparser.TagRule{
 					{Name: "unevaluatedProperties", Params: []string{"false"}},
@@ -275,7 +275,7 @@ func TestCodeGenerator_LogicalCombinations(t *testing.T) {
 			name: "allOf combination",
 			field: tagparser.FieldInfo{
 				Name:     "CombinedType",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "combined_type",
 				Rules: []tagparser.TagRule{
 					{Name: "allOf", Params: []string{"BaseType", "ExtendedType"}},
@@ -287,7 +287,7 @@ func TestCodeGenerator_LogicalCombinations(t *testing.T) {
 			name: "anyOf combination",
 			field: tagparser.FieldInfo{
 				Name:     "FlexibleType",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "flexible_type",
 				Rules: []tagparser.TagRule{
 					{Name: "anyOf", Params: []string{"TypeA", "TypeB"}},
@@ -299,7 +299,7 @@ func TestCodeGenerator_LogicalCombinations(t *testing.T) {
 			name: "oneOf combination",
 			field: tagparser.FieldInfo{
 				Name:     "ExclusiveType",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "exclusive_type",
 				Rules: []tagparser.TagRule{
 					{Name: "oneOf", Params: []string{"Individual", "Company"}},
@@ -311,7 +311,7 @@ func TestCodeGenerator_LogicalCombinations(t *testing.T) {
 			name: "not combination",
 			field: tagparser.FieldInfo{
 				Name:     "ExcludedType",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "excluded_type",
 				Rules: []tagparser.TagRule{
 					{Name: "not", Params: []string{"ForbiddenType"}},
@@ -355,7 +355,7 @@ func TestCodeGenerator_ConditionalLogic(t *testing.T) {
 			name: "if condition",
 			field: tagparser.FieldInfo{
 				Name:     "ConditionalField",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "conditional_field",
 				Rules: []tagparser.TagRule{
 					{Name: "if", Params: []string{"string"}},
@@ -367,7 +367,7 @@ func TestCodeGenerator_ConditionalLogic(t *testing.T) {
 			name: "then condition",
 			field: tagparser.FieldInfo{
 				Name:     "ThenField",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "then_field",
 				Rules: []tagparser.TagRule{
 					{Name: "then", Params: []string{"UserType"}},
@@ -379,7 +379,7 @@ func TestCodeGenerator_ConditionalLogic(t *testing.T) {
 			name: "dependentRequired",
 			field: tagparser.FieldInfo{
 				Name:     "DependentField",
-				TypeName: "interface{}",
+				TypeName: "any",
 				JSONName: "dependent_field",
 				Rules: []tagparser.TagRule{
 					{Name: "dependentRequired", Params: []string{"field1", "field2"}},

@@ -23,7 +23,7 @@ func main() {
 	}
 
 	// Valid data
-	validData := map[string]interface{}{
+	validData := map[string]any{
 		"name": "John",
 		"age":  30,
 	}
@@ -32,7 +32,7 @@ func main() {
 	}
 
 	// Invalid data
-	invalidData := map[string]interface{}{
+	invalidData := map[string]any{
 		"name": "J", // too short
 		"age":  -1,  // negative
 	}

@@ -17,7 +17,7 @@ import (
 // If any array element does not conform, it returns a EvaluationError detailing the issue.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-items
-func evaluateItems(schema *Schema, array []interface{}, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateItems(schema *Schema, array []any, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.Items == nil {
 		return nil, nil // // No 'items' constraints to validate against
 	}
@@ -51,11 +51,11 @@ func evaluateItems(schema *Schema, array []interface{}, _ map[string]bool, evalu
 	}
 
 	if len(invalid_indexs) == 1 {
-		return results, NewEvaluationError("items", "item_mismatch", "Item at index {index} does not match the schema", map[string]interface{}{
+		return results, NewEvaluationError("items", "item_mismatch", "Item at index {index} does not match the schema", map[string]any{
 			"index": invalid_indexs[0],
 		})
 	} else if len(invalid_indexs) > 1 {
-		return results, NewEvaluationError("items", "items_mismatch", "Items at index {indexs} do not match the schema", map[string]interface{}{
+		return results, NewEvaluationError("items", "items_mismatch", "Items at index {indexs} do not match the schema", map[string]any{
 			"indexs": strings.Join(invalid_indexs, ", "),
 		})
 	}

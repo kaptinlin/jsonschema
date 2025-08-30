@@ -23,7 +23,7 @@ func TestEnumForTestSuite(t *testing.T) {
 //             }`,
 // 			expectedSchema: jsonschema.Schema{
 // 				Schema: "https://json-schema.org/draft/2020-12/schema",
-// 				Enum:   []interface{}{1, 2, 3},
+// 				Enum:   []any{1, 2, 3},
 // 			},
 // 		},
 // 		{
@@ -34,7 +34,7 @@ func TestEnumForTestSuite(t *testing.T) {
 //             }`,
 // 			expectedSchema: jsonschema.Schema{
 // 				Schema: "https://json-schema.org/draft/2020-12/schema",
-// 				Enum:   []interface{}{6, "foo", []interface{}{}, true, map[string]interface{}{"foo": 12}},
+// 				Enum:   []any{6, "foo", []any{}, true, map[string]any{"foo": 12}},
 // 			},
 // 		},
 // 		{
@@ -45,7 +45,7 @@ func TestEnumForTestSuite(t *testing.T) {
 //             }`,
 // 			expectedSchema: jsonschema.Schema{
 // 				Schema: "https://json-schema.org/draft/2020-12/schema",
-// 				Enum:   []interface{}{6, nil},
+// 				Enum:   []any{6, nil},
 // 			},
 // 		},
 // 		{
@@ -63,8 +63,8 @@ func TestEnumForTestSuite(t *testing.T) {
 // 				Schema: "https://json-schema.org/draft/2020-12/schema",
 // 				Types:  jsonschema.SchemaTypes{"object"},
 // 				Properties: &jsonschema.SchemaMap{
-// 					"foo": &jsonschema.Schema{Enum: []interface{}{"foo"}},
-// 					"bar": &jsonschema.Schema{Enum: []interface{}{"bar"}},
+// 					"foo": &jsonschema.Schema{Enum: []any{"foo"}},
+// 					"bar": &jsonschema.Schema{Enum: []any{"bar"}},
 // 				},
 // 				Required: []string{"bar"},
 // 			},

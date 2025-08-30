@@ -57,7 +57,7 @@ func (s *Schema) resolveRefWithFullURL(ref string) (*Schema, error) {
 
 	// If not found in the current schema or its parents, look for the reference in the compiler
 	if resolved, err := s.GetCompiler().GetSchema(ref); err != nil {
-		return nil, ErrFailedToResolveGlobalReference
+		return nil, ErrGlobalReferenceResolution
 	} else {
 		return resolved, nil
 	}
@@ -76,7 +76,7 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 	for i, segment := range segments {
 		decodedSegment, err := url.PathUnescape(strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~"))
 		if err != nil {
-			return nil, ErrFailedToDecodeSegmentWithJSONPointer
+			return nil, ErrJSONPointerSegmentDecode
 		}
 
 		nextSchema, found := findSchemaInSegment(currentSchema, decodedSegment, previousSegment)

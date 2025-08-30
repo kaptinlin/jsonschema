@@ -1,7 +1,7 @@
 package jsonschema
 
 import (
-	"github.com/goccy/go-json"
+	"github.com/go-json-experiment/json"
 )
 
 // EvaluateDependentRequired checks that if a specified property is present, all its dependent properties are also present.
@@ -14,7 +14,7 @@ import (
 // If a dependency is not met, it returns a EvaluationError detailing the issue.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-dependentrequired
-func evaluateDependentRequired(schema *Schema, object map[string]interface{}) *EvaluationError {
+func evaluateDependentRequired(schema *Schema, object map[string]any) *EvaluationError {
 	if schema.DependentRequired == nil {
 		return nil // No dependent required properties defined, nothing to do.
 	}
@@ -38,7 +38,7 @@ func evaluateDependentRequired(schema *Schema, object map[string]interface{}) *E
 
 	if len(dependentMissingProps) > 0 {
 		missingPropsJSON, _ := json.Marshal(dependentMissingProps)
-		return NewEvaluationError("dependentRequired", "dependent_property_required", "Some required property dependencies are missing: {missing_properties}", map[string]interface{}{
+		return NewEvaluationError("dependentRequired", "dependent_property_required", "Some required property dependencies are missing: {missing_properties}", map[string]any{
 			"missing_properties": string(missingPropsJSON),
 		})
 	}

@@ -54,14 +54,14 @@ func main() {
 	}
 
 	// Test with partial input data
-	inputData := map[string]interface{}{
+	inputData := map[string]any{
 		"status": "pending",
 	}
 
 	fmt.Printf("Input: %+v\n\n", inputData)
 
 	// Unmarshal and apply dynamic defaults
-	var result map[string]interface{}
+	var result map[string]any
 	err = schema.Unmarshal(&result, inputData)
 	if err != nil {
 		log.Fatal("Failed to unmarshal:", err)

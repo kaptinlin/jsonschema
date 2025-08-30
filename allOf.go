@@ -15,7 +15,7 @@ import (
 // If the instance fails to conform to any schema or boolean in the array, it returns a EvaluationError detailing the specific failure.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-allof
-func evaluateAllOf(schema *Schema, instance interface{}, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateAllOf(schema *Schema, instance any, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if len(schema.AllOf) == 0 {
 		return nil, nil // No allOf constraints to validate against.
 	}
@@ -54,7 +54,7 @@ func evaluateAllOf(schema *Schema, instance interface{}, evaluatedProps map[stri
 		return results, nil
 	}
 
-	return results, NewEvaluationError("allOf", "all_of_item_mismatch", "Value does not match the allOf schema at index {indexs}", map[string]interface{}{
+	return results, NewEvaluationError("allOf", "all_of_item_mismatch", "Value does not match the allOf schema at index {indexs}", map[string]any{
 		"indexs": strings.Join(invalid_indexs, ", "),
 	})
 }

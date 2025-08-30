@@ -21,7 +21,7 @@ func evaluateMaxLength(schema *Schema, value string) *EvaluationError {
 		length := utf8.RuneCountInString(value)
 		if length > int(*schema.MaxLength) {
 			// String exceeds the maximum length.
-			return NewEvaluationError("maxLength", "string_too_long", "Value should be at most {max_length} characters", map[string]interface{}{
+			return NewEvaluationError("maxLength", "string_too_long", "Value should be at most {max_length} characters", map[string]any{
 				"max_length": fmt.Sprintf("%.0f", *schema.MaxLength),
 				"length":     length,
 			})

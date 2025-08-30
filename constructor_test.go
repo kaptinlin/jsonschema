@@ -16,7 +16,7 @@ func Example_object() {
 	)
 
 	// Valid data
-	data := map[string]interface{}{
+	data := map[string]any{
 		"name": "Alice",
 		"age":  30,
 	}
@@ -53,16 +53,16 @@ func Example_complexSchema() {
 	)
 
 	// Test data
-	userData := map[string]interface{}{
+	userData := map[string]any{
 		"name":  "Alice",
 		"age":   30,
 		"email": "alice@example.com",
-		"address": map[string]interface{}{
+		"address": map[string]any{
 			"street": "123 Main St",
 			"city":   "Anytown",
 			"zip":    "12345",
 		},
-		"tags": []interface{}{"developer", "go"},
+		"tags": []any{"developer", "go"},
 	}
 
 	result := userSchema.Validate(userData)
@@ -87,11 +87,11 @@ func Example_arraySchema() {
 		jsonschema.MaxItems(10),
 	)
 
-	validData := []interface{}{10, 20, 30}
+	validData := []any{10, 20, 30}
 	result := numbersSchema.Validate(validData)
 	fmt.Println("Numbers valid:", result.IsValid())
 
-	invalidData := []interface{}{-5, 150} // Out of range
+	invalidData := []any{-5, 150} // Out of range
 	result = numbersSchema.Validate(invalidData)
 	fmt.Println("Invalid numbers valid:", result.IsValid())
 	// Output:
@@ -156,9 +156,9 @@ func Example_conditionalSchema() {
 	)
 
 	// Basic plan object
-	basicPlan := map[string]interface{}{
+	basicPlan := map[string]any{
 		"type":     "basic",
-		"features": []interface{}{"feature1", "feature2"},
+		"features": []any{"feature1", "feature2"},
 	}
 
 	result := conditionalSchema.Validate(basicPlan)
@@ -176,7 +176,7 @@ func Example_convenienceFunctions() {
 		jsonschema.Prop("score", jsonschema.PositiveInt()),
 	)
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"id":      "550e8400-e29b-41d4-a716-446655440000",
 		"email":   "user@example.com",
 		"website": "https://example.com",
@@ -209,7 +209,7 @@ func Example_compatibilityWithJSON() {
 		log.Fatal(err)
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"name": "Bob",
 		"age":  25,
 	}
@@ -258,8 +258,8 @@ func Example_schemaRegistration() {
 	}
 
 	// Test with valid data
-	profileData := map[string]interface{}{
-		"user": map[string]interface{}{
+	profileData := map[string]any{
+		"user": map[string]any{
 			"id":    "550e8400-e29b-41d4-a716-446655440000",
 			"name":  "Alice Johnson",
 			"email": "alice@example.com",

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goccy/go-json"
+	"github.com/go-json-experiment/json"
 	"github.com/kaptinlin/jsonschema"
 )
 
@@ -65,14 +65,14 @@ func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusio
 	}
 
 	type Test struct {
-		Description string      `json:"description"`
-		Data        interface{} `json:"data"`
-		Valid       bool        `json:"valid"`
+		Description string `json:"description"`
+		Data        any    `json:"data"`
+		Valid       bool   `json:"valid"`
 	}
 	type TestCase struct {
-		Description string      `json:"description"`
-		SchemaData  interface{} `json:"schema"`
-		Tests       []Test      `json:"tests"`
+		Description string `json:"description"`
+		SchemaData  any    `json:"schema"`
+		Tests       []Test `json:"tests"`
 	}
 	var testCases []TestCase
 

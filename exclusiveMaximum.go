@@ -13,7 +13,7 @@ func evaluateExclusiveMaximum(schema *Schema, value *Rat) *EvaluationError {
 	if schema.ExclusiveMaximum != nil {
 		if value.Cmp(schema.ExclusiveMaximum.Rat) >= 0 {
 			// Data exceeds the exclusive maximum value.
-			return NewEvaluationError("exclusiveMaximum", "exclusive_maximum_mismatch", "{value} should be less than {exclusive_maximum}", map[string]interface{}{
+			return NewEvaluationError("exclusiveMaximum", "exclusive_maximum_mismatch", "{value} should be less than {exclusive_maximum}", map[string]any{
 				"exclusive_maximum": FormatRat(schema.ExclusiveMaximum),
 				"value":             FormatRat(value),
 			})

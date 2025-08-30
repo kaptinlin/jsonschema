@@ -13,11 +13,11 @@ import "fmt"
 // If the data is not an array, it returns nil, indicating the data is valid for this constraint.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-maxitems
-func evaluateMaxItems(schema *Schema, array []interface{}) *EvaluationError {
+func evaluateMaxItems(schema *Schema, array []any) *EvaluationError {
 	if schema.MaxItems != nil {
 		if float64(len(array)) > *schema.MaxItems {
 			// If the array size exceeds the maximum allowed, construct and return an error.
-			return NewEvaluationError("maxItems", "items_too_long", "Value should have at most {max_items} items", map[string]interface{}{
+			return NewEvaluationError("maxItems", "items_too_long", "Value should have at most {max_items} items", map[string]any{
 				"max_items": fmt.Sprintf("%.0f", *schema.MaxItems),
 				"count":     len(array),
 			})
