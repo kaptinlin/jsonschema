@@ -202,3 +202,228 @@ func TestToFlag(t *testing.T) {
 	// Verify the validity of the returned flag
 	assert.Equal(t, false, flagInvalid.Valid, "Expected validity of flag to match EvaluationResult validity for an invalid result")
 }
+
+// TestGetDetailedErrors tests the GetDetailedErrors method for extracting user-friendly error information
+func TestGetDetailedErrors(t *testing.T) {
+	// Schema requiring runs-on property
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"jobs": {
+				"type": "object",
+				"patternProperties": {
+					"^[a-zA-Z_][a-zA-Z0-9_-]*$": {
+						"type": "object",
+						"properties": {
+							"runs-on": {
+								"oneOf": [
+									{"type": "string"},
+									{"type": "array", "items": {"type": "string"}}
+								]
+							},
+							"steps": {
+								"type": "array"
+							}
+						},
+						"required": ["runs-on", "steps"]
+					}
+				}
+			}
+		},
+		"required": ["jobs"]
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	assert.Nil(t, err, "Schema compilation should not fail")
+
+	// Invalid data - missing runs-on
+	invalidData := map[string]any{
+		"jobs": map[string]any{
+			"test": map[string]any{
+				"steps": []any{
+					map[string]any{
+						"run": "echo test",
+					},
+				},
+			},
+		},
+	}
+
+	result := schema.ValidateMap(invalidData)
+
+	// Verify validation fails
+	assert.False(t, result.IsValid(), "Expected validation to fail")
+
+	// Test GetDetailedErrors without localizer (default English)
+	detailedErrors := result.GetDetailedErrors()
+	assert.Greater(t, len(detailedErrors), 0, "Expected detailed errors but got none")
+
+	// Check for required property error
+	foundRequiredError := false
+	foundTypeError := false
+	for path, msg := range detailedErrors {
+		t.Logf("Error at %s: %s", path, msg)
+		if containsAny(msg, []string{"required", "Required", "missing"}) {
+			foundRequiredError = true
+		}
+		if containsAny(msg, []string{"should be", "must be", "type"}) {
+			foundTypeError = true
+		}
+	}
+
+	assert.True(t, foundRequiredError, "Expected to find a required property error in detailed errors")
+	assert.True(t, foundTypeError, "Expected to find a type error in detailed errors")
+
+	t.Logf("GetDetailedErrors returned %d errors", len(detailedErrors))
+
+	// Test edge cases
+	t.Run("edge_cases", func(t *testing.T) {
+		testGetDetailedErrorsEdgeCases(t)
+	})
+
+	// Test multilingual support
+	t.Run("multilingual_support", func(t *testing.T) {
+		testGetDetailedErrorsMultilingual(t)
+	})
+}
+
+// TestGetDetailedLocalizedErrors tests the GetDetailedLocalizedErrors method
+func TestGetDetailedLocalizedErrors(t *testing.T) {
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"age": {"type": "integer", "minimum": 0}
+		},
+		"required": ["name"]
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	assert.Nil(t, err, "Schema compilation should not fail")
+
+	// Invalid data
+	invalidData := map[string]any{
+		"age": -5, // Missing required name, invalid age
+	}
+
+	result := schema.ValidateMap(invalidData)
+	assert.False(t, result.IsValid(), "Expected validation to fail")
+
+	// Test without localizer (default English)
+	englishErrors := result.GetDetailedErrors()
+
+	// Test with actual localizer
+	i18n, err := GetI18n()
+	if err == nil {
+		localizer := i18n.NewLocalizer("zh-Hans")
+		chineseErrors := result.GetDetailedErrors(localizer)
+
+		assert.Equal(t, len(englishErrors), len(chineseErrors),
+			"English and Chinese errors should have same count")
+		assert.Greater(t, len(chineseErrors), 0, "Expected localized errors")
+
+		t.Logf("English errors: %d, Chinese errors: %d", len(englishErrors), len(chineseErrors))
+	} else {
+		t.Logf("Skipped localization test due to i18n error: %v", err)
+	}
+}
+
+// Test edge cases for GetDetailedErrors
+func testGetDetailedErrorsEdgeCases(t *testing.T) {
+	// Test with valid data (should return empty map)
+	validSchema := `{"type": "object", "properties": {"name": {"type": "string"}}}`
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(validSchema))
+	assert.Nil(t, err, "Schema compilation should not fail")
+
+	validData := map[string]any{"name": "test"}
+	result := schema.ValidateMap(validData)
+
+	assert.True(t, result.IsValid(), "Valid data should pass validation")
+
+	// GetDetailedErrors should return empty map for valid data
+	detailedErrors := result.GetDetailedErrors()
+	assert.Equal(t, 0, len(detailedErrors), "Valid data should have no detailed errors")
+
+	// Test with empty schema
+	emptySchema := `{}`
+	schema2, err := compiler.Compile([]byte(emptySchema))
+	assert.Nil(t, err, "Empty schema compilation should not fail")
+
+	result2 := schema2.ValidateMap(map[string]any{"anything": "goes"})
+	assert.True(t, result2.IsValid(), "Empty schema should accept anything")
+
+	detailedErrors2 := result2.GetDetailedErrors()
+	assert.Equal(t, 0, len(detailedErrors2), "Empty schema should have no errors")
+}
+
+// Test multilingual support for GetDetailedErrors
+func testGetDetailedErrorsMultilingual(t *testing.T) {
+	// Schema with multiple error types
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"age": {"type": "integer", "minimum": 18, "maximum": 100},
+			"name": {"type": "string", "minLength": 2}
+		},
+		"required": ["name", "age"]
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	assert.Nil(t, err, "Schema compilation should not fail")
+
+	// Invalid data with multiple issues
+	invalidData := map[string]any{
+		"age":  150, // Above maximum
+		"name": "A", // Too short
+		// Missing required fields in schema will be caught
+	}
+
+	result := schema.ValidateMap(invalidData)
+	assert.False(t, result.IsValid(), "Invalid data should fail validation")
+
+	// Test default English
+	englishErrors := result.GetDetailedErrors()
+	assert.Greater(t, len(englishErrors), 0, "Should have detailed errors")
+
+	// Test with i18n if available
+	i18n, err := GetI18n()
+	if err == nil {
+		// Test multiple languages
+		languages := []string{"zh-Hans", "ja-JP", "fr-FR", "de-DE"}
+
+		for _, lang := range languages {
+			localizer := i18n.NewLocalizer(lang)
+			localizedErrors := result.GetDetailedErrors(localizer)
+
+			// Should have same number of errors as English
+			assert.Equal(t, len(englishErrors), len(localizedErrors),
+				"Localized errors should have same count as English for language: %s", lang)
+
+			// Should have at least one error
+			assert.Greater(t, len(localizedErrors), 0,
+				"Should have detailed errors for language: %s", lang)
+		}
+
+		t.Logf("Successfully tested multilingual support for %d languages", len(languages))
+	} else {
+		t.Logf("Skipped multilingual test due to i18n initialization error: %v", err)
+	}
+}
+
+// Helper function for checking if string contains any of the given substrings
+func containsAny(s string, substrings []string) bool {
+	for _, substr := range substrings {
+		if len(s) >= len(substr) {
+			for i := 0; i <= len(s)-len(substr); i++ {
+				if s[i:i+len(substr)] == substr {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}

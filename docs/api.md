@@ -246,6 +246,39 @@ localizer := i18nBundle.NewLocalizer("zh-Hans")
 list := result.ToLocalizeList(localizer)
 ```
 
+#### `(*EvaluationResult) GetDetailedErrors(localizer ...*i18n.Localizer) map[string]string`
+
+⭐ **Recommended for most users** - Collects all detailed validation errors from the nested Details hierarchy. Returns a flattened map where keys are field paths and values are specific error messages. This method helps access validation failures that might be buried in nested structures.
+
+**Parameters:**
+- `localizer` (optional): For localized error messages. Pass nil or omit for default English messages.
+
+**Default English errors:**
+```go
+result := schema.Validate(data)
+if !result.IsValid() {
+    detailedErrors := result.GetDetailedErrors() // No parameters = English
+    for path, message := range detailedErrors {
+        fmt.Printf("Field '%s': %s\n", path, message)
+    }
+}
+```
+
+**Localized errors:**
+```go
+i18nBundle, _ := jsonschema.GetI18n()
+localizer := i18nBundle.NewLocalizer("zh-Hans")
+detailedErrors := result.GetDetailedErrors(localizer) // Pass localizer
+for path, message := range detailedErrors {
+    fmt.Printf("字段 '%s': %s\n", path, message) // Chinese messages
+}
+```
+
+**Why use GetDetailedErrors instead of result.Errors?**
+- `result.Errors`: Generic messages like "Property 'jobs' does not match the schema" ❌
+- `GetDetailedErrors()`: Specific messages like "Required property 'runs-on' is missing" ✅
+
+
 ## Error Types
 
 ### `*EvaluationError`

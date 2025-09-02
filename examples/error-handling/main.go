@@ -46,9 +46,19 @@ func main() {
 		}
 	}
 
-	// Example 2: Error list format
-	// Shows how to use the error list for a flat error summary
-	fmt.Println("\n2. Error list format:")
+	// Example 2: Detailed errors (Recommended)
+	// Shows the new GetDetailedErrors method for better user experience
+	fmt.Println("\n2. Detailed errors (Recommended):")
+	detailedErrors := result.GetDetailedErrors()
+	if len(detailedErrors) > 0 {
+		for path, message := range detailedErrors {
+			fmt.Printf("   - %s: %s\n", path, message)
+		}
+	}
+
+	// Example 3: Error list format (Advanced)
+	// Shows how to use the error list for complete JSON Schema structure
+	fmt.Println("\n3. Error list format (Advanced):")
 	errorList := result.ToList()
 	if len(errorList.Errors) > 0 {
 		for field, message := range errorList.Errors {
@@ -56,9 +66,9 @@ func main() {
 		}
 	}
 
-	// Example 3: JSON parse error
+	// Example 4: JSON parse error
 	// Demonstrates error handling for invalid JSON input
-	fmt.Println("\n3. JSON parse error:")
+	fmt.Println("\n4. JSON parse error:")
 	invalidJSON := []byte(`{"name": "John", "age": 25,}`) // trailing comma is invalid
 	result = schema.Validate(invalidJSON)
 	if !result.IsValid() {
@@ -68,9 +78,9 @@ func main() {
 		}
 	}
 
-	// Example 4: Unmarshal error - type mismatch
+	// Example 5: Unmarshal error - type mismatch
 	// Shows what happens if the input data type does not match the struct field type
-	fmt.Println("\n4. Unmarshal error - type mismatch:")
+	fmt.Println("\n5. Unmarshal error - type mismatch:")
 	type User struct {
 		Name  string `json:"name"`
 		Age   int    `json:"age"`
@@ -95,9 +105,9 @@ func main() {
 		}
 	}
 
-	// Example 4b: Unmarshal error - destination is not a pointer
+	// Example 5b: Unmarshal error - destination is not a pointer
 	// Demonstrates that the destination must be a pointer
-	fmt.Println("\n4b. Unmarshal error - destination is not a pointer:")
+	fmt.Println("\n5b. Unmarshal error - destination is not a pointer:")
 	validData := map[string]any{
 		"name":  "John Doe",
 		"age":   25,
@@ -128,9 +138,9 @@ func main() {
 		}
 	}
 
-	// Example 5: Recommended workflow - validate before unmarshal
+	// Example 6: Recommended workflow - validate before unmarshal
 	// Shows the best practice: always validate before unmarshaling
-	fmt.Println("\n5. Recommended workflow:")
+	fmt.Println("\n6. Recommended workflow:")
 	result = schema.Validate(validData)
 	if result.IsValid() {
 		fmt.Println("   ✅ Validation passed")
@@ -148,9 +158,9 @@ func main() {
 		}
 	}
 
-	// Example 6: Detailed error information
+	// Example 7: Detailed error information
 	// Shows how to access detailed error metadata for debugging or reporting
-	fmt.Println("\n6. Detailed error information:")
+	fmt.Println("\n7. Detailed error information:")
 	detailedResult := schema.Validate(invalidData)
 	if !detailedResult.IsValid() {
 		fmt.Printf("   Total errors: %d\n", len(detailedResult.Errors))

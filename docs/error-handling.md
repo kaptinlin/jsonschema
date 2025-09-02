@@ -185,6 +185,179 @@ if err != nil {
 }
 ```
 
+### Enhanced Error Access Methods
+
+The library provides several methods to access validation errors at different levels of detail:
+
+#### `GetDetailedErrors()`
+
+Collects all detailed validation errors from the nested Details hierarchy. This is useful when you need access to specific validation failures that might be buried in nested structures.
+
+```go
+result := schema.Validate(data)
+if !result.IsValid() {
+    detailedErrors := result.GetDetailedErrors()
+    for path, message := range detailedErrors {
+        fmt.Printf("Field '%s': %s\n", path, message)
+    }
+}
+```
+
+
+#### Localized Version
+
+The method supports localization:
+
+```go
+i18n, _ := jsonschema.GetI18n()
+localizer := i18n.NewLocalizer("zh-Hans")
+
+result := schema.Validate(data)
+if !result.IsValid() {
+    // Get detailed errors with localization
+    detailedErrors := result.GetDetailedLocalizedErrors(localizer)
+}
+```
+
+### Choosing the Right Error Method
+
+This library provides a dual-track design to accommodate different usage patterns:
+
+#### For Most Common Use Cases (90% of users)
+- **`result.GetDetailedErrors()`** ⭐ **Recommended** - One line of code to get all specific validation errors with clear paths and messages
+  ```go
+  // Default English errors (clean, no nil required)
+  detailedErrors := result.GetDetailedErrors()
+  for path, msg := range detailedErrors {
+      fmt.Printf("%s: %s\n", path, msg)
+  }
+  
+  // Localized errors (consistent with existing pattern)
+  i18n, _ := jsonschema.GetI18n()
+  localizer := i18n.NewLocalizer("zh-Hans")
+  localizedErrors := result.GetDetailedErrors(localizer)
+  ```
+
+#### For Advanced Use Cases
+- **`result.Errors`** - Top-level JSON Schema keyword errors (limited detail, but fast)
+- **`result.ToList()`** - Complete JSON Schema 2020-12 compliant hierarchical structure
+- **`result.ToList(false)`** - Flattened structure but still requires array traversal
+
+#### Why GetDetailedErrors is Recommended
+
+**Problem with result.Errors:**
+```go
+// Only shows generic messages like:
+// "properties: Property 'jobs' does not match the schema"
+// User doesn't know WHY jobs failed validation
+```
+
+**Solution with GetDetailedErrors:**
+```go
+// Shows specific problems like:
+// "/jobs/test/required: Required property 'runs-on' is missing"
+// "/jobs/test/runs-on/type: Value is null but should be array"
+```
+
+**Code Complexity Comparison:**
+- `result.GetDetailedErrors()`: **1 line of code** ✅ (clean, no nil needed)
+- `result.ToList() + recursive traversal`: **20-30 lines of code** ❌
+
+### Complete Usage Examples
+
+#### Basic Error Handling (Recommended)
+```go
+func validateData(schema *jsonschema.Schema, data []byte) error {
+    result := schema.ValidateJSON(data)
+    if !result.IsValid() {
+        // Get all detailed errors in one line
+        detailedErrors := result.GetDetailedErrors()
+        
+        var messages []string
+        for path, msg := range detailedErrors {
+            messages = append(messages, fmt.Sprintf("%s: %s", path, msg))
+        }
+        return fmt.Errorf("validation failed:\n  %s", strings.Join(messages, "\n  "))
+    }
+    return nil
+}
+```
+
+#### Advanced Error Analysis
+```go
+func analyzeValidationErrors(result *jsonschema.EvaluationResult) {
+    if result.IsValid() {
+        return
+    }
+    
+    // For quick overview - check top-level errors
+    fmt.Println("Top-level errors:")
+    for path, err := range result.Errors {
+        fmt.Printf("  %s: %s (%s)\n", path, err.Message, err.Keyword)
+    }
+    
+    // For detailed analysis - get all specific errors
+    fmt.Println("\nDetailed errors:")
+    detailedErrors := result.GetDetailedErrors()
+    
+    // Group by error type
+    requiredErrors := []string{}
+    typeErrors := []string{}
+    formatErrors := []string{}
+    otherErrors := []string{}
+    
+    for path, msg := range detailedErrors {
+        switch {
+        case strings.Contains(msg, "Required") || strings.Contains(msg, "missing"):
+            requiredErrors = append(requiredErrors, fmt.Sprintf("%s: %s", path, msg))
+        case strings.Contains(msg, "should be") || strings.Contains(msg, "must be"):
+            typeErrors = append(typeErrors, fmt.Sprintf("%s: %s", path, msg))
+        case strings.Contains(msg, "format") || strings.Contains(msg, "pattern"):
+            formatErrors = append(formatErrors, fmt.Sprintf("%s: %s", path, msg))
+        default:
+            otherErrors = append(otherErrors, fmt.Sprintf("%s: %s", path, msg))
+        }
+    }
+    
+    if len(requiredErrors) > 0 {
+        fmt.Println("  Missing required properties:")
+        for _, err := range requiredErrors {
+            fmt.Printf("    %s\n", err)
+        }
+    }
+    
+    if len(typeErrors) > 0 {
+        fmt.Println("  Type errors:")
+        for _, err := range typeErrors {
+            fmt.Printf("    %s\n", err)
+        }
+    }
+    
+    if len(formatErrors) > 0 {
+        fmt.Println("  Format errors:")
+        for _, err := range formatErrors {
+            fmt.Printf("    %s\n", err)
+        }
+    }
+    
+    if len(otherErrors) > 0 {
+        fmt.Println("  Other errors:")
+        for _, err := range otherErrors {
+            fmt.Printf("    %s\n", err)
+        }
+    }
+}
+```
+
+#### When to Use Each Method
+
+| Method | Use When | Code Complexity | Information Level |
+|--------|----------|-----------------|-------------------|
+| `result.GetDetailedErrors()` | **Daily development** | 1 line | ⭐ Complete & specific |
+| `result.Errors` | Quick validity check | 1 line | ❌ Generic messages |
+| `result.ToList()` | Advanced analysis tools | 20-30 lines | ✅ JSON Schema compliant |
+| `result.ToList(false)` | Custom error processors | 5-10 lines | ✅ Flattened structure |
+
 ### Custom Error Messages
 
 ```go

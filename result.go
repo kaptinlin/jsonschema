@@ -246,3 +246,46 @@ func (e *EvaluationResult) convertErrors(localizer *i18n.Localizer) map[string]s
 	}
 	return errors
 }
+
+// GetDetailedErrors collects all detailed validation errors from the nested Details hierarchy.
+// This method helps users access specific validation failures that might be buried in nested structures.
+// Returns a map where keys are field paths and values are the most specific error messages.
+// For localized messages, pass a localizer; for default English messages, call without arguments.
+func (e *EvaluationResult) GetDetailedErrors(localizer ...*i18n.Localizer) map[string]string {
+	var loc *i18n.Localizer
+	if len(localizer) > 0 {
+		loc = localizer[0]
+	}
+
+	detailedErrors := make(map[string]string)
+	e.collectDetailedErrors(detailedErrors, loc, "")
+	return detailedErrors
+}
+
+// collectDetailedErrors recursively traverses the Details hierarchy to collect leaf-level errors.
+// This is a private helper method that implements the core logic for detailed error collection.
+func (e *EvaluationResult) collectDetailedErrors(collector map[string]string, localizer *i18n.Localizer, basePath string) {
+	// Collect errors from current level
+	if len(e.Errors) > 0 {
+		currentPath := basePath + e.InstanceLocation
+		for key, err := range e.Errors {
+			fieldPath := currentPath
+			if fieldPath != "" && key != "" {
+				fieldPath = fieldPath + "/" + key
+			} else if key != "" {
+				fieldPath = key
+			}
+
+			if localizer != nil {
+				collector[fieldPath] = err.Localize(localizer)
+			} else {
+				collector[fieldPath] = err.Error()
+			}
+		}
+	}
+
+	// Recursively collect from Details
+	for _, detail := range e.Details {
+		detail.collectDetailedErrors(collector, localizer, basePath+e.InstanceLocation)
+	}
+}

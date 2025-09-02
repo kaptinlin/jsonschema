@@ -26,7 +26,10 @@ Custom format validation using registered functions.
 Comprehensive error handling patterns and validation failure management.
 
 ### 🌍 [Internationalization](./i18n/)
-Multilingual error messages using Chinese (zh-Hans) and English locales.
+Multilingual error messages using Chinese (zh-Hans) and English locales with ToLocalizeList.
+
+### 🌐 [Multilingual Errors](./multilingual-errors/)
+Advanced multilingual error handling with GetDetailedErrors method supporting 9 languages.
 
 ### 🏗️ [Constructor](./constructor/)
 Schema creation using fluent constructor API with keywords and validation.
