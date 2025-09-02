@@ -382,8 +382,12 @@ func (s *Schema) setAnchor(anchor string) {
 		root.anchors = make(map[string]*Schema)
 	}
 
-	if _, ok := root.anchors[anchor]; !ok {
-		root.anchors[anchor] = s
+	// Only set anchor at root level if it's in the same scope as root
+	// If this schema has its own $id that's different from root, it's in a different scope
+	if s.ID == "" || s.ID == root.ID {
+		if _, ok := root.anchors[anchor]; !ok {
+			root.anchors[anchor] = s
+		}
 	}
 }
 
