@@ -46,8 +46,8 @@ func (e *StructTagError) Unwrap() error {
 	return e.Cause
 }
 
-// Import jschemagen components for reuse
-// Note: Since jschemagen is in cmd/jschemagen and we're in the main package,
+// Import schemagen components for reuse
+// Note: Since schemagen is in cmd/schemagen and we're in the main package,
 // we'll reimplement the required components adapted for runtime use
 
 // StructTagOptions holds configuration for struct tag schema generation
@@ -101,13 +101,13 @@ func DefaultStructTagOptions() *StructTagOptions {
 	}
 }
 
-// structTagGenerator handles runtime struct tag schema generation with reused jschemagen logic
+// structTagGenerator handles runtime struct tag schema generation with reused schemagen logic
 type structTagGenerator struct {
 	options      *StructTagOptions
 	tagParser    *tagparser.TagParser // Use the real tagparser
 	typeMapping  map[string]func(...Keyword) *Schema
 	validatorMap map[string]validatorFunc
-	// Dependency tracking (simplified from jschemagen ReferenceAnalyzer)
+	// Dependency tracking (simplified from schemagen ReferenceAnalyzer)
 	visited       map[reflect.Type]int    // 0=unvisited, 1=visiting, 2=completed
 	definitions   map[string]*Schema      // $defs storage
 	generatedRefs map[reflect.Type]string // track generated $refs
@@ -180,7 +180,7 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 	// Create generator for this call (allows different options per call)
 	generator := newStructTagGenerator(options)
 
-	// Generate schema using reused jschemagen logic
+	// Generate schema using reused schemagen logic
 	schema, err := generator.generateSchemaWithDependencyAnalysis(structType)
 	if err != nil {
 		// Create a detailed error with context
@@ -245,7 +245,7 @@ func GetCacheStats() map[string]int {
 	return stats
 }
 
-// generateSchemaWithDependencyAnalysis generates schema using jschemagen-style dependency analysis
+// generateSchemaWithDependencyAnalysis generates schema using schemagen-style dependency analysis
 func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType reflect.Type) (*Schema, error) {
 	// Handle pointers
 	for structType.Kind() == reflect.Ptr {
@@ -257,7 +257,7 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 		return nil, ErrExpectedStructType
 	}
 
-	// Check current visiting state using jschemagen-style three-state tracking
+	// Check current visiting state using schemagen-style three-state tracking
 	state := g.visited[structType]
 	switch state {
 	case 1: // Currently visiting - circular reference detected
@@ -279,7 +279,7 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 	// Always create a placeholder in definitions to ensure we can reference it
 	g.definitions[refName] = &Schema{Type: SchemaType{"object"}}
 
-	// Parse struct fields using reflection (adapted from jschemagen analyzer logic)
+	// Parse struct fields using reflection (adapted from schemagen analyzer logic)
 	var properties []Property
 	var required []string
 
@@ -296,7 +296,7 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 			continue
 		}
 
-		// Generate schema for this field using reused jschemagen logic
+		// Generate schema for this field using reused schemagen logic
 		fieldSchema, err := g.generateFieldSchemaWithValidators(fieldInfo.Type, fieldInfo.Rules)
 		if err != nil {
 			continue // Skip fields with errors for now
@@ -343,7 +343,7 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 	return schema, nil
 }
 
-// generateFieldSchemaWithValidators generates schema for a field using reused jschemagen validator logic
+// generateFieldSchemaWithValidators generates schema for a field using reused schemagen validator logic
 func (g *structTagGenerator) generateFieldSchemaWithValidators(fieldType reflect.Type, rules []tagparser.TagRule) (*Schema, error) {
 	// Handle pointer types - make nullable
 	var isNullable bool
@@ -352,7 +352,7 @@ func (g *structTagGenerator) generateFieldSchemaWithValidators(fieldType reflect
 		fieldType = fieldType.Elem()
 	}
 
-	// Get base schema from type using reused jschemagen type mapping
+	// Get base schema from type using reused schemagen type mapping
 	baseSchema, err := g.getSchemaFromTypeWithMapping(fieldType)
 	if err != nil {
 		return nil, err
@@ -408,7 +408,7 @@ func (g *structTagGenerator) generateFieldSchemaWithValidators(fieldType reflect
 	return baseSchema, nil
 }
 
-// getSchemaFromTypeWithMapping converts Go types to JSON Schema using reused jschemagen logic
+// getSchemaFromTypeWithMapping converts Go types to JSON Schema using reused schemagen logic
 func (g *structTagGenerator) getSchemaFromTypeWithMapping(fieldType reflect.Type) (*Schema, error) {
 	kind := fieldType.Kind()
 
@@ -518,7 +518,7 @@ func (g *structTagGenerator) handleStructType(fieldType reflect.Type) (*Schema, 
 	}
 }
 
-// applyValidationRules converts tagparser rules to Schema keywords using reused jschemagen logic
+// applyValidationRules converts tagparser rules to Schema keywords using reused schemagen logic
 func (g *structTagGenerator) applyValidationRules(rules []tagparser.TagRule, fieldType reflect.Type) []Keyword {
 	var keywords []Keyword
 
@@ -680,7 +680,7 @@ func isCustomStructType(typeName string) bool {
 	return false
 }
 
-// createRuntimeTypeMapping creates the mapping from Go types to Schema constructors (reused from jschemagen)
+// createRuntimeTypeMapping creates the mapping from Go types to Schema constructors (reused from schemagen)
 func createRuntimeTypeMapping() map[string]func(...Keyword) *Schema {
 	return map[string]func(...Keyword) *Schema{
 		"string":    String,
@@ -701,7 +701,7 @@ func createRuntimeTypeMapping() map[string]func(...Keyword) *Schema {
 	}
 }
 
-// createRuntimeValidatorMapping creates the mapping from validator names to runtime functions (reused from jschemagen)
+// createRuntimeValidatorMapping creates the mapping from validator names to runtime functions (reused from schemagen)
 func createRuntimeValidatorMapping() map[string]validatorFunc {
 	return map[string]validatorFunc{
 		// String validators
@@ -1104,7 +1104,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			return nil
 		},
 
-		// TODO: Add more complex validators from jschemagen as needed
+		// TODO: Add more complex validators from schemagen as needed
 		// (prefixItems, patternProperties, dependentRequired, dependentSchemas, if/then/else, etc.)
 
 		// Array advanced validators - prefixItems

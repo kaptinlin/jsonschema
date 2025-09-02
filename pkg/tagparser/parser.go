@@ -1,4 +1,4 @@
-// Package tagparser provides shared tag parsing functionality for jschemagen.
+// Package tagparser provides shared tag parsing functionality for schemagen.
 // This module analyzes Go struct tags and extracts jsonschema validation rules,
 // supporting the complete JSON Schema 2020-12 specification.
 package tagparser

@@ -15,9 +15,9 @@ This is a high-performance JSON Schema validator for Go that implements the JSON
 - **Unmarshaler** (`unmarshal.go`): Handles data unmarshaling with default value application
 
 ### Code Generation Tool
-- **jschemagen** (`cmd/jschemagen/`): Command-line tool for generating Schema methods from Go structs with jsonschema tags
-- **Generator** (`cmd/jschemagen/generator.go`): Core generation logic
-- **Analyzer** (`cmd/jschemagen/analyzer.go`): Struct analysis and tag parsing
+- **schemagen** (`cmd/schemagen/`): Command-line tool for generating Schema methods from Go structs with jsonschema tags
+- **Generator** (`cmd/schemagen/generator.go`): Core generation logic
+- **Analyzer** (`cmd/schemagen/analyzer.go`): Struct analysis and tag parsing
 
 ### Validation Keywords
 Individual files implement JSON Schema validation keywords (e.g., `properties.go`, `required.go`, `type.go`, `format.go`, etc.)
@@ -48,9 +48,9 @@ Individual files implement JSON Schema validation keywords (e.g., `properties.go
 - `make deps` - Download and tidy Go module dependencies
 
 ### Code Generation
-- `go install github.com/kaptinlin/jsonschema/cmd/jschemagen@latest` - Install jschemagen tool
-- `jschemagen` - Generate schema methods for structs in current package
-- `jschemagen [packages...]` - Generate for specific packages
+- `go install github.com/kaptinlin/jsonschema/cmd/schemagen@latest` - Install schemagen tool
+- `schemagen` - Generate schema methods for structs in current package
+- `schemagen [packages...]` - Generate for specific packages
 
 ## Testing Structure
 
@@ -100,11 +100,11 @@ make verify
 
 Generate schemas from struct tags:
 ```bash
-jschemagen
+schemagen
 ```
 
 Run specific test suites:
 ```bash
 go test ./tests/ -v
-go test ./cmd/jschemagen/ -v
+go test ./cmd/schemagen/ -v
 ```

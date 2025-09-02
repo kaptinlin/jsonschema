@@ -189,17 +189,17 @@ result := schema.Validate(userData)
 
 ### Code Generation Tool
 
-For optimal performance, use the `jschemagen` command-line tool to generate compiled schemas:
+For optimal performance, use the `schemagen` command-line tool to generate compiled schemas:
 
 ```bash
 # Install the generator
-go install github.com/kaptinlin/jsonschema/cmd/jschemagen@latest
+go install github.com/kaptinlin/jsonschema/cmd/schemagen@latest
 
 # Generate schemas for current package
-jschemagen
+schemagen
 
 # Add to your struct files for automatic generation
-//go:generate jschemagen
+//go:generate schemagen
 ```
 
 ### Try It Out
@@ -208,10 +208,10 @@ Explore example implementations and practice with the tool:
 
 ```bash
 # Navigate to example directory
-cd cmd/jschemagen/exampledata
+cd cmd/schemagen/exampledata
 
-# Run jschemagen on the examples
-jschemagen
+# Run schemagen on the examples
+schemagen
 
 # View generated schema files
 ls -la *_schema.go

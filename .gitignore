@@ -34,8 +34,8 @@ bin/
 build/
 
 # Generated binaries (exclude binary but keep source directory)
-/jschemagen
-cmd/jschemagen/jshcemagen
+/schemagen
+cmd/schemagen/jshcemagen
 
 # Mac OS files
 **/.DS_Store

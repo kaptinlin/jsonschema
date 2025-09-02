@@ -1,4 +1,4 @@
-//go:generate jschemagen
+//go:generate schemagen
 package testdata
 
 import "time"

@@ -1,10 +1,10 @@
-// Package main implements the jschemagen code generation tool.
+// Package main implements the schemagen code generation tool.
 // This tool generates Schema methods for Go structs with jsonschema tags,
 // enabling easy JSON Schema generation from Go struct definitions.
 //
 // Usage:
 //
-//	jschemagen [flags] [packages...]
+//	schemagen [flags] [packages...]
 //
 // Flags:
 //
@@ -47,7 +47,7 @@ func main() {
 	}
 
 	if *verbose {
-		log.Printf("🚀 Starting jschemagen code generation")
+		log.Printf("🚀 Starting schemagen code generation")
 		log.Printf("📦 Target packages: %v", packages)
 		log.Printf("📝 Output suffix: %s", *outputSuffix)
 		if *packageName != "" {
@@ -106,36 +106,36 @@ func main() {
 
 // showHelp displays the help message
 func showHelp() {
-	fmt.Println(`jschemagen - JSON Schema Code Generation Tool
+	fmt.Println(`schemagen - JSON Schema Code Generation Tool
 
 Generates Schema methods for Go structs with jsonschema tags,
 enabling easy JSON Schema generation from Go struct definitions.
 
 USAGE:
-    jschemagen [flags] [packages...]
+    schemagen [flags] [packages...]
 
 FLAGS:`)
 	flag.PrintDefaults()
 	fmt.Println(`
 EXAMPLES:
     # Generate for current package
-    jschemagen
+    schemagen
 
     # Generate for specific packages
-    jschemagen ./models ./api
+    schemagen ./models ./api
 
     # Dry run to preview generated code
-    jschemagen -dry-run -verbose
+    schemagen -dry-run -verbose
 
     # Use custom output suffix
-    jschemagen -suffix="_jsonschema.go"
+    schemagen -suffix="_jsonschema.go"
 
 DIRECTIVES:
-    Add //go:generate jschemagen to your Go files to enable automatic
+    Add //go:generate schemagen to your Go files to enable automatic
     code generation when running 'go generate'.
 
     Example:
-        //go:generate jschemagen
+        //go:generate schemagen
         type User struct {
             Name string ` + "`jsonschema:\"required,minLength=2\"`" + `
         }

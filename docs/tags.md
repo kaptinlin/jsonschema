@@ -340,19 +340,19 @@ type Playlist struct {
 
 ---
 
-## ⚡ Code Generation with jschemagen
+## ⚡ Code Generation with schemagen
 
 ### Installation and Setup
 
 ```bash
 # Install the code generator
-go install github.com/kaptinlin/jsonschema/cmd/jschemagen@latest
+go install github.com/kaptinlin/jsonschema/cmd/schemagen@latest
 ```
 
 ### Basic Usage
 
 ```go
-//go:generate jschemagen
+//go:generate schemagen
 
 type User struct {
     Name  string `jsonschema:"required,minLength=2"`
@@ -374,19 +374,19 @@ func main() {
 
 ```bash
 # Generate for current package
-jschemagen
+schemagen
 
 # Generate for specific packages
-jschemagen ./models ./api
+schemagen ./models ./api
 
 # Dry run to preview generated code
-jschemagen -dry-run -verbose
+schemagen -dry-run -verbose
 
 # Use custom output suffix
-jschemagen -suffix="_jsonschema.go"
+schemagen -suffix="_jsonschema.go"
 
 # Force regeneration of all files
-jschemagen -force
+schemagen -force
 ```
 
 ### Generated Code Benefits
