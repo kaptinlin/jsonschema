@@ -479,8 +479,14 @@ func (g *structTagGenerator) handleArrayType(fieldType reflect.Type) (*Schema, e
 		return Array(Items(elemSchema)), nil
 	}
 
-	// For non-struct elements, just return basic array schema
-	return Array(), nil
+	// For non-struct elements, generate appropriate type schema to ensure array elements have correct type constraints
+	elemSchema, err := g.getSchemaFromTypeWithMapping(elemType)
+	if err != nil {
+		// If unable to generate element schema, fallback to basic array
+		return Array(), err
+	}
+	// Create array schema with type constraints
+	return Array(Items(elemSchema)), nil
 }
 
 // handleStructType handles struct types with circular reference detection and deduplication

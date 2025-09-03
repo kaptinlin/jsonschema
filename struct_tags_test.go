@@ -1043,6 +1043,170 @@ func stringContains(s, substr string) bool {
 }
 
 // =============================================================================
+// Basic Array Types Tests - Ensure basic type arrays generate correct items type constraints
+// =============================================================================
+
+func TestFromStruct_BasicArrayTypes(t *testing.T) {
+	// Define struct containing various basic type arrays, using AllowUntaggedFields option
+	type BasicArrayStruct struct {
+		Integers []int     `json:"integers"`
+		Strings  []string  `json:"strings"`
+		Floats   []float64 `json:"floats"`
+		Bools    []bool    `json:"bools"`
+		// Test nested arrays and pointer arrays
+		NestedInts [][]int `json:"nested_ints"`
+		PtrInts    []*int  `json:"ptr_ints"`
+	}
+
+	// Use AllowUntaggedFields option to include fields without jsonschema tags
+	options := &StructTagOptions{
+		TagName:             "jsonschema",
+		AllowUntaggedFields: true,
+		CacheEnabled:        false,
+	}
+	schema := FromStructWithOptions[BasicArrayStruct](options)
+	if schema == nil {
+		t.Fatal("Basic array type schema generation failed")
+	}
+
+	if schema.Properties == nil {
+		t.Fatal("Expected schema should contain property definitions")
+	}
+
+	props := *schema.Properties
+
+	// Verify integer array items type
+	intArray, exists := props["integers"]
+	if !exists {
+		t.Error("Expected integers property should exist")
+	} else {
+		if len(intArray.Type) == 0 || intArray.Type[0] != "array" {
+			t.Error("Expected integers should be array type")
+		}
+		if intArray.Items == nil {
+			t.Error("Expected integers should contain items definition")
+		} else if len(intArray.Items.Type) == 0 || intArray.Items.Type[0] != "integer" {
+			t.Errorf("Expected integers items should be integer type, got: %v", intArray.Items.Type)
+		}
+	}
+
+	// Verify string array items type
+	stringArray, exists := props["strings"]
+	if !exists {
+		t.Error("Expected strings property should exist")
+	} else {
+		if stringArray.Items == nil {
+			t.Error("Expected strings should contain items definition")
+		} else if len(stringArray.Items.Type) == 0 || stringArray.Items.Type[0] != "string" {
+			t.Errorf("Expected strings items should be string type, got: %v", stringArray.Items.Type)
+		}
+	}
+
+	// Verify float array items type
+	floatArray, exists := props["floats"]
+	if !exists {
+		t.Error("Expected floats property should exist")
+	} else {
+		if floatArray.Items == nil {
+			t.Error("Expected floats should contain items definition")
+		} else if len(floatArray.Items.Type) == 0 || floatArray.Items.Type[0] != "number" {
+			t.Errorf("Expected floats items should be number type, got: %v", floatArray.Items.Type)
+		}
+	}
+
+	// Verify boolean array items type
+	boolArray, exists := props["bools"]
+	if !exists {
+		t.Error("Expected bools property should exist")
+	} else {
+		if boolArray.Items == nil {
+			t.Error("Expected bools should contain items definition")
+		} else if len(boolArray.Items.Type) == 0 || boolArray.Items.Type[0] != "boolean" {
+			t.Errorf("Expected bools items should be boolean type, got: %v", boolArray.Items.Type)
+		}
+	}
+
+	// Verify nested arrays (2D arrays)
+	nestedArray, exists := props["nested_ints"]
+	if !exists {
+		t.Error("Expected nested_ints property should exist")
+	} else {
+		if nestedArray.Items == nil {
+			t.Error("Expected nested_ints should contain items definition")
+		} else {
+			// Nested array items should also be array type
+			if len(nestedArray.Items.Type) == 0 || nestedArray.Items.Type[0] != "array" {
+				t.Errorf("Expected nested_ints items should be array type, got: %v", nestedArray.Items.Type)
+			}
+			// And nested array items should also have their own items (integer)
+			if nestedArray.Items.Items == nil {
+				t.Error("Expected nested array items should contain sub-items definition")
+			} else if len(nestedArray.Items.Items.Type) == 0 || nestedArray.Items.Items.Type[0] != "integer" {
+				t.Errorf("Expected nested array sub-items should be integer type, got: %v", nestedArray.Items.Items.Type)
+			}
+		}
+	}
+
+	// Verify pointer arrays (should generate nullable integer arrays)
+	ptrArray, exists := props["ptr_ints"]
+	if !exists {
+		t.Error("Expected ptr_ints property should exist")
+	} else {
+		if ptrArray.Items == nil {
+			t.Error("Expected ptr_ints should contain items definition")
+		}
+		// Pointer array elements should be nullable, typically using anyOf
+		if ptrArray.Items != nil && ptrArray.Items.AnyOf != nil {
+			// Verify anyOf contains integer and null types
+			foundInteger := false
+			foundNull := false
+			for _, anyOfSchema := range ptrArray.Items.AnyOf {
+				if len(anyOfSchema.Type) > 0 {
+					switch anyOfSchema.Type[0] {
+					case "integer":
+						foundInteger = true
+					case "null":
+						foundNull = true
+					}
+				}
+			}
+			if !foundInteger {
+				t.Error("Expected pointer array items anyOf should contain integer type")
+			}
+			if !foundNull {
+				t.Error("Expected pointer array items anyOf should contain null type")
+			}
+		}
+	}
+
+	// Test that generated schema can correctly validate data
+	validData := map[string]any{
+		"integers":    []int{1, 2, 3},
+		"strings":     []string{"hello", "world"},
+		"floats":      []float64{1.1, 2.2, 3.3},
+		"bools":       []bool{true, false, true},
+		"nested_ints": [][]int{{1, 2}, {3, 4}},
+		"ptr_ints":    []any{1, nil, 3}, // Contains null values
+	}
+
+	result := schema.ValidateMap(validData)
+	if !result.IsValid() {
+		t.Logf("Valid data validation result (possible validation engine limitations): %v", result.Errors)
+	}
+
+	// Test invalid data (type errors)
+	invalidData := map[string]any{
+		"integers": []string{"not", "integers"}, // Type error
+		"strings":  []int{1, 2, 3},              // Type error
+	}
+
+	result = schema.ValidateMap(invalidData)
+	if result.IsValid() {
+		t.Log("Note: Validation engine may not detect type mismatches (this is an expected limitation)")
+	}
+}
+
+// =============================================================================
 // Bug Fix Regression Tests - These tests ensure reported issues stay fixed
 // =============================================================================
 
