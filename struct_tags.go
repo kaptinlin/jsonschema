@@ -183,14 +183,8 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 	// Generate schema using reused schemagen logic
 	schema, err := generator.generateSchemaWithDependencyAnalysis(structType)
 	if err != nil {
-		// Create a detailed error with context
-		structTagErr := &StructTagError{
-			Message: "failed to generate schema",
-		}
-
 		// For now, return a basic schema but log the error
 		// In a production environment, you might want to return the error instead
-		_ = structTagErr // TODO: Consider how to expose errors to users
 		schema = &Schema{Type: SchemaType{"object"}}
 	}
 
@@ -291,8 +285,8 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 	}
 
 	for _, fieldInfo := range fieldInfos {
-		// Skip fields without tags unless explicitly allowed
-		if !g.options.AllowUntaggedFields && fieldInfo.Tag == "" {
+		// Skip fields without tags unless explicitly allowed or promoted from embedding
+		if !g.options.AllowUntaggedFields && fieldInfo.Tag == "" && !fieldInfo.IsPromoted {
 			continue
 		}
 

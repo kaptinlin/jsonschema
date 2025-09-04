@@ -706,3 +706,363 @@ func findField(fields []FieldInfo, name string) *FieldInfo {
 	}
 	return nil
 }
+
+// Test types for embedded struct testing
+type BaseStruct struct {
+	ID   string `json:"id" jsonschema:"required"`
+	Name string `json:"name" jsonschema:"required"`
+}
+
+type ContactInfo struct {
+	Email string `json:"email" jsonschema:"format=email"`
+	Phone string `json:"phone,omitempty"`
+}
+
+type Address struct {
+	Street string `json:"street"`
+	City   string `json:"city"`
+}
+
+type ExtendedContact struct {
+	ContactInfo
+	Address
+}
+
+type User struct {
+	BaseStruct
+	ContactInfo
+	Department string `json:"department" jsonschema:"required"`
+}
+
+type ConflictTest struct {
+	BaseStruct
+	ContactInfo
+	Name string `json:"name" jsonschema:"minLength=5"` // Conflicts with BaseStruct.Name
+}
+
+type DeepNesting struct {
+	User
+	Additional string `json:"additional"`
+}
+
+// Circular reference test structures
+type NodeA struct {
+	ID    string `json:"id"`
+	NodeB *NodeB `json:"nodeB,omitempty"`
+}
+
+type NodeB struct {
+	ID    string `json:"id"`
+	NodeA *NodeA `json:"nodeA,omitempty"`
+}
+
+type CircularEmbed struct {
+	NodeA
+	Extra string `json:"extra"`
+}
+
+func TestTagParser_ParseStructTags_EmbeddedStructs(t *testing.T) {
+	parser := New()
+
+	tests := []struct {
+		name     string
+		input    reflect.Type
+		expected []struct {
+			fieldName      string
+			jsonName       string
+			embeddingDepth int
+			isPromoted     bool
+			required       bool
+		}
+	}{
+		{
+			name:  "basic embedded struct",
+			input: reflect.TypeOf(User{}),
+			expected: []struct {
+				fieldName      string
+				jsonName       string
+				embeddingDepth int
+				isPromoted     bool
+				required       bool
+			}{
+				{"ID", "id", 1, true, true},
+				{"Name", "name", 1, true, true},
+				{"Email", "email", 1, true, false},
+				{"Phone", "phone", 1, true, false},
+				{"Department", "department", 0, false, true},
+			},
+		},
+		{
+			name:  "multiple embedded structs",
+			input: reflect.TypeOf(ExtendedContact{}),
+			expected: []struct {
+				fieldName      string
+				jsonName       string
+				embeddingDepth int
+				isPromoted     bool
+				required       bool
+			}{
+				{"Email", "email", 1, true, false},
+				{"Phone", "phone", 1, true, false},
+				{"Street", "street", 1, true, false},
+				{"City", "city", 1, true, false},
+			},
+		},
+		{
+			name:  "field conflict resolution",
+			input: reflect.TypeOf(ConflictTest{}),
+			expected: []struct {
+				fieldName      string
+				jsonName       string
+				embeddingDepth int
+				isPromoted     bool
+				required       bool
+			}{
+				{"ID", "id", 1, true, true},
+				{"Email", "email", 1, true, false},
+				{"Phone", "phone", 1, true, false},
+				{"Name", "name", 0, false, false}, // Direct field wins over embedded
+			},
+		},
+		{
+			name:  "deep nested embedding",
+			input: reflect.TypeOf(DeepNesting{}),
+			expected: []struct {
+				fieldName      string
+				jsonName       string
+				embeddingDepth int
+				isPromoted     bool
+				required       bool
+			}{
+				{"ID", "id", 2, true, true},                   // From BaseStruct via User
+				{"Name", "name", 2, true, true},               // From BaseStruct via User
+				{"Email", "email", 2, true, false},            // From ContactInfo via User
+				{"Phone", "phone", 2, true, false},            // From ContactInfo via User
+				{"Department", "department", 1, true, true},   // From User
+				{"Additional", "additional", 0, false, false}, // Direct field
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fields, err := parser.ParseStructTags(tt.input)
+			if err != nil {
+				t.Fatalf("ParseStructTags() error = %v", err)
+			}
+
+			if len(fields) != len(tt.expected) {
+				t.Fatalf("Expected %d fields, got %d", len(tt.expected), len(fields))
+			}
+
+			// Create a map for easier lookup
+			fieldMap := make(map[string]FieldInfo)
+			for _, field := range fields {
+				fieldMap[field.JSONName] = field
+			}
+
+			for _, expected := range tt.expected {
+				field, found := fieldMap[expected.jsonName]
+				if !found {
+					t.Errorf("Expected field %s not found", expected.jsonName)
+					continue
+				}
+
+				if field.Name != expected.fieldName {
+					t.Errorf("Field %s: expected name %s, got %s", expected.jsonName, expected.fieldName, field.Name)
+				}
+
+				if field.EmbeddingDepth != expected.embeddingDepth {
+					t.Errorf("Field %s: expected embedding depth %d, got %d", expected.jsonName, expected.embeddingDepth, field.EmbeddingDepth)
+				}
+
+				if field.IsPromoted != expected.isPromoted {
+					t.Errorf("Field %s: expected isPromoted %t, got %t", expected.jsonName, expected.isPromoted, field.IsPromoted)
+				}
+
+				if field.Required != expected.required {
+					t.Errorf("Field %s: expected required %t, got %t", expected.jsonName, expected.required, field.Required)
+				}
+			}
+		})
+	}
+}
+
+func TestTagParser_ParseStructTags_CircularReference(t *testing.T) {
+	parser := New()
+
+	// Test circular reference handling
+	fields, err := parser.ParseStructTags(reflect.TypeOf(CircularEmbed{}))
+	if err != nil {
+		t.Fatalf("ParseStructTags() should handle circular references gracefully, got error: %v", err)
+	}
+
+	// Should have at least the direct fields and some embedded fields
+	if len(fields) == 0 {
+		t.Error("Expected at least some fields to be parsed despite circular reference")
+	}
+
+	// Verify we have the direct field
+	extraFound := false
+	for _, field := range fields {
+		if field.JSONName == "extra" {
+			extraFound = true
+			if field.EmbeddingDepth != 0 {
+				t.Errorf("Direct field 'extra' should have embedding depth 0, got %d", field.EmbeddingDepth)
+			}
+			if field.IsPromoted {
+				t.Error("Direct field 'extra' should not be promoted")
+			}
+		}
+	}
+
+	if !extraFound {
+		t.Error("Expected to find direct field 'extra'")
+	}
+}
+
+func TestTagParser_ParseStructTags_PointerEmbedding(t *testing.T) {
+	parser := New()
+
+	type WithPointerEmbed struct {
+		*BaseStruct
+		Value int `json:"value"`
+	}
+
+	fields, err := parser.ParseStructTags(reflect.TypeOf(WithPointerEmbed{}))
+	if err != nil {
+		t.Fatalf("ParseStructTags() error = %v", err)
+	}
+
+	expectedFields := []string{"id", "name", "value"}
+	if len(fields) != len(expectedFields) {
+		t.Fatalf("Expected %d fields, got %d", len(expectedFields), len(fields))
+	}
+
+	fieldMap := make(map[string]FieldInfo)
+	for _, field := range fields {
+		fieldMap[field.JSONName] = field
+	}
+
+	// Check embedded fields from pointer
+	if field, ok := fieldMap["id"]; ok {
+		if field.EmbeddingDepth != 1 {
+			t.Errorf("Embedded field 'id' should have depth 1, got %d", field.EmbeddingDepth)
+		}
+		if !field.IsPromoted {
+			t.Error("Embedded field 'id' should be promoted")
+		}
+	} else {
+		t.Error("Expected embedded field 'id' not found")
+	}
+
+	// Check direct field
+	if field, ok := fieldMap["value"]; ok {
+		if field.EmbeddingDepth != 0 {
+			t.Errorf("Direct field 'value' should have depth 0, got %d", field.EmbeddingDepth)
+		}
+		if field.IsPromoted {
+			t.Error("Direct field 'value' should not be promoted")
+		}
+	} else {
+		t.Error("Expected direct field 'value' not found")
+	}
+}
+
+func TestTagParser_ParseStructTags_NonStructEmbedding(t *testing.T) {
+	parser := New()
+
+	type WithNonStructEmbed struct {
+		_     string // This should be ignored
+		Value int    `json:"value"`
+	}
+
+	fields, err := parser.ParseStructTags(reflect.TypeOf(WithNonStructEmbed{}))
+	if err != nil {
+		t.Fatalf("ParseStructTags() error = %v", err)
+	}
+
+	// Should only have the Value field, string embedding should be ignored
+	if len(fields) != 1 {
+		t.Fatalf("Expected 1 field, got %d", len(fields))
+	}
+
+	if fields[0].JSONName != "value" {
+		t.Errorf("Expected field 'value', got '%s'", fields[0].JSONName)
+	}
+}
+
+func TestTagParser_ParseStructTags_EmptyStruct(t *testing.T) {
+	parser := New()
+
+	type EmptyStruct struct{}
+
+	fields, err := parser.ParseStructTags(reflect.TypeOf(EmptyStruct{}))
+	if err != nil {
+		t.Fatalf("ParseStructTags() error = %v", err)
+	}
+
+	if len(fields) != 0 {
+		t.Fatalf("Expected 0 fields for empty struct, got %d", len(fields))
+	}
+}
+
+func TestTagParser_ParseStructTags_DepthLimit(t *testing.T) {
+	parser := New()
+
+	// Create deeply nested struct types using reflection
+	type Level1 struct {
+		Field1 string `json:"field1"`
+	}
+	type Level2 struct {
+		Level1
+		Field2 string `json:"field2"`
+	}
+	type Level3 struct {
+		Level2
+		Field3 string `json:"field3"`
+	}
+	type Level4 struct {
+		Level3
+		Field4 string `json:"field4"`
+	}
+	type Level5 struct {
+		Level4
+		Field5 string `json:"field5"`
+	}
+	type Level6 struct {
+		Level5
+		Field6 string `json:"field6"`
+	}
+	type Level7 struct {
+		Level6
+		Field7 string `json:"field7"`
+	}
+	type Level8 struct {
+		Level7
+		Field8 string `json:"field8"`
+	}
+	type Level9 struct {
+		Level8
+		Field9 string `json:"field9"`
+	}
+	type Level10 struct {
+		Level9
+		Field10 string `json:"field10"`
+	}
+	type Level11 struct {
+		Level10
+		Field11 string `json:"field11"`
+	}
+
+	// This should hit the depth limit but not crash
+	fields, err := parser.ParseStructTags(reflect.TypeOf(Level11{}))
+	if err != nil {
+		t.Fatalf("ParseStructTags() should handle deep nesting gracefully, got error: %v", err)
+	}
+
+	// Should have some fields but might not have all due to depth limit
+	if len(fields) == 0 {
+		t.Error("Expected at least some fields to be parsed despite deep nesting")
+	}
+}

@@ -239,6 +239,49 @@ func LoadConfig(path string) (*AppConfig, error) {
 
 ---
 
+## 🔄 Embedded Structs
+
+Go embedded structs (anonymous fields) are automatically flattened into the parent schema with proper field promotion:
+
+```go
+type BaseInfo struct {
+    ID   string `jsonschema:"required"`
+    Name string `jsonschema:"required"`
+}
+
+type ContactInfo struct {
+    Email string `jsonschema:"format=email"`
+    Phone string
+}
+
+type User struct {
+    BaseInfo    // Embedded: fields promoted to User level
+    ContactInfo // Embedded: fields promoted to User level  
+    Department string `jsonschema:"required"`
+}
+
+// Generated schema includes all fields at User level:
+// {
+//   "type": "object",
+//   "properties": {
+//     "id": {"type": "string"},           // From BaseInfo
+//     "name": {"type": "string"},         // From BaseInfo
+//     "email": {"type": "string", "format": "email"}, // From ContactInfo
+//     "phone": {"type": "string"},        // From ContactInfo
+//     "department": {"type": "string"}    // Direct field
+//   },
+//   "required": ["id", "name", "department"]
+// }
+```
+
+**Key Features:**
+- **Automatic flattening**: Embedded fields appear at parent level
+- **Field promotion**: Direct fields override embedded ones (Go semantics)
+- **Tag preservation**: Validation rules from embedded fields are maintained
+- **Circular protection**: Safe handling of recursive struct definitions
+
+---
+
 ## 🔄 Nested Structures
 
 ### Basic Nested Validation

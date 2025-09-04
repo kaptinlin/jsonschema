@@ -29,14 +29,16 @@ func NewWithTagName(tagName string) *TagParser {
 
 // FieldInfo represents parsed information about a struct field
 type FieldInfo struct {
-	Name     string       // Go field name
-	Type     reflect.Type // Go field type
-	TypeName string       // AST-based type name string for reference detection
-	JSONName string       // JSON field name (from json tag or field name)
-	Tag      string       // Raw jsonschema tag value
-	Rules    []TagRule    // Parsed validation rules
-	Required bool         // Whether field is required (has "required" rule)
-	Optional bool         // Whether field should be optional
+	Name           string       // Go field name
+	Type           reflect.Type // Go field type
+	TypeName       string       // AST-based type name string for reference detection
+	JSONName       string       // JSON field name (from json tag or field name)
+	Tag            string       // Raw jsonschema tag value
+	Rules          []TagRule    // Parsed validation rules
+	Required       bool         // Whether field is required (has "required" rule)
+	Optional       bool         // Whether field should be optional
+	EmbeddingDepth int          // Embedding depth (0 = direct field)
+	IsPromoted     bool         // Whether field is promoted from embedding
 }
 
 // TagRule represents a single validation rule parsed from a tag
@@ -47,17 +49,27 @@ type TagRule struct {
 
 // ParseStructTags parses all jsonschema tags in a struct type and returns field information
 func (p *TagParser) ParseStructTags(structType reflect.Type) ([]FieldInfo, error) {
-	var fields []FieldInfo
+	return p.parseFields(structType, make(map[string]int), 0)
+}
+
+// parseFields recursively parses struct fields with embedding support
+func (p *TagParser) parseFields(structType reflect.Type, seenTypes map[string]int, depth int) ([]FieldInfo, error) {
+	// Depth protection against circular references
+	if depth > 10 {
+		return nil, nil
+	}
 
 	// Handle pointer to struct
-	if structType.Kind() == reflect.Ptr {
+	for structType.Kind() == reflect.Ptr {
 		structType = structType.Elem()
 	}
 
 	// Ensure it's a struct
 	if structType.Kind() != reflect.Struct {
-		return nil, nil // Not a struct, no fields to parse
+		return nil, nil
 	}
+
+	var allFields []FieldInfo
 
 	// Iterate through all exported fields
 	for i := 0; i < structType.NumField(); i++ {
@@ -68,40 +80,128 @@ func (p *TagParser) ParseStructTags(structType reflect.Type) ([]FieldInfo, error
 			continue
 		}
 
-		// Skip fields with jsonschema:"-" tag
-		jsonschemaTag := field.Tag.Get(p.tagName)
-		if jsonschemaTag == "-" {
+		if field.Anonymous {
+			// Handle embedded struct
+			embeddedFields, err := p.parseEmbeddedField(field, seenTypes, depth)
+			if err != nil {
+				continue // Skip problematic embedded types gracefully
+			}
+			allFields = append(allFields, embeddedFields...)
+		} else {
+			// Handle regular field
+			fieldInfo := p.parseRegularField(field, depth)
+			if fieldInfo != nil {
+				allFields = append(allFields, *fieldInfo)
+			}
+		}
+	}
+
+	return p.resolveFieldConflicts(allFields), nil
+}
+
+// parseEmbeddedField processes embedded struct fields
+func (p *TagParser) parseEmbeddedField(field reflect.StructField, seenTypes map[string]int, depth int) ([]FieldInfo, error) {
+	fieldType := field.Type
+
+	// Handle pointer to struct
+	for fieldType.Kind() == reflect.Ptr {
+		fieldType = fieldType.Elem()
+	}
+
+	// Only process struct types
+	if fieldType.Kind() != reflect.Struct {
+		return nil, nil
+	}
+
+	// Circular reference protection
+	typeName := fieldType.String()
+	if prevDepth, seen := seenTypes[typeName]; seen && prevDepth <= depth {
+		return nil, nil // Skip circular reference
+	}
+
+	seenTypes[typeName] = depth
+	embeddedFields, err := p.parseFields(fieldType, seenTypes, depth+1)
+	delete(seenTypes, typeName) // Clean up for other branches
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Fields already have correct depth set by parseFields recursion
+	// Just ensure they're marked as promoted
+	for i := range embeddedFields {
+		embeddedFields[i].IsPromoted = true
+	}
+
+	return embeddedFields, nil
+}
+
+// parseRegularField processes regular (non-embedded) fields
+func (p *TagParser) parseRegularField(field reflect.StructField, depth int) *FieldInfo {
+	// Skip fields with jsonschema:"-" tag
+	jsonschemaTag := field.Tag.Get(p.tagName)
+	if jsonschemaTag == "-" {
+		return nil
+	}
+
+	// Parse field information
+	fieldInfo := FieldInfo{
+		Name:           field.Name,
+		Type:           field.Type,
+		TypeName:       getFieldTypeName(field.Type),
+		JSONName:       getJSONFieldName(field),
+		Tag:            jsonschemaTag,
+		EmbeddingDepth: depth,
+		IsPromoted:     depth > 0,
+	}
+
+	// Parse validation rules from tag
+	if jsonschemaTag != "" {
+		rules, err := p.ParseTagString(jsonschemaTag)
+		if err != nil {
+			return nil
+		}
+		fieldInfo.Rules = rules
+
+		// Check for special rules
+		fieldInfo.Required = hasRule(rules, "required")
+	}
+
+	// Determine if field should be optional
+	fieldInfo.Optional = shouldBeOptional(field, fieldInfo.Required)
+
+	return &fieldInfo
+}
+
+// resolveFieldConflicts applies Go's field promotion rules for conflict resolution
+func (p *TagParser) resolveFieldConflicts(fields []FieldInfo) []FieldInfo {
+	fieldMap := make(map[string][]FieldInfo)
+
+	// Group fields by JSON name
+	for _, field := range fields {
+		fieldMap[field.JSONName] = append(fieldMap[field.JSONName], field)
+	}
+
+	resolved := make([]FieldInfo, 0, len(fields))
+	for _, candidates := range fieldMap {
+		if len(candidates) == 1 {
+			resolved = append(resolved, candidates[0])
 			continue
 		}
 
-		// Parse field information
-		fieldInfo := FieldInfo{
-			Name:     field.Name,
-			Type:     field.Type,
-			TypeName: getFieldTypeName(field.Type),
-			JSONName: getJSONFieldName(field),
-			Tag:      jsonschemaTag,
-		}
-
-		// Parse validation rules from tag
-		if jsonschemaTag != "" {
-			rules, err := p.ParseTagString(jsonschemaTag)
-			if err != nil {
-				return nil, err
+		// Apply Go's field promotion rules:
+		// 1. Shallowest depth wins
+		// 2. Among same depth, first declared wins
+		winner := candidates[0]
+		for _, candidate := range candidates[1:] {
+			if candidate.EmbeddingDepth < winner.EmbeddingDepth {
+				winner = candidate
 			}
-			fieldInfo.Rules = rules
-
-			// Check for special rules
-			fieldInfo.Required = hasRule(rules, "required")
 		}
-
-		// Determine if field should be optional
-		fieldInfo.Optional = shouldBeOptional(field, fieldInfo.Required)
-
-		fields = append(fields, fieldInfo)
+		resolved = append(resolved, winner)
 	}
 
-	return fields, nil
+	return resolved
 }
 
 // ParseTagString parses a single tag string into validation rules
