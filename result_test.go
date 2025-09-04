@@ -427,3 +427,43 @@ func containsAny(s string, substrings []string) bool {
 	}
 	return false
 }
+
+// TestLogicalValidatorPaths verifies error paths for logical validators like oneOf
+func TestLogicalValidatorPaths(t *testing.T) {
+	schemaJSON := `{
+		"properties": {
+			"setting": {
+				"oneOf": [
+					{"type": "string"},
+					{"type": "number"}
+				]
+			}
+		}
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	assert.Nil(t, err)
+
+	// Test data that doesn't match either oneOf option
+	data := map[string]any{
+		"setting": []int{1, 2, 3}, // Array doesn't match string or number
+	}
+
+	result := schema.ValidateMap(data)
+	assert.False(t, result.IsValid())
+
+	errors := result.GetDetailedErrors()
+	assert.Greater(t, len(errors), 0)
+
+	// Verify oneOf error includes the property path
+	oneOfFound := false
+	for path, msg := range errors {
+		if path == "/setting/oneOf" {
+			oneOfFound = true
+			t.Logf("oneOf path: %s -> %s", path, msg)
+		}
+	}
+
+	assert.True(t, oneOfFound, "Expected oneOf error at '/setting/oneOf'")
+}

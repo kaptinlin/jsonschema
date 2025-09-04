@@ -25,8 +25,7 @@ func evaluateConditional(schema *Schema, instance any, evaluatedProps map[string
 	if ifResult != nil {
 		//nolint:errcheck
 		ifResult.SetEvaluationPath("/if").
-			SetSchemaLocation(schema.GetSchemaLocation("/if")).
-			SetInstanceLocation("")
+			SetSchemaLocation(schema.GetSchemaLocation("/if"))
 
 		results = append(results, ifResult)
 
@@ -41,8 +40,7 @@ func evaluateConditional(schema *Schema, instance any, evaluatedProps map[string
 				if thenResult != nil {
 					//nolint:errcheck
 					thenResult.SetEvaluationPath("/then").
-						SetSchemaLocation(schema.GetSchemaLocation("/then")).
-						SetInstanceLocation("")
+						SetSchemaLocation(schema.GetSchemaLocation("/then"))
 
 					results = append(results, thenResult)
 

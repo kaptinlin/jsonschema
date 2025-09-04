@@ -32,8 +32,7 @@ func evaluateAnyOf(schema *Schema, data any, evaluatedProps map[string]bool, eva
 
 			if result != nil {
 				results = append(results, result.SetEvaluationPath(fmt.Sprintf("/anyOf/%d", i)).
-					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/anyOf/%d", i))).
-					SetInstanceLocation(""),
+					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/anyOf/%d", i))),
 				)
 
 				if result.IsValid() {

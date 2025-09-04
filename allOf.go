@@ -39,8 +39,7 @@ func evaluateAllOf(schema *Schema, instance any, evaluatedProps map[string]bool,
 
 			if result != nil {
 				results = append(results, result.SetEvaluationPath(fmt.Sprintf("/allOf/%d", i)).
-					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/allOf/%d", i))).
-					SetInstanceLocation(""),
+					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/allOf/%d", i))),
 				)
 
 				if !result.IsValid() {

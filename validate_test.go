@@ -375,6 +375,45 @@ func BenchmarkValidate(b *testing.B) {
 	})
 }
 
+// TestOneOfErrorPaths verifies that oneOf validation errors include correct instance paths
+func TestOneOfErrorPaths(t *testing.T) {
+	schemaJSON := `{
+		"properties": {
+			"value": {
+				"oneOf": [
+					{"type": "string"},
+					{"type": "number"}
+				]
+			}
+		}
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	// Invalid data: boolean doesn't match string or number
+	data := map[string]any{
+		"value": true,
+	}
+
+	result := schema.ValidateMap(data)
+	assert.False(t, result.IsValid())
+
+	errors := result.GetDetailedErrors()
+
+	// Check that oneOf error has proper path
+	found := false
+	for path, msg := range errors {
+		if path == "/value/oneOf" {
+			found = true
+			t.Logf("Path: %s, Message: %s", path, msg)
+		}
+	}
+
+	assert.True(t, found, "Expected oneOf error at '/value/oneOf'")
+}
+
 // Helper functions
 func strPtr(s string) *string {
 	return &s
