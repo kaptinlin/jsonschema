@@ -1427,3 +1427,116 @@ func stringIndex(s, substr string) int {
 	}
 	return -1
 }
+
+// =============================================================================
+// SchemaVersion Tests
+// =============================================================================
+
+// TestFromStruct_DefaultSchemaVersion tests that $schema is set by default
+func TestFromStruct_DefaultSchemaVersion(t *testing.T) {
+	schema := FromStruct[TestUser]()
+
+	if schema == nil {
+		t.Fatal("Expected schema to be non-nil")
+	}
+
+	expectedVersion := "https://json-schema.org/draft/2020-12/schema"
+	if schema.Schema != expectedVersion {
+		t.Errorf("Expected schema.$schema to be '%s', got '%s'", expectedVersion, schema.Schema)
+	}
+}
+
+// TestFromStruct_CustomSchemaVersion tests setting a custom $schema version
+func TestFromStruct_CustomSchemaVersion(t *testing.T) {
+	customVersion := "https://json-schema.org/draft/2019-09/schema"
+	options := &StructTagOptions{
+		SchemaVersion: customVersion,
+	}
+
+	schema := FromStructWithOptions[TestUser](options)
+
+	if schema == nil {
+		t.Fatal("Expected schema to be non-nil")
+	}
+
+	if schema.Schema != customVersion {
+		t.Errorf("Expected schema.$schema to be '%s', got '%s'", customVersion, schema.Schema)
+	}
+}
+
+// TestFromStruct_EmptySchemaVersion tests that empty string omits $schema
+func TestFromStruct_EmptySchemaVersion(t *testing.T) {
+	options := &StructTagOptions{
+		SchemaVersion: "", // empty string should omit $schema
+	}
+
+	schema := FromStructWithOptions[TestUser](options)
+
+	if schema == nil {
+		t.Fatal("Expected schema to be non-nil")
+	}
+
+	if schema.Schema != "" {
+		t.Errorf("Expected schema.$schema to be empty, got '%s'", schema.Schema)
+	}
+}
+
+// TestFromStruct_SchemaVersionCaching tests that different schema versions are cached separately
+func TestFromStruct_SchemaVersionCaching(t *testing.T) {
+	// Clear cache first
+	ClearSchemaCache()
+
+	// Generate schema with default version
+	schema1 := FromStruct[TestUser]()
+
+	// Generate schema with custom version (ensure caching is enabled)
+	options := &StructTagOptions{
+		SchemaVersion: "https://json-schema.org/draft/2019-09/schema",
+		CacheEnabled:  true, // explicitly enable caching
+	}
+	schema2 := FromStructWithOptions[TestUser](options)
+
+	// Generate schema with empty version (no $schema, ensure caching is enabled)
+	optionsEmpty := &StructTagOptions{
+		SchemaVersion: "",
+		CacheEnabled:  true, // explicitly enable caching
+	}
+	schema3 := FromStructWithOptions[TestUser](optionsEmpty)
+
+	// Verify they have different $schema values
+	if schema1.Schema != "https://json-schema.org/draft/2020-12/schema" {
+		t.Errorf("Expected schema1.$schema to be default version, got '%s'", schema1.Schema)
+	}
+
+	if schema2.Schema != "https://json-schema.org/draft/2019-09/schema" {
+		t.Errorf("Expected schema2.$schema to be custom version, got '%s'", schema2.Schema)
+	}
+
+	if schema3.Schema != "" {
+		t.Errorf("Expected schema3.$schema to be empty, got '%s'", schema3.Schema)
+	}
+
+	// Verify cache stats show multiple cached schemas
+	stats := GetCacheStats()
+	if stats["cached_schemas"] < 3 {
+		t.Errorf("Expected at least 3 cached schemas, got %d", stats["cached_schemas"])
+	}
+}
+
+// TestFromStruct_SchemaVersionInJSON tests that $schema appears correctly in marshaled JSON
+func TestFromStruct_SchemaVersionInJSON(t *testing.T) {
+	schema := FromStruct[TestUser]()
+
+	jsonBytes, err := json.Marshal(schema)
+	if err != nil {
+		t.Fatalf("Failed to marshal schema to JSON: %v", err)
+	}
+
+	jsonStr := string(jsonBytes)
+
+	// Check that $schema field is present in JSON
+	expectedSchemaField := `"$schema":"https://json-schema.org/draft/2020-12/schema"`
+	if stringIndex(jsonStr, expectedSchemaField) == -1 {
+		t.Errorf("Expected JSON to contain %s, got: %s", expectedSchemaField, jsonStr)
+	}
+}

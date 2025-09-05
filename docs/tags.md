@@ -77,6 +77,51 @@ schema := jsonschema.FromStruct[User]()
 
 ---
 
+## 🎛️ Schema Configuration Options
+
+### Schema Version Control
+
+Control the `$schema` property in generated JSON Schemas using `StructTagOptions`:
+
+```go
+// Default behavior: includes JSON Schema Draft 2020-12
+schema := jsonschema.FromStruct[User]()
+// Result: {"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", ...}
+
+// Custom schema version
+options := &jsonschema.StructTagOptions{
+    SchemaVersion: "https://json-schema.org/draft/2019-09/schema",
+}
+schema := jsonschema.FromStructWithOptions[User](options)
+// Result: {"$schema": "https://json-schema.org/draft/2019-09/schema", "type": "object", ...}
+
+// Omit $schema property (for backward compatibility)
+options := &jsonschema.StructTagOptions{
+    SchemaVersion: "", // Empty string omits $schema
+}
+schema := jsonschema.FromStructWithOptions[User](options)
+// Result: {"type": "object", ...} (no $schema property)
+```
+
+**Use Cases:**
+- **Default**: Most users get standards-compliant schemas automatically
+- **Custom Version**: Organizations with specific JSON Schema version requirements
+- **Legacy Support**: Omit `$schema` for backward compatibility with existing systems
+
+**Configuration Options:**
+```go
+type StructTagOptions struct {
+    SchemaVersion       string  // $schema URI (empty = omit, default = Draft 2020-12)
+    TagName             string  // tag name to parse (default: "jsonschema")
+    AllowUntaggedFields bool    // include fields without tags (default: false)
+    DefaultRequired     bool    // fields required by default (default: false)
+    CacheEnabled        bool    // enable schema caching (default: true)
+    // ... other options
+}
+```
+
+---
+
 ## 📝 Complete Tag Rules Reference
 
 | Category | Tag Rule | JSON Schema Keyword | Example |

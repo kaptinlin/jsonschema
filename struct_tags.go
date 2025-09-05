@@ -59,6 +59,7 @@ type StructTagOptions struct {
 	CustomValidators    map[string]any      // custom validators (for future extension)
 	CacheEnabled        bool                // whether to enable schema caching (default: true)
 	ErrorHandler        func(error)         // optional error handler for processing errors
+	SchemaVersion       string              // $schema URI to include in generated schemas (empty string = omit $schema, default = Draft 2020-12)
 }
 
 // CustomValidatorFunc represents a custom validator function
@@ -98,6 +99,7 @@ func DefaultStructTagOptions() *StructTagOptions {
 		FieldNameMapper:     nil, // use default field naming
 		CustomValidators:    make(map[string]any),
 		CacheEnabled:        true,
+		SchemaVersion:       "https://json-schema.org/draft/2020-12/schema", // default to JSON Schema Draft 2020-12
 	}
 }
 
@@ -128,6 +130,7 @@ type cacheKey struct {
 	allowUntaggedFields bool
 	defaultRequired     bool
 	cacheEnabled        bool
+	schemaVersion       string // include schema version in cache key to ensure different versions are cached separately
 	// Note: we don't include function pointers in the cache key as they can't be compared
 }
 
@@ -171,6 +174,7 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 			allowUntaggedFields: options.AllowUntaggedFields,
 			defaultRequired:     options.DefaultRequired,
 			cacheEnabled:        options.CacheEnabled,
+			schemaVersion:       options.SchemaVersion,
 		}
 		if cached, ok := globalSchemaCache.Load(key); ok {
 			return cached.(*Schema)
@@ -186,6 +190,11 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 		// For now, return a basic schema but log the error
 		// In a production environment, you might want to return the error instead
 		schema = &Schema{Type: SchemaType{"object"}}
+	}
+
+	// Set $schema if specified in options (empty string means omit $schema)
+	if options.SchemaVersion != "" {
+		schema.Schema = options.SchemaVersion
 	}
 
 	// Add $defs if there are any circular references
@@ -210,6 +219,7 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 			allowUntaggedFields: options.AllowUntaggedFields,
 			defaultRequired:     options.DefaultRequired,
 			cacheEnabled:        options.CacheEnabled,
+			schemaVersion:       options.SchemaVersion,
 		}
 		globalSchemaCache.Store(key, schema)
 	}
