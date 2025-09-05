@@ -1,6 +1,7 @@
 package jsonschema
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -413,6 +414,138 @@ func TestOneOfErrorPaths(t *testing.T) {
 
 	assert.True(t, found, "Expected oneOf error at '/value/oneOf'")
 }
+
+// TestJSONRawMessageValidation tests json.RawMessage and other []byte type definitions
+func TestJSONRawMessageValidation(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"age": {"type": "number"}
+		},
+		"required": ["name"]
+	}`))
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		data        any
+		expectValid bool
+	}{
+		{
+			name:        "valid json.RawMessage",
+			data:        json.RawMessage(`{"name": "John", "age": 30}`),
+			expectValid: true,
+		},
+		{
+			name:        "invalid json.RawMessage - missing required",
+			data:        json.RawMessage(`{"age": 30}`),
+			expectValid: false,
+		},
+		{
+			name:        "invalid json.RawMessage - invalid JSON",
+			data:        json.RawMessage(`{"name": "John", "age"`),
+			expectValid: false,
+		},
+		{
+			name:        "custom []byte type definition - valid",
+			data:        customByteSlice(`{"name": "Alice", "age": 25}`),
+			expectValid: true,
+		},
+		{
+			name:        "custom []byte type definition - invalid",
+			data:        customByteSlice(`{"age": 25}`),
+			expectValid: false,
+		},
+		{
+			name:        "regular []byte - should still work",
+			data:        []byte(`{"name": "Bob", "age": 35}`),
+			expectValid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := schema.Validate(tt.data)
+			if tt.expectValid {
+				assert.True(t, result.IsValid(), "Expected validation to pass but got errors: %v", result.GetDetailedErrors())
+			} else {
+				assert.False(t, result.IsValid(), "Expected validation to fail but it passed")
+			}
+		})
+	}
+}
+
+// TestByteSliceHelperFunctions tests the helper functions for []byte type detection
+func TestByteSliceHelperFunctions(t *testing.T) {
+	tests := []struct {
+		name           string
+		data           any
+		expectedIsByte bool
+		expectedBytes  []byte
+		expectedOk     bool
+	}{
+		{
+			name:           "json.RawMessage",
+			data:           json.RawMessage(`{"test": "value"}`),
+			expectedIsByte: true,
+			expectedBytes:  []byte(`{"test": "value"}`),
+			expectedOk:     true,
+		},
+		{
+			name:           "custom []byte type",
+			data:           customByteSlice(`hello world`),
+			expectedIsByte: true,
+			expectedBytes:  []byte(`hello world`),
+			expectedOk:     true,
+		},
+		{
+			name:           "regular []byte",
+			data:           []byte(`test`),
+			expectedIsByte: true,
+			expectedBytes:  []byte(`test`),
+			expectedOk:     true,
+		},
+		{
+			name:           "string should not match",
+			data:           "test string",
+			expectedIsByte: false,
+			expectedBytes:  nil,
+			expectedOk:     false,
+		},
+		{
+			name:           "[]int should not match",
+			data:           []int{1, 2, 3},
+			expectedIsByte: false,
+			expectedBytes:  nil,
+			expectedOk:     false,
+		},
+		{
+			name:           "map should not match",
+			data:           map[string]any{"test": "value"},
+			expectedIsByte: false,
+			expectedBytes:  nil,
+			expectedOk:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isByte := isByteSlice(tt.data)
+			assert.Equal(t, tt.expectedIsByte, isByte, "isByteSlice result mismatch")
+
+			bytes, ok := convertToByteSlice(tt.data)
+			assert.Equal(t, tt.expectedOk, ok, "convertToByteSlice ok result mismatch")
+			if tt.expectedOk {
+				assert.Equal(t, tt.expectedBytes, bytes, "convertToByteSlice bytes result mismatch")
+			}
+		})
+	}
+}
+
+// customByteSlice is a test type that redefines []byte
+type customByteSlice []byte
 
 // Helper functions
 func strPtr(s string) *string {

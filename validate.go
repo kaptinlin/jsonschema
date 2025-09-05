@@ -13,6 +13,12 @@ func (s *Schema) Validate(instance any) *EvaluationResult {
 	case map[string]any:
 		return s.ValidateMap(data)
 	default:
+		// Check if it's a []byte type definition (like json.RawMessage)
+		if isByteSlice(instance) {
+			if bytes, ok := convertToByteSlice(instance); ok {
+				return s.ValidateJSON(bytes)
+			}
+		}
 		return s.ValidateStruct(instance)
 	}
 }
@@ -718,4 +724,19 @@ func (ds *DynamicScope) LookupDynamicAnchor(anchor string) *Schema {
 	}
 
 	return nil
+}
+
+// isByteSlice checks if the given value is a []byte type definition (like json.RawMessage)
+func isByteSlice(v any) bool {
+	rv := reflect.ValueOf(v)
+	return rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8
+}
+
+// convertToByteSlice converts a []byte type definition to []byte
+func convertToByteSlice(v any) ([]byte, bool) {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8 {
+		return rv.Bytes(), true
+	}
+	return nil, false
 }
