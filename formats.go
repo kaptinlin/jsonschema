@@ -1,3 +1,4 @@
+// Package jsonschema provides format validators for JSON Schema.
 // Credit to https://github.com/santhosh-tekuri/jsonschema
 package jsonschema
 
@@ -89,12 +90,12 @@ func IsTime(v any) bool {
 	if len(str) < 9 || str[2] != ':' || str[5] != ':' {
 		return false
 	}
-	isInRange := func(str string, min, max int) (int, bool) {
+	isInRange := func(str string, minVal, maxVal int) (int, bool) {
 		n, err := strconv.Atoi(str)
 		if err != nil {
 			return 0, false
 		}
-		if n < min || n > max {
+		if n < minVal || n > maxVal {
 			return 0, false
 		}
 		return n, true

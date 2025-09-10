@@ -1,3 +1,4 @@
+// Package main demonstrates i18n usage of the jsonschema library.
 package main
 
 import (

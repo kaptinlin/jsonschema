@@ -1,3 +1,4 @@
+// Package tests contains integration tests for JSON Schema validation.
 package tests
 
 import (

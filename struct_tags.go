@@ -63,7 +63,7 @@ type StructTagOptions struct {
 }
 
 // CustomValidatorFunc represents a custom validator function
-type CustomValidatorFunc func(fieldType reflect.Type, params []string) []Keyword
+type CustomValidatorFunc func(_ reflect.Type, params []string) []Keyword
 
 // ValidatorRegistry manages custom validators
 type ValidatorRegistry struct {
@@ -116,7 +116,7 @@ type structTagGenerator struct {
 }
 
 // validatorFunc represents a function that converts tag parameters to Schema keywords
-type validatorFunc func(fieldType reflect.Type, params []string) []Keyword
+type validatorFunc func(_ reflect.Type, params []string) []Keyword
 
 var (
 	// Global schema cache for improved performance across multiple calls
@@ -229,7 +229,7 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 
 // ClearSchemaCache clears the global schema cache - useful for testing and memory management
 func ClearSchemaCache() {
-	globalSchemaCache.Range(func(key, value any) bool {
+	globalSchemaCache.Range(func(key, _ any) bool {
 		globalSchemaCache.Delete(key)
 		return true
 	})
@@ -241,7 +241,7 @@ func GetCacheStats() map[string]int {
 		"cached_schemas": 0,
 	}
 
-	globalSchemaCache.Range(func(key, value any) bool {
+	globalSchemaCache.Range(func(_, _ any) bool {
 		stats["cached_schemas"]++
 		return true
 	})
@@ -640,18 +640,16 @@ func createSchemaFromParam(param string) *Schema {
 	if param == "true" || param == "false" {
 		if param == "true" {
 			return &Schema{Type: SchemaType{"boolean"}, Const: &ConstValue{Value: true, IsSet: true}}
-		} else {
-			return &Schema{Type: SchemaType{"boolean"}, Const: &ConstValue{Value: false, IsSet: true}}
 		}
+		return &Schema{Type: SchemaType{"boolean"}, Const: &ConstValue{Value: false, IsSet: true}}
 	}
 
 	// Handle numeric values
 	if num, err := strconv.ParseFloat(param, 64); err == nil {
 		if num == float64(int64(num)) {
 			return &Schema{Type: SchemaType{"integer"}, Const: &ConstValue{Value: int64(num), IsSet: true}}
-		} else {
-			return &Schema{Type: SchemaType{"number"}, Const: &ConstValue{Value: num, IsSet: true}}
 		}
+		return &Schema{Type: SchemaType{"number"}, Const: &ConstValue{Value: num, IsSet: true}}
 	}
 
 	// Check if it's a custom struct type
@@ -715,7 +713,7 @@ func createRuntimeTypeMapping() map[string]func(...Keyword) *Schema {
 func createRuntimeValidatorMapping() map[string]validatorFunc {
 	return map[string]validatorFunc{
 		// String validators
-		"minLength": func(fieldType reflect.Type, params []string) []Keyword {
+		"minLength": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -724,7 +722,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"maxLength": func(fieldType reflect.Type, params []string) []Keyword {
+		"maxLength": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -733,13 +731,13 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"pattern": func(fieldType reflect.Type, params []string) []Keyword {
+		"pattern": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
 			return []Keyword{Pattern(params[0])}
 		},
-		"format": func(fieldType reflect.Type, params []string) []Keyword {
+		"format": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -747,7 +745,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Numeric validators
-		"minimum": func(fieldType reflect.Type, params []string) []Keyword {
+		"minimum": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -756,7 +754,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"maximum": func(fieldType reflect.Type, params []string) []Keyword {
+		"maximum": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -765,7 +763,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"exclusiveMinimum": func(fieldType reflect.Type, params []string) []Keyword {
+		"exclusiveMinimum": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -774,7 +772,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"exclusiveMaximum": func(fieldType reflect.Type, params []string) []Keyword {
+		"exclusiveMaximum": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -783,7 +781,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"multipleOf": func(fieldType reflect.Type, params []string) []Keyword {
+		"multipleOf": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -794,7 +792,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Array validators
-		"minItems": func(fieldType reflect.Type, params []string) []Keyword {
+		"minItems": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -803,7 +801,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"maxItems": func(fieldType reflect.Type, params []string) []Keyword {
+		"maxItems": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -812,7 +810,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"uniqueItems": func(fieldType reflect.Type, params []string) []Keyword {
+		"uniqueItems": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 || params[0] == "true" {
 				return []Keyword{UniqueItems(true)}
 			}
@@ -823,7 +821,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Object validators
-		"additionalProperties": func(fieldType reflect.Type, params []string) []Keyword {
+		"additionalProperties": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -832,7 +830,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"minProperties": func(fieldType reflect.Type, params []string) []Keyword {
+		"minProperties": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -841,7 +839,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"maxProperties": func(fieldType reflect.Type, params []string) []Keyword {
+		"maxProperties": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -920,13 +918,13 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Metadata validators
-		"title": func(fieldType reflect.Type, params []string) []Keyword {
+		"title": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
 			return []Keyword{Title(params[0])}
 		},
-		"description": func(fieldType reflect.Type, params []string) []Keyword {
+		"description": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -956,7 +954,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return []Keyword{Default(value)}
 		},
-		"examples": func(fieldType reflect.Type, params []string) []Keyword {
+		"examples": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -966,7 +964,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return []Keyword{Examples(examples...)}
 		},
-		"deprecated": func(fieldType reflect.Type, params []string) []Keyword {
+		"deprecated": func(_ reflect.Type, params []string) []Keyword {
 			deprecated := true
 			if len(params) > 0 {
 				if val, err := strconv.ParseBool(params[0]); err == nil {
@@ -975,7 +973,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return []Keyword{Deprecated(deprecated)}
 		},
-		"readOnly": func(fieldType reflect.Type, params []string) []Keyword {
+		"readOnly": func(_ reflect.Type, params []string) []Keyword {
 			readOnly := true
 			if len(params) > 0 {
 				if val, err := strconv.ParseBool(params[0]); err == nil {
@@ -984,7 +982,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return []Keyword{ReadOnly(readOnly)}
 		},
-		"writeOnly": func(fieldType reflect.Type, params []string) []Keyword {
+		"writeOnly": func(_ reflect.Type, params []string) []Keyword {
 			writeOnly := true
 			if len(params) > 0 {
 				if val, err := strconv.ParseBool(params[0]); err == nil {
@@ -995,13 +993,13 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Content validators
-		"contentEncoding": func(fieldType reflect.Type, params []string) []Keyword {
+		"contentEncoding": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
 			return []Keyword{ContentEncoding(params[0])}
 		},
-		"contentMediaType": func(fieldType reflect.Type, params []string) []Keyword {
+		"contentMediaType": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1009,7 +1007,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Logical combination validators
-		"allOf": func(fieldType reflect.Type, params []string) []Keyword {
+		"allOf": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1027,7 +1025,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.AllOf = schemas
 			}}
 		},
-		"anyOf": func(fieldType reflect.Type, params []string) []Keyword {
+		"anyOf": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1045,7 +1043,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.AnyOf = schemas
 			}}
 		},
-		"oneOf": func(fieldType reflect.Type, params []string) []Keyword {
+		"oneOf": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1063,7 +1061,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.OneOf = schemas
 			}}
 		},
-		"not": func(fieldType reflect.Type, params []string) []Keyword {
+		"not": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1077,7 +1075,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Array advanced validators
-		"contains": func(fieldType reflect.Type, params []string) []Keyword {
+		"contains": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1089,7 +1087,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.Contains = schema
 			}}
 		},
-		"minContains": func(fieldType reflect.Type, params []string) []Keyword {
+		"minContains": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1101,7 +1099,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-		"maxContains": func(fieldType reflect.Type, params []string) []Keyword {
+		"maxContains": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1118,7 +1116,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		// (prefixItems, patternProperties, dependentRequired, dependentSchemas, if/then/else, etc.)
 
 		// Array advanced validators - prefixItems
-		"prefixItems": func(fieldType reflect.Type, params []string) []Keyword {
+		"prefixItems": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1138,7 +1136,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Object advanced validators
-		"patternProperties": func(fieldType reflect.Type, params []string) []Keyword {
+		"patternProperties": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) < 2 {
 				return nil
 			}
@@ -1157,7 +1155,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				(*s.PatternProperties)[pattern] = schema
 			}}
 		},
-		"propertyNames": func(fieldType reflect.Type, params []string) []Keyword {
+		"propertyNames": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1169,7 +1167,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.PropertyNames = schema
 			}}
 		},
-		"dependentRequired": func(fieldType reflect.Type, params []string) []Keyword {
+		"dependentRequired": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) < 2 {
 				return nil
 			}
@@ -1183,7 +1181,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.DependentRequired[property] = dependentFields
 			}}
 		},
-		"dependentSchemas": func(fieldType reflect.Type, params []string) []Keyword {
+		"dependentSchemas": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) < 2 {
 				return nil
 			}
@@ -1204,7 +1202,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Conditional logic validators
-		"if": func(fieldType reflect.Type, params []string) []Keyword {
+		"if": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1216,7 +1214,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.If = schema
 			}}
 		},
-		"then": func(fieldType reflect.Type, params []string) []Keyword {
+		"then": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1228,7 +1226,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.Then = schema
 			}}
 		},
-		"else": func(fieldType reflect.Type, params []string) []Keyword {
+		"else": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1242,7 +1240,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Advanced array validators
-		"unevaluatedItems": func(fieldType reflect.Type, params []string) []Keyword {
+		"unevaluatedItems": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return []Keyword{func(s *Schema) {
 					s.UnevaluatedItems = &Schema{Not: &Schema{}}
@@ -1270,7 +1268,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Advanced object validators
-		"unevaluatedProperties": func(fieldType reflect.Type, params []string) []Keyword {
+		"unevaluatedProperties": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return []Keyword{func(s *Schema) {
 					s.UnevaluatedProperties = &Schema{Not: &Schema{}}
@@ -1298,7 +1296,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Content validation
-		"contentSchema": func(fieldType reflect.Type, params []string) []Keyword {
+		"contentSchema": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1312,7 +1310,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 		},
 
 		// Manual reference support - for advanced use cases
-		"ref": func(fieldType reflect.Type, params []string) []Keyword {
+		"ref": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1321,7 +1319,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.Ref = refURI
 			}}
 		},
-		"defs": func(fieldType reflect.Type, params []string) []Keyword {
+		"defs": func(_ reflect.Type, params []string) []Keyword {
 			// This is more complex as it would need access to multiple schemas
 			// For now, we'll implement a basic version that just sets a marker
 			if len(params) == 0 {
@@ -1331,7 +1329,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			// For now, return empty to indicate it's recognized but not implemented
 			return nil
 		},
-		"anchor": func(fieldType reflect.Type, params []string) []Keyword {
+		"anchor": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}
@@ -1340,7 +1338,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				s.Anchor = anchor
 			}}
 		},
-		"dynamicRef": func(fieldType reflect.Type, params []string) []Keyword {
+		"dynamicRef": func(_ reflect.Type, params []string) []Keyword {
 			if len(params) == 0 {
 				return nil
 			}

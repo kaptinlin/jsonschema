@@ -1,3 +1,4 @@
+// Package main demonstrates basic usage of the jsonschema library.
 package main
 
 import (

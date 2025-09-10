@@ -465,6 +465,7 @@ func (s *Schema) GetSchemaURI() string {
 	return ""
 }
 
+// GetSchemaLocation returns the schema location with the given anchor
 func (s *Schema) GetSchemaLocation(anchor string) string {
 	uri := s.GetSchemaURI()
 

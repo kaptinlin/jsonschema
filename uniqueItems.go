@@ -64,7 +64,7 @@ func evaluateUniqueItems(schema *Schema, data []any) *EvaluationError {
 		if len(indices) > 1 {
 			// Convert to 1-based indices for more user-friendly output
 			for i := range indices {
-				indices[i] += 1
+				indices[i]++
 			}
 			duplicates = append(duplicates, fmt.Sprintf("(%s)", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(indices)), ", "), "[]")))
 		}

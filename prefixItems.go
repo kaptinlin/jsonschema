@@ -20,7 +20,7 @@ func evaluatePrefixItems(schema *Schema, array []any, _ map[string]bool, evaluat
 		return nil, nil // If no prefixItems are defined, there is nothing to validate against.
 	}
 
-	invalid_indexs := []string{}
+	invalidIndexes := []string{}
 	results := []*EvaluationResult{}
 
 	for i, itemSchema := range schema.PrefixItems {
@@ -38,18 +38,18 @@ func evaluatePrefixItems(schema *Schema, array []any, _ map[string]bool, evaluat
 			if result.IsValid() {
 				evaluatedItems[i] = true // Mark the item as evaluated if it passes schema validation.
 			} else {
-				invalid_indexs = append(invalid_indexs, strconv.Itoa(i))
+				invalidIndexes = append(invalidIndexes, strconv.Itoa(i))
 			}
 		}
 	}
 
-	if len(invalid_indexs) == 1 {
+	if len(invalidIndexes) == 1 {
 		return results, NewEvaluationError("prefixItems", "prefix_item_mismatch", "Item at index {index} does not match the prefixItems schema", map[string]any{
-			"index": invalid_indexs[0],
+			"index": invalidIndexes[0],
 		})
-	} else if len(invalid_indexs) > 1 {
+	} else if len(invalidIndexes) > 1 {
 		return results, NewEvaluationError("prefixItems", "prefix_items_mismatch", "Items at index {indexs} do not match the prefixItems schemas", map[string]any{
-			"indexs": strings.Join(invalid_indexs, ", "),
+			"indexs": strings.Join(invalidIndexes, ", "),
 		})
 	}
 

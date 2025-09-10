@@ -173,7 +173,7 @@ func extractValue(rv reflect.Value) any {
 }
 
 // evaluateObjectStruct handles validation for Go structs
-func evaluateObjectStruct(schema *Schema, structValue reflect.Value, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
+func evaluateObjectStruct(schema *Schema, structValue reflect.Value, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
 	results := []*EvaluationResult{}
 	errors := []*EvaluationError{}
 
@@ -449,7 +449,7 @@ func evaluateAdditionalPropertiesStruct(schema *Schema, structValue reflect.Valu
 }
 
 // evaluatePropertyNamesStruct validates struct property names
-func evaluatePropertyNamesStruct(schema *Schema, structValue reflect.Value, fieldCache *FieldCache, evaluatedProps map[string]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluatePropertyNamesStruct(schema *Schema, structValue reflect.Value, fieldCache *FieldCache, _ map[string]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
 	if schema.PropertyNames == nil {
 		return nil, nil
 	}

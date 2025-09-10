@@ -1,3 +1,4 @@
+// Package main demonstrates constructor usage of the jsonschema library.
 package main
 
 import (

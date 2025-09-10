@@ -1,53 +1,34 @@
 version: "2"
+run:
+  timeout: 5m
+  go: "1.24"
+  tests: true
+
 linters:
   enable:
-    - copyloopvar
-    - dogsled
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - revive
+    - whitespace
     - err113
     - errorlint
-    - exhaustive
-    - gocritic
-    - goprintffuncname
-    - gosec
-    - misspell
-    - nakedret
     - nilerr
+    - gocritic
+    - nakedret
+    - unconvert
+    - dogsled
+    - copyloopvar
+    - prealloc
+    - gosec
+    - exhaustive
     - noctx
     - nolintlint
-    - prealloc
     - promlinter
-    - revive
-    - unconvert
-    - whitespace
-  settings:
-    revive:
-      rules:
-        - name: unused-parameter
-          disabled: true
-  exclusions:
-    generated: lax
-    rules:
-      - linters:
-          - funlen
-          - gochecknoglobals
-          - gosec
-          - noctx
-          - revive
-        path: _test\.go
-    paths:
-      - third_party$
-      - builtin$
-      - examples$
+
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-formatters:
-  enable:
-    - gofmt
-    - goimports
-  exclusions:
-    generated: lax
-    paths:
-      - third_party$
-      - builtin$
-      - examples$

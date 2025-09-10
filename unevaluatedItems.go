@@ -55,7 +55,7 @@ func evaluateUnevaluatedItems(schema *Schema, data any, _ map[string]bool, evalu
 	}
 
 	results := []*EvaluationResult{}
-	invalid_indexes := []string{}
+	invalidIndexes := []string{}
 
 	// Evaluate unevaluated items
 	for i, item := range items {
@@ -71,7 +71,7 @@ func evaluateUnevaluatedItems(schema *Schema, data any, _ map[string]bool, evalu
 				if result.IsValid() {
 					evaluatedItems[i] = true
 				} else {
-					invalid_indexes = append(invalid_indexes, strconv.Itoa(i))
+					invalidIndexes = append(invalidIndexes, strconv.Itoa(i))
 				}
 			}
 			// Merge evaluation states
@@ -81,13 +81,13 @@ func evaluateUnevaluatedItems(schema *Schema, data any, _ map[string]bool, evalu
 		}
 	}
 
-	if len(invalid_indexes) == 1 {
+	if len(invalidIndexes) == 1 {
 		return results, NewEvaluationError("unevaluatedItems", "unevaluated_item_mismatch", "Item at index {index} does not match the unevaluatedItems schema", map[string]any{
-			"index": invalid_indexes[0],
+			"index": invalidIndexes[0],
 		})
-	} else if len(invalid_indexes) > 1 {
+	} else if len(invalidIndexes) > 1 {
 		return results, NewEvaluationError("unevaluatedItems", "unevaluated_items_mismatch", "Items at indexes {indexes} do not match the unevaluatedItems schema", map[string]any{
-			"indexes": strings.Join(invalid_indexes, ", "),
+			"indexes": strings.Join(invalidIndexes, ", "),
 		})
 	}
 

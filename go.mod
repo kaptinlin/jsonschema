@@ -1,6 +1,6 @@
 module github.com/kaptinlin/jsonschema
 
-go 1.24.0
+go 1.24.7
 
 require (
 	github.com/kaptinlin/go-i18n v0.1.6

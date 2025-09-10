@@ -1,3 +1,4 @@
+// Package main demonstrates multiple-input-types usage of the jsonschema library.
 package main
 
 import (

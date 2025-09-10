@@ -31,7 +31,7 @@ type GeneratorConfig struct {
 }
 
 // ValidatorGenerator generates validator code for fields
-type ValidatorGenerator func(fieldType string, params []string) string
+type ValidatorGenerator func(_ string, params []string) string
 
 // NewCodeGenerator creates a new code generator instance
 func NewCodeGenerator(config *GeneratorConfig) (*CodeGenerator, error) {
@@ -448,85 +448,85 @@ func createTypeMapping() map[string]string {
 // createValidatorMapping creates the mapping from validator names to code generators
 func createValidatorMapping() map[string]ValidatorGenerator {
 	return map[string]ValidatorGenerator{
-		"required": func(fieldType string, params []string) string {
+		"required": func(_ string, _ []string) string {
 			// Required is handled by the Required() keyword
 			return ""
 		},
 		// String validators
-		"minLength": func(fieldType string, params []string) string {
+		"minLength": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.MinLen(%s)", params[0])
 		},
-		"maxLength": func(fieldType string, params []string) string {
+		"maxLength": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.MaxLen(%s)", params[0])
 		},
-		"pattern": func(fieldType string, params []string) string {
+		"pattern": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.Pattern(`%s`)", params[0])
 		},
-		"format": func(fieldType string, params []string) string {
+		"format": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.Format(\"%s\")", params[0])
 		},
 		// Numeric validators
-		"minimum": func(fieldType string, params []string) string {
+		"minimum": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.Min(%s)", params[0])
 		},
-		"maximum": func(fieldType string, params []string) string {
+		"maximum": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.Max(%s)", params[0])
 		},
-		"exclusiveMinimum": func(fieldType string, params []string) string {
+		"exclusiveMinimum": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.ExclusiveMin(%s)", params[0])
 		},
-		"exclusiveMaximum": func(fieldType string, params []string) string {
+		"exclusiveMaximum": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.ExclusiveMax(%s)", params[0])
 		},
-		"multipleOf": func(fieldType string, params []string) string {
+		"multipleOf": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.MultipleOf(%s)", params[0])
 		},
 		// Array validators
-		"minItems": func(fieldType string, params []string) string {
+		"minItems": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.MinItems(%s)", params[0])
 		},
-		"maxItems": func(fieldType string, params []string) string {
+		"maxItems": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.MaxItems(%s)", params[0])
 		},
-		"uniqueItems": func(fieldType string, params []string) string {
+		"uniqueItems": func(_ string, _ []string) string {
 			// uniqueItems is a boolean validator, no parameters needed
 			return "jsonschema.UniqueItems(true)"
 		},
 		// Complex array validator - Items (will be processed specially)
-		"items": func(fieldType string, params []string) string {
+		"items": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -545,7 +545,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			return fmt.Sprintf("jsonschema.Items((&%s{}).Schema())", itemType)
 		},
 		// Advanced array validators
-		"prefixItems": func(fieldType string, params []string) string {
+		"prefixItems": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -568,7 +568,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			return fmt.Sprintf("jsonschema.PrefixItems(%s)", strings.Join(schemas, ", "))
 		},
-		"contains": func(fieldType string, params []string) string {
+		"contains": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -581,27 +581,27 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			if constructor, exists := primitiveTypes[schemaType]; exists {
 				return fmt.Sprintf("jsonschema.Contains(%s())", constructor)
-			} else if isCustomStructType(schemaType) {
+			}
+			if isCustomStructType(schemaType) {
 				// This will be processed specially in generateFieldProperty for $refs
 				return fmt.Sprintf("jsonschema.Contains((&%s{}).Schema())", schemaType)
-			} else {
-				// Handle as a literal schema value or reference
-				return fmt.Sprintf("jsonschema.Contains(%s)", schemaType)
 			}
+			// Handle as a literal schema value or reference
+			return fmt.Sprintf("jsonschema.Contains(%s)", schemaType)
 		},
-		"minContains": func(fieldType string, params []string) string {
+		"minContains": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.MinContains(%s)", params[0])
 		},
-		"maxContains": func(fieldType string, params []string) string {
+		"maxContains": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.MaxContains(%s)", params[0])
 		},
-		"unevaluatedItems": func(fieldType string, params []string) string {
+		"unevaluatedItems": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return "jsonschema.UnevaluatedItems(false)" // Default to false
 			}
@@ -619,17 +619,17 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 				}
 				if constructor, exists := primitiveTypes[params[0]]; exists {
 					return fmt.Sprintf("jsonschema.UnevaluatedItemsSchema(%s())", constructor)
-				} else if isCustomStructType(params[0]) {
+				}
+				if isCustomStructType(params[0]) {
 					// This will be processed specially in generateFieldProperty for $refs
 					return fmt.Sprintf("jsonschema.UnevaluatedItemsSchema((&%s{}).Schema())", params[0])
-				} else {
-					// Handle as a literal schema value or reference
-					return fmt.Sprintf("jsonschema.UnevaluatedItemsSchema(%s)", params[0])
 				}
+				// Handle as a literal schema value or reference
+				return fmt.Sprintf("jsonschema.UnevaluatedItemsSchema(%s)", params[0])
 			}
 		},
 		// Object validators - AdditionalProperties (will be processed specially)
-		"additionalProperties": func(fieldType string, params []string) string {
+		"additionalProperties": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -653,20 +653,20 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 				return fmt.Sprintf("jsonschema.AdditionalPropsSchema((&%s{}).Schema())", params[0])
 			}
 		},
-		"minProperties": func(fieldType string, params []string) string {
+		"minProperties": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.MinProps(%s)", params[0])
 		},
-		"maxProperties": func(fieldType string, params []string) string {
+		"maxProperties": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.MaxProps(%s)", params[0])
 		},
 		// Advanced object validators
-		"patternProperties": func(fieldType string, params []string) string {
+		"patternProperties": func(_ string, params []string) string {
 			if len(params) < 2 {
 				return ""
 			}
@@ -690,7 +690,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 
 			return fmt.Sprintf("jsonschema.PatternProperties(map[string]*jsonschema.Schema{`%s`: %s})", pattern, schemaCode)
 		},
-		"propertyNames": func(fieldType string, params []string) string {
+		"propertyNames": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -703,15 +703,15 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			if constructor, exists := primitiveTypes[schemaType]; exists {
 				return fmt.Sprintf("jsonschema.PropertyNames(%s())", constructor)
-			} else if isCustomStructType(schemaType) {
+			}
+			if isCustomStructType(schemaType) {
 				// This will be processed specially in generateFieldProperty for $refs
 				return fmt.Sprintf("jsonschema.PropertyNames((&%s{}).Schema())", schemaType)
-			} else {
-				// Handle as a literal schema value or reference
-				return fmt.Sprintf("jsonschema.PropertyNames(%s)", schemaType)
 			}
+			// Handle as a literal schema value or reference
+			return fmt.Sprintf("jsonschema.PropertyNames(%s)", schemaType)
 		},
-		"unevaluatedProperties": func(fieldType string, params []string) string {
+		"unevaluatedProperties": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return "jsonschema.UnevaluatedProperties(false)" // Default to false
 			}
@@ -729,13 +729,13 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 				}
 				if constructor, exists := primitiveTypes[params[0]]; exists {
 					return fmt.Sprintf("jsonschema.UnevaluatedPropertiesSchema(%s())", constructor)
-				} else if isCustomStructType(params[0]) {
+				}
+				if isCustomStructType(params[0]) {
 					// This will be processed specially in generateFieldProperty for $refs
 					return fmt.Sprintf("jsonschema.UnevaluatedPropertiesSchema((&%s{}).Schema())", params[0])
-				} else {
-					// Handle as a literal schema value or reference
-					return fmt.Sprintf("jsonschema.UnevaluatedPropertiesSchema(%s)", params[0])
 				}
+				// Handle as a literal schema value or reference
+				return fmt.Sprintf("jsonschema.UnevaluatedPropertiesSchema(%s)", params[0])
 			}
 		},
 		// Enum and const
@@ -763,7 +763,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			return fmt.Sprintf("jsonschema.Const(%s)", params[0])
 		},
 		// Logical combination validators
-		"allOf": func(fieldType string, params []string) string {
+		"allOf": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -786,7 +786,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			return fmt.Sprintf("jsonschema.AllOf(%s)", strings.Join(schemas, ", "))
 		},
-		"anyOf": func(fieldType string, params []string) string {
+		"anyOf": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -836,7 +836,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			return fmt.Sprintf("jsonschema.OneOf(%s)", strings.Join(schemas, ", "))
 		},
-		"not": func(fieldType string, params []string) string {
+		"not": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -849,16 +849,16 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			if constructor, exists := primitiveTypes[schemaType]; exists {
 				return fmt.Sprintf("jsonschema.Not(%s())", constructor)
-			} else if isCustomStructType(schemaType) {
+			}
+			if isCustomStructType(schemaType) {
 				// This will be processed specially in generateFieldProperty for $refs
 				return fmt.Sprintf("jsonschema.Not((&%s{}).Schema())", schemaType)
-			} else {
-				// Handle as a literal schema value or reference
-				return fmt.Sprintf("jsonschema.Not(%s)", schemaType)
 			}
+			// Handle as a literal schema value or reference
+			return fmt.Sprintf("jsonschema.Not(%s)", schemaType)
 		},
 		// Conditional logic validators
-		"if": func(fieldType string, params []string) string {
+		"if": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -871,15 +871,15 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			if constructor, exists := primitiveTypes[schemaType]; exists {
 				return fmt.Sprintf("jsonschema.If(%s())", constructor)
-			} else if isCustomStructType(schemaType) {
+			}
+			if isCustomStructType(schemaType) {
 				// This will be processed specially in generateFieldProperty for $refs
 				return fmt.Sprintf("jsonschema.If((&%s{}).Schema())", schemaType)
-			} else {
-				// Handle as a literal schema value or reference
-				return fmt.Sprintf("jsonschema.If(%s)", schemaType)
 			}
+			// Handle as a literal schema value or reference
+			return fmt.Sprintf("jsonschema.If(%s)", schemaType)
 		},
-		"then": func(fieldType string, params []string) string {
+		"then": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -892,15 +892,15 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			if constructor, exists := primitiveTypes[schemaType]; exists {
 				return fmt.Sprintf("jsonschema.Then(%s())", constructor)
-			} else if isCustomStructType(schemaType) {
+			}
+			if isCustomStructType(schemaType) {
 				// This will be processed specially in generateFieldProperty for $refs
 				return fmt.Sprintf("jsonschema.Then((&%s{}).Schema())", schemaType)
-			} else {
-				// Handle as a literal schema value or reference
-				return fmt.Sprintf("jsonschema.Then(%s)", schemaType)
 			}
+			// Handle as a literal schema value or reference
+			return fmt.Sprintf("jsonschema.Then(%s)", schemaType)
 		},
-		"else": func(fieldType string, params []string) string {
+		"else": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -913,15 +913,15 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			if constructor, exists := primitiveTypes[schemaType]; exists {
 				return fmt.Sprintf("jsonschema.Else(%s())", constructor)
-			} else if isCustomStructType(schemaType) {
+			}
+			if isCustomStructType(schemaType) {
 				// This will be processed specially in generateFieldProperty for $refs
 				return fmt.Sprintf("jsonschema.Else((&%s{}).Schema())", schemaType)
-			} else {
-				// Handle as a literal schema value or reference
-				return fmt.Sprintf("jsonschema.Else(%s)", schemaType)
 			}
+			// Handle as a literal schema value or reference
+			return fmt.Sprintf("jsonschema.Else(%s)", schemaType)
 		},
-		"dependentRequired": func(fieldType string, params []string) string {
+		"dependentRequired": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -931,7 +931,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			return fmt.Sprintf("jsonschema.DependentRequired(%s)", strings.Join(fields, ", "))
 		},
-		"dependentSchemas": func(fieldType string, params []string) string {
+		"dependentSchemas": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -961,13 +961,13 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			return ""
 		},
 		// Metadata
-		"title": func(fieldType string, params []string) string {
+		"title": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.Title(\"%s\")", params[0])
 		},
-		"description": func(fieldType string, params []string) string {
+		"description": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -988,7 +988,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			return fmt.Sprintf("jsonschema.Examples(%s)", strings.Join(values, ", "))
 		},
-		"deprecated": func(fieldType string, params []string) string {
+		"deprecated": func(_ string, params []string) string {
 			// deprecated can be a boolean flag or have a value
 			if len(params) == 0 {
 				return "jsonschema.Deprecated(true)"
@@ -1004,7 +1004,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 				return "jsonschema.Deprecated(true)"
 			}
 		},
-		"readOnly": func(fieldType string, params []string) string {
+		"readOnly": func(_ string, params []string) string {
 			// readOnly can be a boolean flag or have a value
 			if len(params) == 0 {
 				return "jsonschema.ReadOnly(true)"
@@ -1020,7 +1020,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 				return "jsonschema.ReadOnly(true)"
 			}
 		},
-		"writeOnly": func(fieldType string, params []string) string {
+		"writeOnly": func(_ string, params []string) string {
 			// writeOnly can be a boolean flag or have a value
 			if len(params) == 0 {
 				return "jsonschema.WriteOnly(true)"
@@ -1055,19 +1055,19 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 		},
 		// Content validation
-		"contentEncoding": func(fieldType string, params []string) string {
+		"contentEncoding": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.ContentEncoding(\"%s\")", params[0])
 		},
-		"contentMediaType": func(fieldType string, params []string) string {
+		"contentMediaType": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			return fmt.Sprintf("jsonschema.ContentMediaType(\"%s\")", params[0])
 		},
-		"contentSchema": func(fieldType string, params []string) string {
+		"contentSchema": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -1080,23 +1080,23 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			if constructor, exists := primitiveTypes[schemaType]; exists {
 				return fmt.Sprintf("jsonschema.ContentSchema(%s())", constructor)
-			} else if isCustomStructType(schemaType) {
+			}
+			if isCustomStructType(schemaType) {
 				// This will be processed specially in generateFieldProperty for $refs
 				return fmt.Sprintf("jsonschema.ContentSchema((&%s{}).Schema())", schemaType)
-			} else {
-				// Handle as a literal schema value or reference
-				return fmt.Sprintf("jsonschema.ContentSchema(%s)", schemaType)
 			}
+			// Handle as a literal schema value or reference
+			return fmt.Sprintf("jsonschema.ContentSchema(%s)", schemaType)
 		},
 		// Reference management validators
-		"ref": func(fieldType string, params []string) string {
+		"ref": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			refURI := params[0]
 			return fmt.Sprintf("jsonschema.Ref(\"%s\")", refURI)
 		},
-		"defs": func(fieldType string, params []string) string {
+		"defs": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
@@ -1116,14 +1116,14 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			return ""
 		},
-		"anchor": func(fieldType string, params []string) string {
+		"anchor": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}
 			anchorName := params[0]
 			return fmt.Sprintf("jsonschema.Anchor(\"%s\")", anchorName)
 		},
-		"dynamicRef": func(fieldType string, params []string) string {
+		"dynamicRef": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""
 			}

@@ -259,7 +259,7 @@ func (a *StructAnalyzer) getTypeString(expr ast.Expr) string {
 }
 
 // processEmbeddedField handles embedded struct fields in AST analysis
-func (a *StructAnalyzer) processEmbeddedField(field *ast.Field, depth int) ([]tagparser.FieldInfo, error) {
+func (a *StructAnalyzer) processEmbeddedField(_ *ast.Field, depth int) ([]tagparser.FieldInfo, error) {
 	// Depth protection
 	if depth > 10 {
 		return nil, nil

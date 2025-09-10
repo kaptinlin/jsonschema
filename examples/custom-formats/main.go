@@ -1,3 +1,4 @@
+// Package main demonstrates custom-formats usage of the jsonschema library.
 package main
 
 import (

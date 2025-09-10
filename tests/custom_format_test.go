@@ -108,7 +108,7 @@ func TestUnregisterCustomFormat(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.SetAssertFormat(true)
 
-	compiler.RegisterFormat("test-format", func(v any) bool { return false }, "string")
+	compiler.RegisterFormat("test-format", func(_ any) bool { return false }, "string")
 	compiler.UnregisterFormat("test-format")
 
 	schema, err := compiler.Compile([]byte(`{"type": "string", "format": "test-format"}`))

@@ -2,6 +2,7 @@ package jsonschema
 
 import "github.com/kaptinlin/go-i18n"
 
+// EvaluationError represents an error that occurred during schema evaluation
 type EvaluationError struct {
 	Keyword string         `json:"keyword"`
 	Code    string         `json:"code"`
@@ -9,6 +10,7 @@ type EvaluationError struct {
 	Params  map[string]any `json:"params"`
 }
 
+// NewEvaluationError creates a new evaluation error with the specified details
 func NewEvaluationError(keyword string, code string, message string, params ...map[string]any) *EvaluationError {
 	if len(params) > 0 {
 		return &EvaluationError{
@@ -17,12 +19,11 @@ func NewEvaluationError(keyword string, code string, message string, params ...m
 			Message: message,
 			Params:  params[0],
 		}
-	} else {
-		return &EvaluationError{
-			Keyword: keyword,
-			Code:    code,
-			Message: message,
-		}
+	}
+	return &EvaluationError{
+		Keyword: keyword,
+		Code:    code,
+		Message: message,
 	}
 }
 
@@ -30,18 +31,20 @@ func (e *EvaluationError) Error() string {
 	return replace(e.Message, e.Params)
 }
 
+// Localize returns a localized error message using the provided localizer
 func (e *EvaluationError) Localize(localizer *i18n.Localizer) string {
 	if localizer != nil {
 		return localizer.Get(e.Code, i18n.Vars(e.Params))
-	} else {
-		return e.Error()
 	}
+	return e.Error()
 }
 
+// Flag represents a simple validation result with just validity status
 type Flag struct {
 	Valid bool `json:"valid"`
 }
 
+// List represents a flat list of validation errors
 type List struct {
 	Valid            bool              `json:"valid"`
 	EvaluationPath   string            `json:"evaluationPath"`
@@ -52,6 +55,7 @@ type List struct {
 	Details          []List            `json:"details,omitempty"`
 }
 
+// EvaluationResult represents the complete result of a schema validation
 type EvaluationResult struct {
 	schema           *Schema                     `json:"-"`
 	Valid            bool                        `json:"valid"`
@@ -63,6 +67,7 @@ type EvaluationResult struct {
 	Details          []*EvaluationResult         `json:"details,omitempty"`
 }
 
+// NewEvaluationResult creates a new evaluation result for the given schema
 func NewEvaluationResult(schema *Schema) *EvaluationResult {
 	e := &EvaluationResult{
 		schema: schema,
@@ -74,6 +79,7 @@ func NewEvaluationResult(schema *Schema) *EvaluationResult {
 	return e
 }
 
+// SetEvaluationPath sets the evaluation path for this result
 func (e *EvaluationResult) SetEvaluationPath(evaluationPath string) *EvaluationResult {
 	e.EvaluationPath = evaluationPath
 
@@ -84,28 +90,33 @@ func (e *EvaluationResult) Error() string {
 	return "evaluation failed"
 }
 
+// SetSchemaLocation sets the schema location for this result
 func (e *EvaluationResult) SetSchemaLocation(location string) *EvaluationResult {
 	e.SchemaLocation = location
 
 	return e
 }
 
+// SetInstanceLocation sets the instance location for this result
 func (e *EvaluationResult) SetInstanceLocation(instanceLocation string) *EvaluationResult {
 	e.InstanceLocation = instanceLocation
 
 	return e
 }
 
+// SetInvalid marks this result as invalid
 func (e *EvaluationResult) SetInvalid() *EvaluationResult {
 	e.Valid = false
 
 	return e
 }
 
+// IsValid returns whether this result is valid
 func (e *EvaluationResult) IsValid() bool {
 	return e.Valid
 }
 
+// AddError adds an evaluation error to this result
 func (e *EvaluationResult) AddError(err *EvaluationError) *EvaluationResult {
 	if e.Errors == nil {
 		e.Errors = make(map[string]*EvaluationError)
@@ -119,6 +130,7 @@ func (e *EvaluationResult) AddError(err *EvaluationError) *EvaluationResult {
 	return e
 }
 
+// AddDetail adds a detailed evaluation result to this result
 func (e *EvaluationResult) AddDetail(detail *EvaluationResult) *EvaluationResult {
 	if e.Details == nil {
 		e.Details = make([]*EvaluationResult, 0)
@@ -128,6 +140,7 @@ func (e *EvaluationResult) AddDetail(detail *EvaluationResult) *EvaluationResult
 	return e
 }
 
+// AddAnnotation adds an annotation to this result
 func (e *EvaluationResult) AddAnnotation(keyword string, annotation any) *EvaluationResult {
 	if e.Annotations == nil {
 		e.Annotations = make(map[string]any)
@@ -137,6 +150,7 @@ func (e *EvaluationResult) AddAnnotation(keyword string, annotation any) *Evalua
 	return e
 }
 
+// CollectAnnotations collects annotations from child results
 func (e *EvaluationResult) CollectAnnotations() *EvaluationResult {
 	if e.Annotations == nil {
 		e.Annotations = make(map[string]any)
@@ -167,7 +181,7 @@ func (e *EvaluationResult) CollectAnnotations() *EvaluationResult {
 	return e
 }
 
-// Converts EvaluationResult to a simple Flag struct
+// ToFlag converts EvaluationResult to a simple Flag struct
 func (e *EvaluationResult) ToFlag() *Flag {
 	return &Flag{
 		Valid: e.Valid,

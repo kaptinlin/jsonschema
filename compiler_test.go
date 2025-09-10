@@ -184,7 +184,7 @@ func TestRegisterMediaType(t *testing.T) {
 
 func TestRegisterLoader(t *testing.T) {
 	compiler := NewCompiler()
-	testLoader := func(url string) (io.ReadCloser, error) {
+	testLoader := func(_ string) (io.ReadCloser, error) {
 		return io.NopCloser(strings.NewReader(`{"type": "string"}`)), nil
 	}
 	compiler.RegisterLoader("test", testLoader)

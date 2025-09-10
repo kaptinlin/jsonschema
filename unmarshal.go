@@ -141,21 +141,21 @@ func (s *Schema) convertSource(src any) (any, bool, error) {
 // convertBytesSource handles []byte input with JSON parsing
 func (s *Schema) convertBytesSource(data []byte) (any, bool, error) {
 	var parsed any
-	if err := s.GetCompiler().jsonDecoder(data, &parsed); err == nil {
+	err := s.GetCompiler().jsonDecoder(data, &parsed)
+	if err == nil {
 		// Successfully parsed as JSON, check if it's an object
 		if objData, ok := parsed.(map[string]any); ok {
 			return objData, true, nil
 		}
 		// Non-object JSON (array, string, number, boolean, null)
 		return parsed, false, nil
-	} else {
-		// Only return error if it looks like it was meant to be JSON
-		if len(data) > 0 && (data[0] == '{' || data[0] == '[') {
-			return nil, false, fmt.Errorf("%w: %w", ErrJSONDecode, err)
-		}
-		// Otherwise, treat as raw bytes
-		return data, false, nil
 	}
+	// Only return error if it looks like it was meant to be JSON
+	if len(data) > 0 && (data[0] == '{' || data[0] == '[') {
+		return nil, false, fmt.Errorf("%w: %w", ErrJSONDecode, err)
+	}
+	// Otherwise, treat as raw bytes
+	return data, false, nil
 }
 
 // convertGenericSource handles structs and other types
@@ -468,32 +468,32 @@ func (s *Schema) parseTimeString(fieldVal reflect.Value, timeStr string) error {
 
 // deepCopyMap creates a deep copy of a map[string]any
 func deepCopyMap(original map[string]any) map[string]any {
-	copy := make(map[string]any, len(original))
+	result := make(map[string]any, len(original))
 	for key, value := range original {
 		switch v := value.(type) {
 		case map[string]any:
-			copy[key] = deepCopyMap(v)
+			result[key] = deepCopyMap(v)
 		case []any:
-			copy[key] = deepCopySlice(v)
+			result[key] = deepCopySlice(v)
 		default:
-			copy[key] = value
+			result[key] = value
 		}
 	}
-	return copy
+	return result
 }
 
 // deepCopySlice creates a deep copy of a []any
 func deepCopySlice(original []any) []any {
-	copy := make([]any, len(original))
+	result := make([]any, len(original))
 	for i, value := range original {
 		switch v := value.(type) {
 		case map[string]any:
-			copy[i] = deepCopyMap(v)
+			result[i] = deepCopyMap(v)
 		case []any:
-			copy[i] = deepCopySlice(v)
+			result[i] = deepCopySlice(v)
 		default:
-			copy[i] = value
+			result[i] = value
 		}
 	}
-	return copy
+	return result
 }

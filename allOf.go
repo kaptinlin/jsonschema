@@ -20,7 +20,7 @@ func evaluateAllOf(schema *Schema, instance any, evaluatedProps map[string]bool,
 		return nil, nil // No allOf constraints to validate against.
 	}
 
-	invalid_indexs := []string{}
+	invalidIndexes := []string{}
 	results := []*EvaluationResult{}
 
 	for i, subSchema := range schema.AllOf {
@@ -43,17 +43,17 @@ func evaluateAllOf(schema *Schema, instance any, evaluatedProps map[string]bool,
 				)
 
 				if !result.IsValid() {
-					invalid_indexs = append(invalid_indexs, strconv.Itoa(i))
+					invalidIndexes = append(invalidIndexes, strconv.Itoa(i))
 				}
 			}
 		}
 	}
 
-	if len(invalid_indexs) == 0 {
+	if len(invalidIndexes) == 0 {
 		return results, nil
 	}
 
 	return results, NewEvaluationError("allOf", "all_of_item_mismatch", "Value does not match the allOf schema at index {indexs}", map[string]any{
-		"indexs": strings.Join(invalid_indexs, ", "),
+		"indexs": strings.Join(invalidIndexes, ", "),
 	})
 }

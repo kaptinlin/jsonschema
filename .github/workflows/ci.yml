@@ -1,10 +1,10 @@
-name: Go
+name: Go CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main, develop ]
   pull_request:
+    branches: [ main ]
 
 jobs:
   test:
@@ -20,7 +20,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: 1.24.x
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
 
       - name: Download dependencies
         run: go mod download
@@ -38,17 +40,21 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: 1.24.x
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
 
-      - name: Read golangci-lint version from .golangci.version
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Read golangci-lint version
         id: golangci-version
-        run: echo "GOLANGCI_VERSION=$(cat .golangci.version)" > $GITHUB_OUTPUT
+        run: echo "version=$(cat .golangci.version 2>/dev/null || echo '2.4.0')" >> $GITHUB_OUTPUT
 
-      - uses: golangci/golangci-lint-action@v8
-        name: Install and run golangci-lint
-        with:
-          version: v${{ steps.golangci-version.outputs.GOLANGCI_VERSION }}
-          args: -h
+      - name: Run linter via Makefile
+        run: make lint
 
-      - run: make lint
-        name: Lint
+      - name: Check go mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum is not tidy" && exit 1)

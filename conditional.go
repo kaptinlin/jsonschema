@@ -47,11 +47,10 @@ func evaluateConditional(schema *Schema, instance any, evaluatedProps map[string
 					if !thenResult.IsValid() {
 						return results, NewEvaluationError("then", "if_then_mismatch",
 							"Value meets the 'if' condition but does not match the 'then' schema")
-					} else {
-						// Merge maps only if 'then' condition is successfully validated
-						mergeStringMaps(evaluatedProps, thenEvaluatedProps)
-						mergeIntMaps(evaluatedItems, thenEvaluatedItems)
 					}
+					// Merge maps only if 'then' condition is successfully validated
+					mergeStringMaps(evaluatedProps, thenEvaluatedProps)
+					mergeIntMaps(evaluatedItems, thenEvaluatedItems)
 				}
 			}
 		} else if schema.Else != nil {
@@ -62,11 +61,10 @@ func evaluateConditional(schema *Schema, instance any, evaluatedProps map[string
 				if !elseResult.IsValid() {
 					return results, NewEvaluationError("else", "if_else_mismatch",
 						"Value fails the 'if' condition and does not match the 'else' schema")
-				} else {
-					// Merge maps only if 'else' condition is successfully validated
-					mergeStringMaps(evaluatedProps, elseEvaluatedProps)
-					mergeIntMaps(evaluatedItems, elseEvaluatedItems)
 				}
+				// Merge maps only if 'else' condition is successfully validated
+				mergeStringMaps(evaluatedProps, elseEvaluatedProps)
+				mergeIntMaps(evaluatedItems, elseEvaluatedItems)
 			}
 		}
 	}

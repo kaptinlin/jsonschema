@@ -631,7 +631,7 @@ func TestCachePerformance(t *testing.T) {
 
 func TestCustomValidators(t *testing.T) {
 	// Register a custom validator
-	RegisterCustomValidator("creditCard", func(fieldType reflect.Type, params []string) []Keyword {
+	RegisterCustomValidator("creditCard", func(_ reflect.Type, _ []string) []Keyword {
 		return []Keyword{
 			Pattern("^[0-9]{16}$"),
 			Description("16-digit credit card number"),

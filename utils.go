@@ -119,11 +119,11 @@ func getDataTypeReflect(v any) string {
 
 // getURLScheme extracts the scheme component of a URL string.
 func getURLScheme(urlStr string) string {
-	parsedUrl, err := url.Parse(urlStr)
+	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
 		return ""
 	}
-	return parsedUrl.Scheme
+	return parsedURL.Scheme
 }
 
 // isValidURI verifies if the provided string is a valid URI.

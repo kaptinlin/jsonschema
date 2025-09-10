@@ -1,3 +1,4 @@
+// Package main demonstrates multilingual-errors usage of the jsonschema library.
 package main
 
 import (

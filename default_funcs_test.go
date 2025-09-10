@@ -125,7 +125,7 @@ func TestCompiler_RegisterDefaultFunc(t *testing.T) {
 	compiler := NewCompiler()
 
 	// Test registration
-	testFunc := func(args ...any) (any, error) {
+	testFunc := func(_ ...any) (any, error) {
 		return "test_result", nil
 	}
 
@@ -148,7 +148,7 @@ func TestCompiler_RegisterDefaultFunc(t *testing.T) {
 }
 
 // customIDFunc generates a simple ID for testing using timestamp and counter
-func customIDFunc(args ...any) (any, error) {
+func customIDFunc(_ ...any) (any, error) {
 	// Use timestamp and a simple counter instead of random numbers for testing
 	staticCounter := 42 // Static value for deterministic testing
 	return fmt.Sprintf("id_%d_%d", time.Now().Unix(), staticCounter), nil
@@ -236,7 +236,7 @@ func TestDynamicDefaultValues_Integration(t *testing.T) {
 
 func TestSchemaSetCompiler(t *testing.T) {
 	compiler := NewCompiler()
-	compiler.RegisterDefaultFunc("test", func(args ...any) (any, error) {
+	compiler.RegisterDefaultFunc("test", func(_ ...any) (any, error) {
 		return "test_value", nil
 	})
 
@@ -258,12 +258,12 @@ func TestSchemaSetCompiler(t *testing.T) {
 
 func TestSchemaCompilerIsolation(t *testing.T) {
 	compiler1 := NewCompiler()
-	compiler1.RegisterDefaultFunc("func1", func(args ...any) (any, error) {
+	compiler1.RegisterDefaultFunc("func1", func(_ ...any) (any, error) {
 		return "value1", nil
 	})
 
 	compiler2 := NewCompiler()
-	compiler2.RegisterDefaultFunc("func2", func(args ...any) (any, error) {
+	compiler2.RegisterDefaultFunc("func2", func(_ ...any) (any, error) {
 		return "value2", nil
 	})
 
@@ -300,7 +300,7 @@ func TestSchemaCompilerIsolation(t *testing.T) {
 
 func TestSchemaSetCompilerChaining(t *testing.T) {
 	compiler := NewCompiler()
-	compiler.RegisterDefaultFunc("test", func(args ...any) (any, error) {
+	compiler.RegisterDefaultFunc("test", func(_ ...any) (any, error) {
 		return "chained", nil
 	})
 
@@ -323,7 +323,7 @@ func TestSchemaSetCompilerChaining(t *testing.T) {
 
 func TestSchemaCompilerInheritance(t *testing.T) {
 	compiler := NewCompiler()
-	compiler.RegisterDefaultFunc("test", func(args ...any) (any, error) {
+	compiler.RegisterDefaultFunc("test", func(_ ...any) (any, error) {
 		return "inherited", nil
 	})
 

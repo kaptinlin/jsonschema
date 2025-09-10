@@ -34,15 +34,14 @@ func evaluateRequired(schema *Schema, object map[string]any) *EvaluationError {
 			return NewEvaluationError("required", "missing_required_property", "Required property {property} is missing", map[string]any{
 				"property": fmt.Sprintf("'%s'", missingProps[0]),
 			})
-		} else {
-			quotedProperties := make([]string, len(missingProps))
-			for i, prop := range missingProps {
-				quotedProperties[i] = fmt.Sprintf("'%s'", prop)
-			}
-			return NewEvaluationError("required", "missing_required_properties", "Required properties {properties} are missing", map[string]any{
-				"properties": strings.Join(quotedProperties, ", "),
-			})
 		}
+		quotedProperties := make([]string, len(missingProps))
+		for i, prop := range missingProps {
+			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
+		}
+		return NewEvaluationError("required", "missing_required_properties", "Required properties {properties} are missing", map[string]any{
+			"properties": strings.Join(quotedProperties, ", "),
+		})
 	}
 
 	return nil

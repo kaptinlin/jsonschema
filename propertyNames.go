@@ -22,7 +22,7 @@ func evaluatePropertyNames(schema *Schema, object map[string]any, _ map[string]b
 		return nil, nil
 	}
 
-	invalid_properties := []string{}
+	invalidProperties := []string{}
 	results := []*EvaluationResult{}
 
 	if schema.PropertyNames != nil {
@@ -39,18 +39,18 @@ func evaluatePropertyNames(schema *Schema, object map[string]any, _ map[string]b
 			results = append(results, result)
 
 			if !result.IsValid() {
-				invalid_properties = append(invalid_properties, propName)
+				invalidProperties = append(invalidProperties, propName)
 			}
 		}
 	}
 
-	if len(invalid_properties) == 1 {
+	if len(invalidProperties) == 1 {
 		return results, NewEvaluationError("propertyNames", "property_name_mismatch", "Property name {property} does not match the schema", map[string]any{
-			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
+			"property": fmt.Sprintf("'%s'", invalidProperties[0]),
 		})
-	} else if len(invalid_properties) > 1 {
-		quotedProperties := make([]string, len(invalid_properties))
-		for i, prop := range invalid_properties {
+	} else if len(invalidProperties) > 1 {
+		quotedProperties := make([]string, len(invalidProperties))
+		for i, prop := range invalidProperties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
 		return results, NewEvaluationError("propertyNames", "property_names_mismatch", "Property names {properties} do not match the schema", map[string]any{

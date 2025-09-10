@@ -37,7 +37,7 @@ func evaluatePatternProperties(schema *Schema, object map[string]any, evaluatedP
 	}
 
 	// invalid_regex  := []string{}
-	invalid_properties := []string{}
+	invalidProperties := []string{}
 	results := []*EvaluationResult{}
 
 	// Loop over each pattern in the PatternProperties map.
@@ -69,21 +69,21 @@ func evaluatePatternProperties(schema *Schema, object map[string]any, evaluatedP
 
 					results = append(results, result)
 
-					if !result.IsValid() && !slices.Contains(invalid_properties, propName) {
-						invalid_properties = append(invalid_properties, propName)
+					if !result.IsValid() && !slices.Contains(invalidProperties, propName) {
+						invalidProperties = append(invalidProperties, propName)
 					}
 				}
 			}
 		}
 	}
 
-	if len(invalid_properties) == 1 {
+	if len(invalidProperties) == 1 {
 		return results, NewEvaluationError("properties", "pattern_property_mismatch", "Property {property} does not match the pattern schema", map[string]any{
-			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
+			"property": fmt.Sprintf("'%s'", invalidProperties[0]),
 		})
-	} else if len(invalid_properties) > 1 {
-		quotedProperties := make([]string, len(invalid_properties))
-		for i, prop := range invalid_properties {
+	} else if len(invalidProperties) > 1 {
+		quotedProperties := make([]string, len(invalidProperties))
+		for i, prop := range invalidProperties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
 		return results, NewEvaluationError("properties", "pattern_properties_mismatch", "Properties {properties} do not match their pattern schemas", map[string]any{

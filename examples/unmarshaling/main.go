@@ -1,3 +1,4 @@
+// Package main demonstrates unmarshaling usage of the jsonschema library.
 package main
 
 import (

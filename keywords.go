@@ -8,17 +8,17 @@ type Keyword func(*Schema)
 // ===============================
 
 // MinLen sets the minLength keyword
-func MinLen(min int) Keyword {
+func MinLen(minLen int) Keyword {
 	return func(s *Schema) {
-		f := float64(min)
+		f := float64(minLen)
 		s.MinLength = &f
 	}
 }
 
 // MaxLen sets the maxLength keyword
-func MaxLen(max int) Keyword {
+func MaxLen(maxLen int) Keyword {
 	return func(s *Schema) {
-		f := float64(max)
+		f := float64(maxLen)
 		s.MaxLength = &f
 	}
 }
@@ -42,30 +42,30 @@ func Format(format string) Keyword {
 // ===============================
 
 // Min sets the minimum keyword
-func Min(min float64) Keyword {
+func Min(minVal float64) Keyword {
 	return func(s *Schema) {
-		s.Minimum = NewRat(min)
+		s.Minimum = NewRat(minVal)
 	}
 }
 
 // Max sets the maximum keyword
-func Max(max float64) Keyword {
+func Max(maxVal float64) Keyword {
 	return func(s *Schema) {
-		s.Maximum = NewRat(max)
+		s.Maximum = NewRat(maxVal)
 	}
 }
 
 // ExclusiveMin sets the exclusiveMinimum keyword
-func ExclusiveMin(min float64) Keyword {
+func ExclusiveMin(minVal float64) Keyword {
 	return func(s *Schema) {
-		s.ExclusiveMinimum = NewRat(min)
+		s.ExclusiveMinimum = NewRat(minVal)
 	}
 }
 
 // ExclusiveMax sets the exclusiveMaximum keyword
-func ExclusiveMax(max float64) Keyword {
+func ExclusiveMax(maxVal float64) Keyword {
 	return func(s *Schema) {
-		s.ExclusiveMaximum = NewRat(max)
+		s.ExclusiveMaximum = NewRat(maxVal)
 	}
 }
 
@@ -88,17 +88,17 @@ func Items(itemSchema *Schema) Keyword {
 }
 
 // MinItems sets the minItems keyword
-func MinItems(min int) Keyword {
+func MinItems(minItems int) Keyword {
 	return func(s *Schema) {
-		f := float64(min)
+		f := float64(minItems)
 		s.MinItems = &f
 	}
 }
 
 // MaxItems sets the maxItems keyword
-func MaxItems(max int) Keyword {
+func MaxItems(maxItems int) Keyword {
 	return func(s *Schema) {
-		f := float64(max)
+		f := float64(maxItems)
 		s.MaxItems = &f
 	}
 }
@@ -118,17 +118,17 @@ func Contains(schema *Schema) Keyword {
 }
 
 // MinContains sets the minContains keyword
-func MinContains(min int) Keyword {
+func MinContains(minContains int) Keyword {
 	return func(s *Schema) {
-		f := float64(min)
+		f := float64(minContains)
 		s.MinContains = &f
 	}
 }
 
 // MaxContains sets the maxContains keyword
-func MaxContains(max int) Keyword {
+func MaxContains(maxContains int) Keyword {
 	return func(s *Schema) {
-		f := float64(max)
+		f := float64(maxContains)
 		s.MaxContains = &f
 	}
 }
@@ -173,17 +173,17 @@ func AdditionalPropsSchema(schema *Schema) Keyword {
 }
 
 // MinProps sets the minProperties keyword
-func MinProps(min int) Keyword {
+func MinProps(minProps int) Keyword {
 	return func(s *Schema) {
-		f := float64(min)
+		f := float64(minProps)
 		s.MinProperties = &f
 	}
 }
 
 // MaxProps sets the maxProperties keyword
-func MaxProps(max int) Keyword {
+func MaxProps(maxProps int) Keyword {
 	return func(s *Schema) {
-		f := float64(max)
+		f := float64(maxProps)
 		s.MaxProperties = &f
 	}
 }
@@ -345,7 +345,9 @@ func Defs(defs map[string]*Schema) Keyword {
 // Format constants
 // ===============================
 
+// Format validation constants
 const (
+	// FormatEmail represents the email format validation
 	FormatEmail               = "email"
 	FormatDateTime            = "date-time"
 	FormatDate                = "date"

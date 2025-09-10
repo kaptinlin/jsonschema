@@ -49,7 +49,6 @@ func evaluateAnyOf(schema *Schema, data any, evaluatedProps map[string]bool, eva
 
 	if valid {
 		return results, nil // Return nil only if at least one schema succeeds
-	} else {
-		return results, NewEvaluationError("anyOf", "any_of_item_mismatch", "Value does not match anyOf schema")
 	}
+	return results, NewEvaluationError("anyOf", "any_of_item_mismatch", "Value does not match anyOf schema")
 }

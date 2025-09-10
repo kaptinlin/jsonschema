@@ -1,3 +1,4 @@
+// Package main demonstrates error-handling usage of the jsonschema library.
 package main
 
 import (

@@ -46,9 +46,8 @@ func evaluateContains(schema *Schema, data []any, _ map[string]bool, evaluatedIt
 		minContains = int(*schema.MinContains)
 	}
 
-	if minContains == 0 && validCount == 0 {
-		// Valid scenario when minContains is 0. Still need to check maxContains.
-	} else if validCount < minContains {
+	// Check minContains validation (skip if minContains is 0 and no valid items found - valid scenario)
+	if (minContains != 0 || validCount != 0) && validCount < minContains {
 		return results, NewEvaluationError("minContains", "contains_too_few_items", "Value should contain at least {min_contains} matching items", map[string]any{
 			"min_contains": minContains,
 			"count":        validCount,

@@ -70,7 +70,7 @@ func TestSchemaInitialization(t *testing.T) {
 func TestSetCompiler(t *testing.T) {
 	// Create a custom compiler
 	customCompiler := NewCompiler()
-	customCompiler.RegisterDefaultFunc("testFunc", func(args ...any) (any, error) {
+	customCompiler.RegisterDefaultFunc("testFunc", func(_ ...any) (any, error) {
 		return "custom_result", nil
 	})
 
@@ -150,7 +150,7 @@ func TestGetCompiler(t *testing.T) {
 func TestGetCompilerInheritance(t *testing.T) {
 	// Create a custom compiler with a test function
 	customCompiler := NewCompiler()
-	customCompiler.RegisterDefaultFunc("testFunc", func(args ...any) (any, error) {
+	customCompiler.RegisterDefaultFunc("testFunc", func(_ ...any) (any, error) {
 		return "inherited_result", nil
 	})
 
@@ -198,7 +198,7 @@ func TestConstructorCompilerBehavior(t *testing.T) {
 
 	// Create custom compiler with a unique function
 	customCompiler := NewCompiler()
-	customCompiler.RegisterDefaultFunc("customFunc", func(args ...any) (any, error) {
+	customCompiler.RegisterDefaultFunc("customFunc", func(_ ...any) (any, error) {
 		return "custom_value", nil
 	})
 

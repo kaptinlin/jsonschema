@@ -22,7 +22,7 @@ func evaluateItems(schema *Schema, array []any, _ map[string]bool, evaluatedItem
 		return nil, nil // // No 'items' constraints to validate against
 	}
 
-	invalid_indexs := []string{}
+	invalidIndexes := []string{}
 	results := []*EvaluationResult{}
 
 	// Number of prefix items to skip before regular item validation
@@ -44,19 +44,19 @@ func evaluateItems(schema *Schema, array []any, _ map[string]bool, evaluatedItem
 					evaluatedItems[i] = true // Mark the item as evaluated if it passes schema validation.
 				} else {
 					results = append(results, result)
-					invalid_indexs = append(invalid_indexs, strconv.Itoa(i))
+					invalidIndexes = append(invalidIndexes, strconv.Itoa(i))
 				}
 			}
 		}
 	}
 
-	if len(invalid_indexs) == 1 {
+	if len(invalidIndexes) == 1 {
 		return results, NewEvaluationError("items", "item_mismatch", "Item at index {index} does not match the schema", map[string]any{
-			"index": invalid_indexs[0],
+			"index": invalidIndexes[0],
 		})
-	} else if len(invalid_indexs) > 1 {
+	} else if len(invalidIndexes) > 1 {
 		return results, NewEvaluationError("items", "items_mismatch", "Items at index {indexs} do not match the schema", map[string]any{
-			"indexs": strings.Join(invalid_indexs, ", "),
+			"indexs": strings.Join(invalidIndexes, ", "),
 		})
 	}
 	return results, nil

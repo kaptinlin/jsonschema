@@ -1,3 +1,4 @@
+// Package main demonstrates struct-validation usage of the jsonschema library.
 package main
 
 import (

@@ -23,7 +23,7 @@ func evaluateDependentSchemas(schema *Schema, instance any, evaluatedProps map[s
 	if !ok {
 		return nil, nil // instance is not an object, dependentSchemas do not apply.
 	}
-	invalid_properties := []string{}
+	invalidProperties := []string{}
 	results := []*EvaluationResult{}
 
 	for propName, depSchema := range schema.DependentSchemas {
@@ -42,19 +42,19 @@ func evaluateDependentSchemas(schema *Schema, instance any, evaluatedProps map[s
 					mergeStringMaps(evaluatedProps, schemaEvaluatedProps)
 					mergeIntMaps(evaluatedItems, schemaEvaluatedItems)
 				} else {
-					invalid_properties = append(invalid_properties, propName)
+					invalidProperties = append(invalidProperties, propName)
 				}
 			}
 		}
 	}
 
-	if len(invalid_properties) == 1 {
+	if len(invalidProperties) == 1 {
 		return results, NewEvaluationError("dependentSchemas", "dependent_schema_mismatch", "Property {property} does not match the dependent schema", map[string]any{
-			"property": fmt.Sprintf("'%s'", invalid_properties[0]),
+			"property": fmt.Sprintf("'%s'", invalidProperties[0]),
 		})
-	} else if len(invalid_properties) > 1 {
-		quotedProperties := make([]string, len(invalid_properties))
-		for i, prop := range invalid_properties {
+	} else if len(invalidProperties) > 1 {
+		quotedProperties := make([]string, len(invalidProperties))
+		for i, prop := range invalidProperties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
 		return results, NewEvaluationError("dependentSchemas", "dependent_schemas_mismatch", "Properties {properties} do not match the dependent schemas", map[string]any{

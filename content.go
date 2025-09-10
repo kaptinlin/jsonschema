@@ -71,9 +71,8 @@ func evaluateContent(schema *Schema, instance any, _ map[string]bool, _ map[int]
 
 			if !result.IsValid() {
 				return result, NewEvaluationError("contentSchema", "content_schema_mismatch", "Content does not match the schema")
-			} else {
-				return result, nil
 			}
+			return result, nil
 		}
 	}
 

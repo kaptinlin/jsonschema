@@ -346,217 +346,216 @@ var (
 // to be removed in future versions
 
 var (
-	// === Network and IO Related Error Aliases ===
-	// Deprecated: Use ErrDataRead instead
+	// ErrFailedToReadData is deprecated: Use ErrDataRead instead
 	ErrFailedToReadData = ErrDataRead
 
-	// Deprecated: Use ErrNetworkFetch instead
+	// ErrFailedToFetch is deprecated: Use ErrNetworkFetch instead
 	ErrFailedToFetch = ErrNetworkFetch
 
-	// Deprecated: Use ErrInvalidStatusCode instead
+	// ErrInvalidHTTPStatusCode is deprecated: Use ErrInvalidStatusCode instead
 	ErrInvalidHTTPStatusCode = ErrInvalidStatusCode
 
-	// Deprecated: Use ErrFileWrite instead
+	// ErrFailedToWriteFile is deprecated: Use ErrFileWrite instead
 	ErrFailedToWriteFile = ErrFileWrite
 
-	// Deprecated: Use ErrFileCreation instead
+	// ErrFailedToCreateFile is deprecated: Use ErrFileCreation instead
 	ErrFailedToCreateFile = ErrFileCreation
 
-	// Deprecated: Use ErrDirectoryCreation instead
+	// ErrFailedToCreateDirectory is deprecated: Use ErrDirectoryCreation instead
 	ErrFailedToCreateDirectory = ErrDirectoryCreation
 
-	// Deprecated: Use ErrContentWrite instead
+	// ErrFailedToWriteContent is deprecated: Use ErrContentWrite instead
 	ErrFailedToWriteContent = ErrContentWrite
 
-	// === Serialization Related Error Aliases ===
+	// ErrJSONUnmarshalError is deprecated: Use ErrJSONUnmarshal instead
 	// Deprecated: Use ErrJSONUnmarshal instead
 	ErrJSONUnmarshalError = ErrJSONUnmarshal
 
-	// Deprecated: Use ErrXMLUnmarshal instead
+	// ErrXMLUnmarshalError is deprecated: Use ErrXMLUnmarshal instead
 	ErrXMLUnmarshalError = ErrXMLUnmarshal
 
-	// Deprecated: Use ErrYAMLUnmarshal instead
+	// ErrYAMLUnmarshalError is deprecated: Use ErrYAMLUnmarshal instead
 	ErrYAMLUnmarshalError = ErrYAMLUnmarshal
 
-	// Deprecated: Use ErrJSONDecode instead
+	// ErrFailedToDecodeJSON is deprecated: Use ErrJSONDecode instead
 	ErrFailedToDecodeJSON = ErrJSONDecode
 
-	// Deprecated: Use ErrSourceEncode instead
+	// ErrFailedToEncodeSource is deprecated: Use ErrSourceEncode instead
 	ErrFailedToEncodeSource = ErrSourceEncode
 
-	// Deprecated: Use ErrIntermediateJSONDecode instead
+	// ErrFailedToDecodeIntermediateJSON is deprecated: Use ErrIntermediateJSONDecode instead
 	ErrFailedToDecodeIntermediateJSON = ErrIntermediateJSONDecode
 
-	// Deprecated: Use ErrDataEncode instead
+	// ErrFailedToEncodeData is deprecated: Use ErrDataEncode instead
 	ErrFailedToEncodeData = ErrDataEncode
 
-	// Deprecated: Use ErrNestedValueEncode instead
+	// ErrFailedToEncodeNestedValue is deprecated: Use ErrNestedValueEncode instead
 	ErrFailedToEncodeNestedValue = ErrNestedValueEncode
 
-	// === Schema Compilation and Parsing Related Error Aliases ===
+	// ErrFailedToCompileSchema is deprecated: Use ErrSchemaCompile instead
 	// Deprecated: Use ErrSchemaCompilation instead
 	ErrFailedToCompileSchema = ErrSchemaCompilation
 
-	// Deprecated: Use ErrReferenceResolution instead
+	// ErrFailedToResolveReference is deprecated: Use ErrReferenceResolution instead
 	ErrFailedToResolveReference = ErrReferenceResolution
 
-	// Deprecated: Use ErrGlobalReferenceResolution instead
+	// ErrFailedToResolveGlobalReference is deprecated: Use ErrGlobalReferenceResolution instead
 	ErrFailedToResolveGlobalReference = ErrGlobalReferenceResolution
 
-	// Deprecated: Use ErrDefinitionResolution instead
+	// ErrFailedToResolveDefinitions is deprecated: Use ErrDefinitionResolution instead
 	ErrFailedToResolveDefinitions = ErrDefinitionResolution
 
-	// Deprecated: Use ErrItemResolution instead
+	// ErrFailedToResolveItems is deprecated: Use ErrItemResolution instead
 	ErrFailedToResolveItems = ErrItemResolution
 
-	// Deprecated: Use ErrJSONPointerSegmentDecode instead
+	// ErrFailedToDecodeSegmentWithJSONPointer is deprecated: Use ErrJSONPointerSegmentDecode instead
 	ErrFailedToDecodeSegmentWithJSONPointer = ErrJSONPointerSegmentDecode
 
-	// Deprecated: Use ErrJSONPointerSegmentNotFound instead
+	// ErrSegmentNotFoundForJSONPointer is deprecated: Use ErrJSONPointerSegmentNotFound instead
 	ErrSegmentNotFoundForJSONPointer = ErrJSONPointerSegmentNotFound
 
-	// Deprecated: Use ErrInvalidSchemaType instead
+	// ErrInvalidJSONSchemaType is deprecated: Use ErrInvalidSchemaType instead
 	ErrInvalidJSONSchemaType = ErrInvalidSchemaType
 
-	// === Type Conversion Related Error Aliases ===
+	// ErrTimeTypeConversion is deprecated: Use ErrTimeConversion instead
 	// Deprecated: Use ErrTimeConversion instead
 	ErrTimeTypeConversion = ErrTimeConversion
 
-	// Deprecated: Use ErrTimeParsing instead
+	// ErrTimeParseFailure is deprecated: Use ErrTimeParsing instead
 	ErrTimeParseFailure = ErrTimeParsing
 
-	// Deprecated: Use ErrRatConversion instead
+	// ErrFailedToConvertToRat is deprecated: Use ErrRatConversion instead
 	ErrFailedToConvertToRat = ErrRatConversion
 
-	// Deprecated: Use ErrSliceConversion instead
+	// ErrCannotConvertSlice is deprecated: Use ErrSliceConversion instead
 	ErrCannotConvertSlice = ErrSliceConversion
 
-	// Deprecated: Use ErrSliceElementConversion instead
+	// ErrCannotConvertSliceElement is deprecated: Use ErrSliceElementConversion instead
 	ErrCannotConvertSliceElement = ErrSliceElementConversion
 
-	// Deprecated: Use ErrFirstSliceConversion instead
+	// ErrCannotConvertFirstSlice is deprecated: Use ErrFirstSliceConversion instead
 	ErrCannotConvertFirstSlice = ErrFirstSliceConversion
 
-	// Deprecated: Use ErrSecondSliceConversion instead
+	// ErrCannotConvertSecondSlice is deprecated: Use ErrSecondSliceConversion instead
 	ErrCannotConvertSecondSlice = ErrSecondSliceConversion
 
-	// Deprecated: Use ErrNilConversion instead
+	// ErrCannotConvertNil is deprecated: Use ErrNilConversion instead
 	ErrCannotConvertNil = ErrNilConversion
 
-	// Deprecated: Use ErrNilPointerConversion instead
+	// ErrCannotConvertNilPointer is deprecated: Use ErrNilPointerConversion instead
 	ErrCannotConvertNilPointer = ErrNilPointerConversion
 
-	// Deprecated: Use ErrValueParsing instead
+	// ErrCannotParseValue is deprecated: Use ErrValueParsing instead
 	ErrCannotParseValue = ErrValueParsing
 
-	// Deprecated: Use ErrValueAssignment instead
+	// ErrCannotAssignValue is deprecated: Use ErrValueAssignment instead
 	ErrCannotAssignValue = ErrValueAssignment
 
-	// Deprecated: Use ErrUnsupportedRatType instead
+	// ErrUnsupportedTypeForRat is deprecated: Use ErrUnsupportedRatType instead
 	ErrUnsupportedTypeForRat = ErrUnsupportedRatType
 
-	// Deprecated: Use ErrUnsupportedGenerationType instead
+	// ErrUnsupportedTypeForGeneration is deprecated: Use ErrUnsupportedGenerationType instead
 	ErrUnsupportedTypeForGeneration = ErrUnsupportedGenerationType
 
-	// Deprecated: Use ErrInvalidTransformType instead
+	// ErrInvalidTypeForTransform is deprecated: Use ErrInvalidTransformType instead
 	ErrInvalidTypeForTransform = ErrInvalidTransformType
 
-	// === Struct and Reflection Related Error Aliases ===
-	// Deprecated: Use ErrStructTagParsing instead
+	// ErrFailedToParseStructTags is deprecated: Use ErrStructTagParse instead
+	// ErrStructTagParsing is deprecated: Use ErrStructTagParsing instead
 	ErrFailedToParseStructTags = ErrStructTagParsing
 
-	// Deprecated: Use ErrFieldAssignment instead
+	// ErrFailedToSetField is deprecated: Use ErrFieldAssignment instead
 	ErrFailedToSetField = ErrFieldAssignment
 
-	// Deprecated: Use ErrFieldAnalysis instead
+	// ErrFailedToAnalyzeFields is deprecated: Use ErrFieldAnalysis instead
 	ErrFailedToAnalyzeFields = ErrFieldAnalysis
 
-	// === Default Value Handling Related Error Aliases ===
-	// Deprecated: Use ErrDefaultApplication instead
+	// ErrFailedToApplyDefaults is deprecated: Use ErrDefaultApply instead
+	// ErrDefaultApplication is deprecated: Use ErrDefaultApplication instead
 	ErrFailedToApplyDefaults = ErrDefaultApplication
 
-	// Deprecated: Use ErrDefaultEvaluation instead
+	// ErrFailedToEvaluateDefaultValue is deprecated: Use ErrDefaultEvaluation instead
 	ErrFailedToEvaluateDefaultValue = ErrDefaultEvaluation
 
-	// Deprecated: Use ErrArrayDefaultApplication instead
+	// ErrFailedToApplyArrayDefaults is deprecated: Use ErrArrayDefaultApplication instead
 	ErrFailedToApplyArrayDefaults = ErrArrayDefaultApplication
 
-	// Deprecated: Use ErrFunctionCallParsing instead
+	// ErrFailedToParseFunctionCall is deprecated: Use ErrFunctionCallParsing instead
 	ErrFailedToParseFunctionCall = ErrFunctionCallParsing
 
-	// === Code Generation Related Error Aliases ===
-	// Deprecated: Use ErrNilConfig instead
+	// ErrConfigCannotBeNil is deprecated: Use ErrConfigNil instead
+	// ErrNilConfig is deprecated: Use ErrNilConfig instead
 	ErrConfigCannotBeNil = ErrNilConfig
 
-	// Deprecated: Use ErrAnalyzerCreation instead
+	// ErrFailedToCreateAnalyzer is deprecated: Use ErrAnalyzerCreation instead
 	ErrFailedToCreateAnalyzer = ErrAnalyzerCreation
 
-	// Deprecated: Use ErrWriterCreation instead
+	// ErrFailedToCreateWriter is deprecated: Use ErrWriterCreation instead
 	ErrFailedToCreateWriter = ErrWriterCreation
 
-	// Deprecated: Use ErrPackageAnalysis instead
+	// ErrFailedToAnalyzePackage is deprecated: Use ErrPackageAnalysis instead
 	ErrFailedToAnalyzePackage = ErrPackageAnalysis
 
-	// Deprecated: Use ErrCodeGeneration instead
+	// ErrFailedToGenerateCode is deprecated: Use ErrCodeGeneration instead
 	ErrFailedToGenerateCode = ErrCodeGeneration
 
-	// Deprecated: Use ErrPropertyGeneration instead
+	// ErrFailedToGenerateProperty is deprecated: Use ErrPropertyGeneration instead
 	ErrFailedToGenerateProperty = ErrPropertyGeneration
 
-	// Deprecated: Use ErrJSONSchemaTagParsing instead
+	// ErrFailedToParseJSONSchemaTag is deprecated: Use ErrJSONSchemaTagParsing instead
 	ErrFailedToParseJSONSchemaTag = ErrJSONSchemaTagParsing
 
-	// Deprecated: Use ErrGozodTagParsing instead
+	// ErrFailedToParseGozodTag is deprecated: Use ErrGozodTagParsing instead
 	ErrFailedToParseGozodTag = ErrGozodTagParsing
 
-	// Deprecated: Use ErrTemplateLoading instead
+	// ErrFailedToLoadTemplates is deprecated: Use ErrTemplateLoading instead
 	ErrFailedToLoadTemplates = ErrTemplateLoading
 
-	// Deprecated: Use ErrOutputDirectoryCreation instead
+	// ErrFailedToCreateOutputDirectory is deprecated: Use ErrOutputDirectoryCreation instead
 	ErrFailedToCreateOutputDirectory = ErrOutputDirectoryCreation
 
-	// Deprecated: Use ErrFieldSchemaGeneration instead
+	// ErrFailedToGenerateFieldSchemas is deprecated: Use ErrFieldSchemaGeneration instead
 	ErrFailedToGenerateFieldSchemas = ErrFieldSchemaGeneration
 
-	// Deprecated: Use ErrTemplateExecution instead
+	// ErrFailedToExecuteTemplate is deprecated: Use ErrTemplateExecution instead
 	ErrFailedToExecuteTemplate = ErrTemplateExecution
 
-	// Deprecated: Use ErrMainTemplateParsing instead
+	// ErrFailedToParseMainTemplate is deprecated: Use ErrMainTemplateParsing instead
 	ErrFailedToParseMainTemplate = ErrMainTemplateParsing
 
-	// Deprecated: Use ErrDependencyAnalysis instead
+	// ErrFailedToAnalyzeDependencies is deprecated: Use ErrDependencyAnalysis instead
 	ErrFailedToAnalyzeDependencies = ErrDependencyAnalysis
 
-	// Deprecated: Use ErrTemplateParsing instead
+	// ErrFailedToParseTemplate is deprecated: Use ErrTemplateParsing instead
 	ErrFailedToParseTemplate = ErrTemplateParsing
 
-	// Deprecated: Use ErrCodeFormatting instead
+	// ErrFailedToFormatCode is deprecated: Use ErrCodeFormatting instead
 	ErrFailedToFormatCode = ErrCodeFormatting
 
-	// === Numeric and Format Related Error Aliases ===
-	// Deprecated: Use ErrNegativeValueConversion instead
+	// ErrNegativeValue is deprecated: Use ErrValueNegative instead
+	// ErrNegativeValueConversion is deprecated: Use ErrNegativeValueConversion instead
 	ErrNegativeValue = ErrNegativeValueConversion
 
-	// Deprecated: Use ErrNonWholeNumber instead
+	// ErrNotWholeNumber is deprecated: Use ErrNonWholeNumber instead
 	ErrNotWholeNumber = ErrNonWholeNumber
 
-	// Deprecated: Use ErrInvalidSliceArrayString instead
+	// ErrNotSliceArrayOrString is deprecated: Use ErrInvalidSliceArrayString instead
 	ErrNotSliceArrayOrString = ErrInvalidSliceArrayString
 
-	// Deprecated: Use ErrIPv6AddressFormat instead
+	// ErrIPv6AddressNotEnclosed is deprecated: Use ErrIPv6AddressFormat instead
 	ErrIPv6AddressNotEnclosed = ErrIPv6AddressFormat
 
-	// Deprecated: Use ErrInvalidIPv6 instead
+	// ErrInvalidIPv6Address is deprecated: Use ErrInvalidIPv6 instead
 	ErrInvalidIPv6Address = ErrInvalidIPv6
 
-	// === Path and Filesystem Related Error Aliases ===
-	// Deprecated: Use ErrAbsolutePathResolution instead
+	// ErrFailedToResolveAbsolutePath is deprecated: Use ErrPathResolve instead
+	// ErrAbsolutePathResolution is deprecated: Use ErrAbsolutePathResolution instead
 	ErrFailedToResolveAbsolutePath = ErrAbsolutePathResolution
 
-	// Deprecated: Use ErrCurrentDirectoryAccess instead
+	// ErrFailedToGetCurrentDirectory is deprecated: Use ErrCurrentDirectoryAccess instead
 	ErrFailedToGetCurrentDirectory = ErrCurrentDirectoryAccess
 
-	// Deprecated: Use ErrPathOutsideDirectory instead
+	// ErrPathOutsideCurrentDirectory is deprecated: Use ErrPathOutsideDirectory instead
 	ErrPathOutsideCurrentDirectory = ErrPathOutsideDirectory
 
 	// === Aliases from unmarshal.go ===
