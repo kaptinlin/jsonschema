@@ -65,13 +65,16 @@ type Example struct {
 ### Field Processing
 
 ```go
-// JSON field name mapping
+// JSON field name mapping with Go 1.24+ omitzero support
 type User struct {
     FullName string `json:"full_name" jsonschema:"required,minLength=2"`
     Email    string `json:"email" jsonschema:"required,format=email"`
+    Bio      string `json:"bio,omitzero"`      // Omit if zero value (Go 1.24+)
+    Age      int    `json:"age,omitempty"`     // Omit if empty
 }
 
 // Schema automatically uses JSON field names for validation paths
+// omitzero and omitempty tags are respected in struct validation
 schema := jsonschema.FromStruct[User]()
 ```
 
@@ -119,6 +122,29 @@ type StructTagOptions struct {
     // ... other options
 }
 ```
+
+---
+
+## 🏷️ JSON Field Tags (omitempty/omitzero)
+
+JSON field tags are fully supported in struct validation:
+
+```go
+type User struct {
+    Name     string    `json:"name" jsonschema:"required"`
+    Email    string    `json:"email,omitempty" jsonschema:"format=email"`
+    Bio      string    `json:"bio,omitzero"`      // Go 1.24+ - omits zero values  
+    Created  time.Time `json:"created,omitzero"`  // Omits time.Time{} 
+    Tags     []string  `json:"tags,omitempty"`    // Omits nil/empty slices
+}
+
+schema := jsonschema.FromStruct[User]()
+result := schema.ValidateStruct(user)  // ✅ Both tags respected
+```
+
+**omitempty vs omitzero:**
+- **`omitempty`**: Omits nil pointers, empty slices/maps, `""`, `0`, `false`
+- **`omitzero`**: Omits any zero value (Go 1.24+), includes `time.Time{}`
 
 ---
 
