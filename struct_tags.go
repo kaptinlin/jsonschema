@@ -60,6 +60,9 @@ type StructTagOptions struct {
 	CacheEnabled        bool                // whether to enable schema caching (default: true)
 	ErrorHandler        func(error)         // optional error handler for processing errors
 	SchemaVersion       string              // $schema URI to include in generated schemas (empty string = omit $schema, default = Draft 2020-12)
+
+	// Schema-level properties using map approach
+	SchemaProperties map[string]any // flexible configuration for any schema property
 }
 
 // CustomValidatorFunc represents a custom validator function
@@ -100,6 +103,9 @@ func DefaultStructTagOptions() *StructTagOptions {
 		CustomValidators:    make(map[string]any),
 		CacheEnabled:        true,
 		SchemaVersion:       "https://json-schema.org/draft/2020-12/schema", // default to JSON Schema Draft 2020-12
+
+		// Schema-level properties - empty by default (not set)
+		SchemaProperties: nil, // nil = no schema properties set
 	}
 }
 
@@ -196,6 +202,9 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 	if options.SchemaVersion != "" {
 		schema.Schema = options.SchemaVersion
 	}
+
+	// Apply schema-level properties
+	applySchemaProperties(schema, options)
 
 	// Add $defs if there are any circular references
 	if len(generator.definitions) > 0 {
@@ -1428,4 +1437,55 @@ func isObjectConstraint(constraintType string) bool {
 // isArrayConstraint checks if a constraint type applies to arrays
 func isArrayConstraint(constraintType string) bool {
 	return constraintType == "array"
+}
+
+// applySchemaProperties applies schema-level properties from StructTagOptions to the schema
+func applySchemaProperties(schema *Schema, options *StructTagOptions) {
+	// Apply properties from SchemaProperties map - only set when explicitly provided
+	if options.SchemaProperties != nil {
+		for key, value := range options.SchemaProperties {
+			switch key {
+			case "additionalProperties":
+				if boolVal, ok := value.(bool); ok {
+					schema.AdditionalProperties = &Schema{Boolean: &boolVal}
+				}
+			case "title":
+				if strVal, ok := value.(string); ok {
+					schema.Title = &strVal
+				}
+			case "description":
+				if strVal, ok := value.(string); ok {
+					schema.Description = &strVal
+				}
+			case "minProperties":
+				if intVal, ok := value.(int); ok {
+					floatVal := float64(intVal)
+					schema.MinProperties = &floatVal
+				}
+			case "maxProperties":
+				if intVal, ok := value.(int); ok {
+					floatVal := float64(intVal)
+					schema.MaxProperties = &floatVal
+				}
+			case "default":
+				schema.Default = value
+			case "examples":
+				if examples, ok := value.([]any); ok {
+					schema.Examples = examples
+				}
+			case "deprecated":
+				if deprecated, ok := value.(bool); ok {
+					schema.Deprecated = &deprecated
+				}
+			case "readOnly":
+				if readOnly, ok := value.(bool); ok {
+					schema.ReadOnly = &readOnly
+				}
+			case "writeOnly":
+				if writeOnly, ok := value.(bool); ok {
+					schema.WriteOnly = &writeOnly
+				}
+			}
+		}
+	}
 }

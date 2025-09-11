@@ -1540,3 +1540,87 @@ func TestFromStruct_SchemaVersionInJSON(t *testing.T) {
 		t.Errorf("Expected JSON to contain %s, got: %s", expectedSchemaField, jsonStr)
 	}
 }
+
+// =============================================================================
+// AdditionalProperties Tests
+// =============================================================================
+
+// TestFromStruct_SchemaPropertiesFalse tests setting additionalProperties to false
+func TestFromStruct_SchemaPropertiesFalse(t *testing.T) {
+	options := &StructTagOptions{
+		SchemaProperties: map[string]any{
+			"additionalProperties": false,
+		},
+	}
+	schema := FromStructWithOptions[TestUser](options)
+
+	if schema.AdditionalProperties == nil {
+		t.Fatal("Expected additionalProperties to be set")
+	}
+	if schema.AdditionalProperties.Boolean == nil || *schema.AdditionalProperties.Boolean != false {
+		t.Error("Expected additionalProperties to be false")
+	}
+}
+
+// TestFromStruct_SchemaPropertiesTrue tests setting additionalProperties to true
+func TestFromStruct_SchemaPropertiesTrue(t *testing.T) {
+	options := &StructTagOptions{
+		SchemaProperties: map[string]any{
+			"additionalProperties": true,
+		},
+	}
+	schema := FromStructWithOptions[TestUser](options)
+
+	if schema.AdditionalProperties == nil {
+		t.Fatal("Expected additionalProperties to be set")
+	}
+	if schema.AdditionalProperties.Boolean == nil || *schema.AdditionalProperties.Boolean != true {
+		t.Error("Expected additionalProperties to be true")
+	}
+}
+
+// TestFromStruct_DefaultSchemaProperties tests default behavior (no schema properties)
+func TestFromStruct_DefaultSchemaProperties(t *testing.T) {
+	// Default schema should not set any additional schema properties
+	schema := FromStruct[TestUser]()
+
+	if schema.AdditionalProperties != nil {
+		t.Error("Expected additionalProperties to not be set by default")
+	}
+	if schema.Title != nil {
+		t.Error("Expected title to not be set by default")
+	}
+	if schema.Description != nil {
+		t.Error("Expected description to not be set by default")
+	}
+}
+
+// TestFromStruct_CombinedSchemaProperties tests multiple properties
+func TestFromStruct_CombinedSchemaProperties(t *testing.T) {
+	options := &StructTagOptions{
+		SchemaProperties: map[string]any{
+			"additionalProperties": false,
+			"title":                "User Schema",
+			"description":          "Schema for user data",
+			"minProperties":        1,
+			"maxProperties":        10,
+		},
+	}
+	schema := FromStructWithOptions[TestUser](options)
+
+	if schema.AdditionalProperties == nil || *schema.AdditionalProperties.Boolean != false {
+		t.Error("Expected additionalProperties to be false")
+	}
+	if schema.Title == nil || *schema.Title != "User Schema" {
+		t.Error("Expected title to be set")
+	}
+	if schema.Description == nil || *schema.Description != "Schema for user data" {
+		t.Error("Expected description to be set")
+	}
+	if schema.MinProperties == nil || *schema.MinProperties != 1.0 {
+		t.Error("Expected minProperties to be 1")
+	}
+	if schema.MaxProperties == nil || *schema.MaxProperties != 10.0 {
+		t.Error("Expected maxProperties to be 10")
+	}
+}

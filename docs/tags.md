@@ -119,8 +119,35 @@ type StructTagOptions struct {
     AllowUntaggedFields bool    // include fields without tags (default: false)
     DefaultRequired     bool    // fields required by default (default: false)
     CacheEnabled        bool    // enable schema caching (default: true)
-    // ... other options
+    
+    // Schema-level properties - only set when explicitly provided
+    SchemaProperties map[string]any     // flexible configuration for any schema property
 }
+```
+
+### Schema Property Configuration
+
+```go
+// API security - forbid additional properties
+options := &jsonschema.StructTagOptions{
+    SchemaProperties: map[string]any{
+        "additionalProperties": false, // Explicit: forbid additional properties
+    },
+}
+schema := jsonschema.FromStructWithOptions[APIRequest](options)
+
+// Rich schema with metadata
+options := &jsonschema.StructTagOptions{
+    SchemaProperties: map[string]any{
+        "title":                "User Registration",
+        "description":          "Schema for user registration API",
+        "additionalProperties": false,
+        "minProperties":        2,
+    },
+}
+
+// Default behavior - clean schema (no extra properties)
+schema := jsonschema.FromStruct[User]() // Only struct-derived properties, no additionalProperties
 ```
 
 ---
