@@ -2,6 +2,7 @@ package jsonschema
 
 import (
 	"reflect"
+	"strings"
 )
 
 // Validate checks if the given instance conforms to the schema.
@@ -83,16 +84,19 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 
 	// Check for circular reference before processing
 	if dynamicScope.Contains(s) {
-		result := NewEvaluationResult(s)
-		// For circular references, we perform basic validation without following references
-		// This prevents infinite recursion while still validating according to schema constraints
-		evaluatedProps := make(map[string]bool)
-		evaluatedItems := make(map[int]bool)
-		
-		// Process basic validation without references to avoid infinite loop
-		s.processBasicValidationWithoutRefs(instance, result, evaluatedProps, evaluatedItems)
-		
-		return result, evaluatedProps, evaluatedItems
+		// Determine if this is a problematic circular reference
+		if s.isProblematicCircularReference(dynamicScope) {
+			result := NewEvaluationResult(s)
+			// For problematic circular references, we perform basic validation without following references
+			// This prevents infinite recursion while still validating according to schema constraints
+			evaluatedProps := make(map[string]bool)
+			evaluatedItems := make(map[int]bool)
+
+			// Process basic validation without references to avoid infinite loop
+			s.processBasicValidationWithoutRefs(instance, result, evaluatedProps, evaluatedItems)
+
+			return result, evaluatedProps, evaluatedItems
+		}
 	}
 
 	dynamicScope.Push(s)
@@ -227,7 +231,7 @@ func (s *Schema) processValidationKeywords(instance any, dynamicScope *DynamicSc
 func (s *Schema) processBasicValidationWithoutRefs(instance any, result *EvaluationResult, evaluatedProps map[string]bool, evaluatedItems map[int]bool) {
 	// Process basic validation that doesn't involve references
 	s.processBasicValidation(instance, result)
-	
+
 	// Process type-specific validation but without following schema references
 	if s.hasNumericValidation() {
 		errors := evaluateNumeric(s, instance)
@@ -806,7 +810,7 @@ func (s *Schema) processObjectValidationWithoutRefs(instance any, result *Evalua
 		// Validate basic object constraints
 		errors := validateObjectConstraints(s, object)
 		s.addErrors(result, errors)
-		
+
 		// Check additional properties constraint for circular references
 		if s.AdditionalProperties != nil {
 			s.checkAdditionalPropertiesForCircular(object, result, evaluatedProps)
@@ -842,10 +846,10 @@ func (s *Schema) processObjectValidationWithoutRefs(instance any, result *Evalua
 				}
 			}
 		}
-		
+
 		errors := validateObjectConstraints(s, objectMap)
 		s.addErrors(result, errors)
-		
+
 		// Check additional properties for struct as well
 		if s.AdditionalProperties != nil {
 			s.checkAdditionalPropertiesForCircular(objectMap, result, evaluatedProps)
@@ -863,7 +867,7 @@ func (s *Schema) processArrayValidationWithoutRefs(instance any, result *Evaluat
 	// Only validate basic array constraints, not item schemas
 	errors := validateArrayConstraints(s, items)
 	s.addErrors(result, errors)
-	
+
 	// Mark all items as evaluated to prevent further processing
 	for i := range items {
 		evaluatedItems[i] = true
@@ -881,12 +885,12 @@ func (s *Schema) checkAdditionalPropertiesForCircular(object map[string]any, res
 				allowedProps[prop] = true
 			}
 		}
-		
+
 		// Check if all object properties are allowed
 		for prop := range object {
 			if !allowedProps[prop] {
 				//nolint:errcheck
-				result.AddError(NewEvaluationError("additionalProperties", "additional_property_false", 
+				result.AddError(NewEvaluationError("additionalProperties", "additional_property_false",
 					"Additional property '{property}' not allowed", map[string]any{
 						"property": prop,
 					}))
@@ -900,4 +904,58 @@ func (s *Schema) checkAdditionalPropertiesForCircular(object map[string]any, res
 			evaluatedProps[key] = true
 		}
 	}
+}
+
+// isProblematicCircularReference determines if this circular reference would cause infinite recursion
+func (s *Schema) isProblematicCircularReference(scope *DynamicScope) bool {
+	depth := 0
+	for _, schema := range scope.schemas {
+		if schema == s {
+			depth++
+		}
+	}
+
+	// Use different thresholds based on the type of reference and context
+
+	// For metaschema validation (remote references), be very permissive
+	// These are legitimate validation scenarios, not circular references
+	if s.ID != "" && strings.Contains(s.ID, "json-schema.org") {
+		return depth > 5 // High threshold for metaschema
+	}
+
+	// For schemas that are clearly self-referential by design, allow more depth
+	if s.hasSelfReferentialPattern() {
+		return depth > 10 // Allow reasonable nesting for self-referential schemas
+	}
+
+	// For other cases, use a moderate threshold
+	return depth > 3
+}
+
+// hasSelfReferentialPattern checks if schema has patterns designed for self-reference
+func (s *Schema) hasSelfReferentialPattern() bool {
+	// Schema has a property that references itself
+	if s.Properties != nil {
+		for _, prop := range *s.Properties {
+			if prop.Ref == "#" {
+				return true
+			}
+		}
+	}
+
+	// Schema has array items that reference itself
+	if s.Items != nil && s.Items.Ref == "#" {
+		return true
+	}
+
+	// Schema has definitions that might create recursive patterns
+	if s.Defs != nil {
+		for _, def := range s.Defs {
+			if def.Ref == "#" {
+				return true
+			}
+		}
+	}
+
+	return false
 }

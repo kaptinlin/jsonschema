@@ -189,13 +189,19 @@ func (s *Schema) ResolveUnresolvedReferences() {
 func (s *Schema) resolveReferences() {
 	// Resolve the root reference if this schema itself is a reference
 	if s.Ref != "" {
-		resolved, _ := s.resolveRef(s.Ref) // Resolve against root schema
-		s.ResolvedRef = resolved
+		resolved, err := s.resolveRef(s.Ref)
+		if err == nil {
+			s.ResolvedRef = resolved
+		}
+		// If resolution fails, leave ResolvedRef as nil and validation will handle this gracefully
 	}
 
 	if s.DynamicRef != "" {
-		resolved, _ := s.resolveRef(s.DynamicRef) // Resolve dynamic references against root schema
-		s.ResolvedDynamicRef = resolved
+		resolved, err := s.resolveRef(s.DynamicRef)
+		if err == nil {
+			s.ResolvedDynamicRef = resolved
+		}
+		// If resolution fails, leave ResolvedDynamicRef as nil and validation will handle this gracefully
 	}
 
 	// Recursively resolve references within definitions

@@ -550,30 +550,30 @@ type customByteSlice []byte
 // TestCircularReferences tests that circular references are handled correctly without causing stack overflow
 func TestCircularReferences(t *testing.T) {
 	tests := []struct {
-		name           string
-		schema         string
-		data           string
-		shouldBeValid  bool
-		description    string
+		name          string
+		schema        string
+		data          string
+		shouldBeValid bool
+		description   string
 	}{
 		{
 			name: "simple_self_reference",
 			schema: `{
-				"type": "object",
 				"properties": {
 					"self": {"$ref": "#"}
-				}
+				},
+				"additionalProperties": false
 			}`,
-			data: `{"self": {"self": {"self": null}}}`,
+			data:          `{"self": {"self": false}}`,
 			shouldBeValid: true,
-			description: "Simple self-reference should not cause infinite recursion",
+			description:   "Simple self-reference should not cause infinite recursion",
 		},
 		{
-			name: "direct_self_reference",
-			schema: `{"$ref": "#"}`,
-			data: `{}`,
+			name:          "direct_self_reference",
+			schema:        `{"$ref": "#"}`,
+			data:          `{}`,
 			shouldBeValid: true,
-			description: "Direct self-reference should be handled gracefully",
+			description:   "Direct self-reference should be handled gracefully",
 		},
 		{
 			name: "circular_with_validation_constraints_valid",
@@ -592,7 +592,7 @@ func TestCircularReferences(t *testing.T) {
 				}
 			}`,
 			shouldBeValid: true,
-			description: "Circular reference with valid constraints should pass",
+			description:   "Circular reference with valid constraints should pass",
 		},
 		{
 			name: "circular_with_validation_constraints_invalid",
@@ -610,7 +610,7 @@ func TestCircularReferences(t *testing.T) {
 				}
 			}`,
 			shouldBeValid: false,
-			description: "Circular reference missing required field should fail",
+			description:   "Circular reference missing required field should fail",
 		},
 		{
 			name: "circular_with_additional_properties_false",
@@ -620,9 +620,9 @@ func TestCircularReferences(t *testing.T) {
 				},
 				"additionalProperties": false
 			}`,
-			data: `{"foo": {"bar": false}}`,
+			data:          `{"foo": {"bar": false}}`,
 			shouldBeValid: false,
-			description: "Circular reference with additionalProperties:false should enforce constraint",
+			description:   "Circular reference with additionalProperties:false should enforce constraint",
 		},
 		{
 			name: "array_items_circular_reference",
@@ -631,23 +631,23 @@ func TestCircularReferences(t *testing.T) {
 				"items": {"$ref": "#"},
 				"minItems": 1
 			}`,
-			data: `[[1, 2], [3, 4]]`,
-			shouldBeValid: true,
-			description: "Circular reference in array items should work with constraints",
+			data:          `[[[]]]`,
+			shouldBeValid: false,
+			description:   "Circular reference in array items should work with constraints",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
-			
+
 			schema, err := compiler.Compile([]byte(tt.schema))
 			require.NoError(t, err, "Failed to compile schema")
-			
+
 			// Test validation - should complete without panic
 			result := schema.ValidateJSON([]byte(tt.data))
-			assert.Equal(t, tt.shouldBeValid, result.IsValid(), 
-				"Validation result mismatch for %s. Expected valid=%v, got valid=%v. Errors: %v", 
+			assert.Equal(t, tt.shouldBeValid, result.IsValid(),
+				"Validation result mismatch for %s. Expected valid=%v, got valid=%v. Errors: %v",
 				tt.name, tt.shouldBeValid, result.IsValid(), result.Errors)
 		})
 	}
@@ -695,10 +695,10 @@ func TestCircularReferencesInLogicalOperators(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
-			
+
 			compiledSchema, err := compiler.Compile([]byte(tt.schema))
 			require.NoError(t, err, "Failed to compile schema")
-			
+
 			// Should complete without panic - the focus is on not crashing
 			result := compiledSchema.ValidateJSON([]byte(tt.data))
 			t.Logf("%s completed: valid=%v", tt.name, result.IsValid())
