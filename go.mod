@@ -1,6 +1,6 @@
 module github.com/kaptinlin/jsonschema
 
-go 1.24.7
+go 1.25
 
 require (
 	github.com/kaptinlin/go-i18n v0.1.6
@@ -12,7 +12,7 @@ require (
 	github.com/kaptinlin/messageformat-go v0.4.0 // indirect
 )
 
-require github.com/go-json-experiment/json v0.0.0-20250813233538-9b1f9ea2e11b
+require github.com/go-json-experiment/json v0.0.0-20250910080747-cc2cfa0554c3
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

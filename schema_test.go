@@ -3,6 +3,7 @@ package jsonschema
 import (
 	"testing"
 
+	"github.com/go-json-experiment/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -240,4 +241,115 @@ func TestSchemaUnresolvedRefs(t *testing.T) {
 	unresolved := schema.GetUnresolvedReferenceURIs()
 	assert.Len(t, unresolved, 1, "Should have 1 unresolved ref")
 	assert.Equal(t, []string{"http://example.com/base"}, unresolved, "Should have correct unresolved schema")
+}
+
+func TestDeterministicMarshal(t *testing.T) {
+	schema := &Schema{
+		Type: SchemaType{"object"},
+		Properties: &SchemaMap{
+			"name": &Schema{Type: SchemaType{"string"}},
+			"age":  &Schema{Type: SchemaType{"number"}},
+		},
+	}
+
+	// Test deterministic marshaling
+	data, err := json.Marshal(schema, json.Deterministic(true))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"type":"object"`)
+	assert.Contains(t, string(data), `"properties"`)
+
+	// Test default marshaling still works
+	data, err = json.Marshal(schema)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"type":"object"`)
+}
+
+func TestSchemaRoundTrip(t *testing.T) {
+	// Create a complex schema to test round-trip stability
+	original := &Schema{
+		ID:   "https://example.com/test",
+		Type: SchemaType{"object"},
+		Properties: &SchemaMap{
+			"name": &Schema{Type: SchemaType{"string"}},
+			"age":  &Schema{Type: SchemaType{"number"}},
+			"tags": &Schema{Type: SchemaType{"array"}, Items: &Schema{Type: SchemaType{"string"}}},
+		},
+		Required: []string{"name", "age"},
+		Defs: map[string]*Schema{
+			"address": {
+				Type: SchemaType{"object"},
+				Properties: &SchemaMap{
+					"street": &Schema{Type: SchemaType{"string"}},
+					"city":   &Schema{Type: SchemaType{"string"}},
+				},
+			},
+		},
+	}
+
+	// Marshal the schema
+	data, err := json.Marshal(original, json.Deterministic(true))
+	require.NoError(t, err)
+
+	// Unmarshal back to a new schema
+	var roundTrip Schema
+	err = json.Unmarshal(data, &roundTrip)
+	require.NoError(t, err)
+
+	// Verify key fields are preserved
+	assert.Equal(t, original.ID, roundTrip.ID)
+	assert.Equal(t, original.Type, roundTrip.Type)
+	assert.Equal(t, original.Required, roundTrip.Required)
+	assert.NotNil(t, roundTrip.Properties)
+	assert.NotNil(t, roundTrip.Defs)
+
+	// Marshal the round-trip schema again
+	data2, err := json.Marshal(&roundTrip, json.Deterministic(true))
+	require.NoError(t, err)
+
+	// The two JSON outputs should be identical for deterministic marshaling
+	assert.JSONEq(t, string(data), string(data2), "Round-trip should produce identical JSON")
+}
+
+func TestCompiledSchemaRoundTrip(t *testing.T) {
+	// Test with a schema compiled from JSON
+	compiler := NewCompiler()
+	schemaJSON := `{
+		"$id": "https://example.com/person",
+		"type": "object",
+		"properties": {
+			"firstName": {"type": "string"},
+			"lastName": {"type": "string"},
+			"age": {"type": "integer", "minimum": 0}
+		},
+		"required": ["firstName", "lastName"],
+		"$defs": {
+			"address": {
+				"type": "object",
+				"properties": {
+					"street": {"type": "string"},
+					"city": {"type": "string"}
+				}
+			}
+		}
+	}`
+
+	// Compile the schema
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	// Marshal with deterministic option
+	marshaled, err := json.Marshal(schema, json.Deterministic(true))
+	require.NoError(t, err)
+
+	// Unmarshal back
+	var unmarshaled Schema
+	err = json.Unmarshal(marshaled, &unmarshaled)
+	require.NoError(t, err)
+
+	// Marshal again
+	remarshaled, err := json.Marshal(&unmarshaled, json.Deterministic(true))
+	require.NoError(t, err)
+
+	// Should be stable
+	assert.JSONEq(t, string(marshaled), string(remarshaled), "Compiled schema round-trip should be stable")
 }

@@ -531,6 +531,28 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	return json.Marshal(result)
 }
 
+// MarshalJSONTo implements json.MarshalerTo for JSON v2 with proper option support
+func (s *Schema) MarshalJSONTo(enc *jsontext.Encoder, opts json.Options) error {
+	if s.Boolean != nil {
+		return json.MarshalEncode(enc, s.Boolean, opts)
+	}
+
+	// Use the existing MarshalJSON method which already handles the const field properly
+	// and then ensure the result is marshaled with the provided options
+	data, err := s.MarshalJSON()
+	if err != nil {
+		return err
+	}
+
+	// Parse and re-marshal with deterministic options
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return err
+	}
+
+	return json.MarshalEncode(enc, result, opts)
+}
+
 // UnmarshalJSON handles unmarshaling JSON data into the Schema type.
 func (s *Schema) UnmarshalJSON(data []byte) error {
 	// First try to parse as a boolean
@@ -573,6 +595,18 @@ func (sm SchemaMap) MarshalJSON() ([]byte, error) {
 		m[k] = v
 	}
 	return json.Marshal(m)
+}
+
+// MarshalJSONTo implements json.MarshalerTo for JSON v2 with proper option support
+func (sm *SchemaMap) MarshalJSONTo(enc *jsontext.Encoder, opts json.Options) error {
+	if sm == nil {
+		return json.MarshalEncode(enc, nil, opts)
+	}
+	m := make(map[string]*Schema)
+	for k, v := range *sm {
+		m[k] = v
+	}
+	return json.MarshalEncode(enc, m, opts)
 }
 
 // UnmarshalJSON ensures that JSON objects are correctly parsed into SchemaMap,
