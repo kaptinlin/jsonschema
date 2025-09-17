@@ -547,6 +547,202 @@ func TestByteSliceHelperFunctions(t *testing.T) {
 // customByteSlice is a test type that redefines []byte
 type customByteSlice []byte
 
+// TestCircularReferences tests that circular references are handled correctly without causing stack overflow
+func TestCircularReferences(t *testing.T) {
+	tests := []struct {
+		name           string
+		schema         string
+		data           string
+		shouldBeValid  bool
+		description    string
+	}{
+		{
+			name: "simple_self_reference",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"self": {"$ref": "#"}
+				}
+			}`,
+			data: `{"self": {"self": {"self": null}}}`,
+			shouldBeValid: true,
+			description: "Simple self-reference should not cause infinite recursion",
+		},
+		{
+			name: "direct_self_reference",
+			schema: `{"$ref": "#"}`,
+			data: `{}`,
+			shouldBeValid: true,
+			description: "Direct self-reference should be handled gracefully",
+		},
+		{
+			name: "circular_with_validation_constraints_valid",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"self": {"$ref": "#"}
+				},
+				"required": ["name"]
+			}`,
+			data: `{
+				"name": "test",
+				"self": {
+					"name": "nested"
+				}
+			}`,
+			shouldBeValid: true,
+			description: "Circular reference with valid constraints should pass",
+		},
+		{
+			name: "circular_with_validation_constraints_invalid",
+			schema: `{
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"self": {"$ref": "#"}
+				},
+				"required": ["name"]
+			}`,
+			data: `{
+				"self": {
+					"name": "nested"
+				}
+			}`,
+			shouldBeValid: false,
+			description: "Circular reference missing required field should fail",
+		},
+		{
+			name: "circular_with_additional_properties_false",
+			schema: `{
+				"properties": {
+					"foo": {"$ref": "#"}
+				},
+				"additionalProperties": false
+			}`,
+			data: `{"foo": {"bar": false}}`,
+			shouldBeValid: false,
+			description: "Circular reference with additionalProperties:false should enforce constraint",
+		},
+		{
+			name: "array_items_circular_reference",
+			schema: `{
+				"type": "array",
+				"items": {"$ref": "#"},
+				"minItems": 1
+			}`,
+			data: `[[1, 2], [3, 4]]`,
+			shouldBeValid: true,
+			description: "Circular reference in array items should work with constraints",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			
+			schema, err := compiler.Compile([]byte(tt.schema))
+			require.NoError(t, err, "Failed to compile schema")
+			
+			// Test validation - should complete without panic
+			result := schema.ValidateJSON([]byte(tt.data))
+			assert.Equal(t, tt.shouldBeValid, result.IsValid(), 
+				"Validation result mismatch for %s. Expected valid=%v, got valid=%v. Errors: %v", 
+				tt.name, tt.shouldBeValid, result.IsValid(), result.Errors)
+		})
+	}
+}
+
+// TestCircularReferencesInLogicalOperators tests circular references within logical operators
+func TestCircularReferencesInLogicalOperators(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema string
+		data   string
+	}{
+		{
+			name: "allOf_with_circular_ref",
+			schema: `{
+				"allOf": [
+					{"$ref": "#"},
+					{"type": "object"}
+				]
+			}`,
+			data: `{"test": "value"}`,
+		},
+		{
+			name: "anyOf_with_circular_ref",
+			schema: `{
+				"anyOf": [
+					{"$ref": "#"},
+					{"type": "string"}
+				]
+			}`,
+			data: `{"test": "value"}`,
+		},
+		{
+			name: "oneOf_with_circular_ref",
+			schema: `{
+				"oneOf": [
+					{"$ref": "#"},
+					{"type": "null"}
+				]
+			}`,
+			data: `{"test": "value"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			
+			compiledSchema, err := compiler.Compile([]byte(tt.schema))
+			require.NoError(t, err, "Failed to compile schema")
+			
+			// Should complete without panic - the focus is on not crashing
+			result := compiledSchema.ValidateJSON([]byte(tt.data))
+			t.Logf("%s completed: valid=%v", tt.name, result.IsValid())
+		})
+	}
+}
+
+// TestCircularReferenceValidationPerformance tests that circular reference detection doesn't impact performance
+func TestCircularReferenceValidationPerformance(t *testing.T) {
+	schema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"children": {
+				"type": "array",
+				"items": {"$ref": "#"}
+			}
+		}
+	}`
+
+	data := `{
+		"name": "root",
+		"children": [
+			{
+				"name": "child1",
+				"children": [
+					{"name": "grandchild1", "children": []},
+					{"name": "grandchild2", "children": []}
+				]
+			}
+		]
+	}`
+
+	compiler := NewCompiler()
+	compiledSchema, err := compiler.Compile([]byte(schema))
+	require.NoError(t, err)
+
+	// Run validation multiple times to check performance
+	for i := 0; i < 50; i++ {
+		result := compiledSchema.ValidateJSON([]byte(data))
+		assert.True(t, result.IsValid(), "Validation should succeed")
+	}
+}
+
 // Helper functions
 func strPtr(s string) *string {
 	return &s

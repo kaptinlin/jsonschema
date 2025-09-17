@@ -81,6 +81,20 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 	// Handle []byte input
 	instance = s.preprocessByteInput(instance)
 
+	// Check for circular reference before processing
+	if dynamicScope.Contains(s) {
+		result := NewEvaluationResult(s)
+		// For circular references, we perform basic validation without following references
+		// This prevents infinite recursion while still validating according to schema constraints
+		evaluatedProps := make(map[string]bool)
+		evaluatedItems := make(map[int]bool)
+		
+		// Process basic validation without references to avoid infinite loop
+		s.processBasicValidationWithoutRefs(instance, result, evaluatedProps, evaluatedItems)
+		
+		return result, evaluatedProps, evaluatedItems
+	}
+
 	dynamicScope.Push(s)
 	defer dynamicScope.Pop()
 
@@ -207,6 +221,40 @@ func (s *Schema) processValidationKeywords(instance any, dynamicScope *DynamicSc
 
 	// Content validation
 	s.processContentValidation(instance, dynamicScope, result, evaluatedProps, evaluatedItems)
+}
+
+// processBasicValidationWithoutRefs handles basic validation without following references (for circular reference cases)
+func (s *Schema) processBasicValidationWithoutRefs(instance any, result *EvaluationResult, evaluatedProps map[string]bool, evaluatedItems map[int]bool) {
+	// Process basic validation that doesn't involve references
+	s.processBasicValidation(instance, result)
+	
+	// Process type-specific validation but without following schema references
+	if s.hasNumericValidation() {
+		errors := evaluateNumeric(s, instance)
+		s.addErrors(result, errors)
+	}
+
+	if s.hasStringValidation() {
+		errors := evaluateString(s, instance)
+		s.addErrors(result, errors)
+	}
+
+	if s.Format != nil {
+		if err := evaluateFormat(s, instance); err != nil {
+			//nolint:errcheck
+			result.AddError(err)
+		}
+	}
+
+	// For object validation, only validate basic constraints without following references
+	if s.hasObjectValidation() {
+		s.processObjectValidationWithoutRefs(instance, result, evaluatedProps)
+	}
+
+	// For array validation, validate basic constraints without following item references
+	if s.hasArrayValidation() {
+		s.processArrayValidationWithoutRefs(instance, result, evaluatedItems)
+	}
 }
 
 // processBasicValidation handles basic validation keywords
@@ -726,6 +774,16 @@ func (ds *DynamicScope) LookupDynamicAnchor(anchor string) *Schema {
 	return nil
 }
 
+// Contains checks if a schema is already in the dynamic scope (circular reference detection)
+func (ds *DynamicScope) Contains(schema *Schema) bool {
+	for _, s := range ds.schemas {
+		if s == schema {
+			return true
+		}
+	}
+	return false
+}
+
 // isByteSlice checks if the given value is a []byte type definition (like json.RawMessage)
 func isByteSlice(v any) bool {
 	rv := reflect.ValueOf(v)
@@ -739,4 +797,107 @@ func convertToByteSlice(v any) ([]byte, bool) {
 		return rv.Bytes(), true
 	}
 	return nil, false
+}
+
+// processObjectValidationWithoutRefs validates object constraints without following schema references
+func (s *Schema) processObjectValidationWithoutRefs(instance any, result *EvaluationResult, evaluatedProps map[string]bool) {
+	// Fast path: direct map[string]any type
+	if object, ok := instance.(map[string]any); ok {
+		// Validate basic object constraints
+		errors := validateObjectConstraints(s, object)
+		s.addErrors(result, errors)
+		
+		// Check additional properties constraint for circular references
+		if s.AdditionalProperties != nil {
+			s.checkAdditionalPropertiesForCircular(object, result, evaluatedProps)
+		} else {
+			// Mark all properties as evaluated if no additional properties constraint
+			for key := range object {
+				evaluatedProps[key] = true
+			}
+		}
+		return
+	}
+
+	// For struct types, validate basic constraints
+	rv := reflect.ValueOf(instance)
+	for rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return
+		}
+		rv = rv.Elem()
+	}
+
+	if rv.Kind() == reflect.Struct {
+		// Convert struct to map for constraint validation
+		objectMap := make(map[string]any)
+		structType := rv.Type()
+		for i := 0; i < rv.NumField(); i++ {
+			field := structType.Field(i)
+			if field.IsExported() {
+				fieldValue := rv.Field(i)
+				if fieldValue.CanInterface() {
+					objectMap[field.Name] = fieldValue.Interface()
+					evaluatedProps[field.Name] = true
+				}
+			}
+		}
+		
+		errors := validateObjectConstraints(s, objectMap)
+		s.addErrors(result, errors)
+		
+		// Check additional properties for struct as well
+		if s.AdditionalProperties != nil {
+			s.checkAdditionalPropertiesForCircular(objectMap, result, evaluatedProps)
+		}
+	}
+}
+
+// processArrayValidationWithoutRefs validates array constraints without following item schema references
+func (s *Schema) processArrayValidationWithoutRefs(instance any, result *EvaluationResult, evaluatedItems map[int]bool) {
+	items, ok := instance.([]any)
+	if !ok {
+		return
+	}
+
+	// Only validate basic array constraints, not item schemas
+	errors := validateArrayConstraints(s, items)
+	s.addErrors(result, errors)
+	
+	// Mark all items as evaluated to prevent further processing
+	for i := range items {
+		evaluatedItems[i] = true
+	}
+}
+
+// checkAdditionalPropertiesForCircular validates additionalProperties constraint for circular references
+func (s *Schema) checkAdditionalPropertiesForCircular(object map[string]any, result *EvaluationResult, evaluatedProps map[string]bool) {
+	// Check if additionalProperties is false (no additional properties allowed)
+	if s.AdditionalProperties.Boolean != nil && !*s.AdditionalProperties.Boolean {
+		// Get list of properties defined in the schema
+		allowedProps := make(map[string]bool)
+		if s.Properties != nil {
+			for prop := range *s.Properties {
+				allowedProps[prop] = true
+			}
+		}
+		
+		// Check if all object properties are allowed
+		for prop := range object {
+			if !allowedProps[prop] {
+				//nolint:errcheck
+				result.AddError(NewEvaluationError("additionalProperties", "additional_property_false", 
+					"Additional property '{property}' not allowed", map[string]any{
+						"property": prop,
+					}))
+			} else {
+				evaluatedProps[prop] = true
+			}
+		}
+	} else {
+		// Mark all properties as evaluated if additional properties are allowed
+		for key := range object {
+			evaluatedProps[key] = true
+		}
+	}
 }
