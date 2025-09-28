@@ -9,7 +9,7 @@ require (
 
 require (
 	github.com/goccy/go-json v0.10.5 // indirect
-	github.com/kaptinlin/messageformat-go v0.4.0 // indirect
+	github.com/kaptinlin/messageformat-go v0.4.4 // indirect
 )
 
 require github.com/go-json-experiment/json v0.0.0-20250910080747-cc2cfa0554c3
