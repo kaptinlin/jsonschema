@@ -505,15 +505,15 @@ func (s *Schema) getParentBaseURI() string {
 // MarshalJSON implements json.Marshaler
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	if s.Boolean != nil {
-		return json.Marshal(s.Boolean)
+		return json.Marshal(s.Boolean, json.Deterministic(true))
 	}
 
 	// Custom marshaling to handle the const field properly
 	type Alias Schema
 	alias := (*Alias)(s)
 
-	// Marshal to a map to handle const field manually
-	data, err := json.Marshal(alias)
+	// Marshal to a map to handle const field manually with deterministic ordering
+	data, err := json.Marshal(alias, json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}
@@ -528,11 +528,15 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		result["const"] = s.Const.Value
 	}
 
-	return json.Marshal(result)
+	// Use deterministic marshaling to ensure consistent key ordering
+	return json.Marshal(result, json.Deterministic(true))
 }
 
 // MarshalJSONTo implements json.MarshalerTo for JSON v2 with proper option support
 func (s *Schema) MarshalJSONTo(enc *jsontext.Encoder, opts json.Options) error {
+	// Ensure deterministic ordering is always enabled
+	opts = json.JoinOptions(opts, json.Deterministic(true))
+
 	if s.Boolean != nil {
 		return json.MarshalEncode(enc, s.Boolean, opts)
 	}
@@ -594,11 +598,15 @@ func (sm SchemaMap) MarshalJSON() ([]byte, error) {
 	for k, v := range sm {
 		m[k] = v
 	}
-	return json.Marshal(m)
+	// Use deterministic marshaling to ensure consistent key ordering
+	return json.Marshal(m, json.Deterministic(true))
 }
 
 // MarshalJSONTo implements json.MarshalerTo for JSON v2 with proper option support
 func (sm *SchemaMap) MarshalJSONTo(enc *jsontext.Encoder, opts json.Options) error {
+	// Ensure deterministic ordering is always enabled
+	opts = json.JoinOptions(opts, json.Deterministic(true))
+
 	if sm == nil {
 		return json.MarshalEncode(enc, nil, opts)
 	}

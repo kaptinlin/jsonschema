@@ -353,3 +353,126 @@ func TestCompiledSchemaRoundTrip(t *testing.T) {
 	// Should be stable
 	assert.JSONEq(t, string(marshaled), string(remarshaled), "Compiled schema round-trip should be stable")
 }
+
+// TestSchemaMarshalDeterminismWithoutOption tests that MarshalJSON produces deterministic output
+// even without explicit Deterministic option, ensuring consistency in normal usage
+func TestSchemaMarshalDeterminismWithoutOption(t *testing.T) {
+	// Test schema with multiple map fields
+	schema := &Schema{
+		Type: SchemaType{"object"},
+		Defs: map[string]*Schema{
+			"ZType": {Type: SchemaType{"string"}},
+			"AType": {Type: SchemaType{"number"}},
+			"MType": {Type: SchemaType{"boolean"}},
+		},
+		Properties: &SchemaMap{
+			"zebra":  &Schema{Type: SchemaType{"string"}},
+			"apple":  &Schema{Type: SchemaType{"number"}},
+			"monkey": &Schema{Type: SchemaType{"boolean"}},
+		},
+		DependentSchemas: map[string]*Schema{
+			"whenZ": {Type: SchemaType{"object"}},
+			"whenA": {Type: SchemaType{"array"}},
+			"whenM": {Type: SchemaType{"string"}},
+		},
+		DependentRequired: map[string][]string{
+			"propZ": {"reqA", "reqB"},
+			"propA": {"reqC", "reqD"},
+			"propM": {"reqE", "reqF"},
+		},
+	}
+
+	// Multiple serialization attempts without Deterministic option
+	var results []string
+	for i := 0; i < 10; i++ {
+		data, err := json.Marshal(schema)
+		require.NoError(t, err)
+		results = append(results, string(data))
+	}
+
+	// All results should be identical
+	for i := 1; i < len(results); i++ {
+		assert.Equal(t, results[0], results[i], "Serialization %d differs from first", i)
+	}
+
+	// Verify keys are in sorted order
+	firstResult := results[0]
+	aTypePos := -1
+	mTypePos := -1
+	zTypePos := -1
+
+	// Find positions of each key in $defs
+	for i := 0; i < len(firstResult)-6; i++ {
+		if i+7 <= len(firstResult) && firstResult[i:i+7] == `"AType"` && aTypePos == -1 {
+			aTypePos = i
+		}
+		if i+7 <= len(firstResult) && firstResult[i:i+7] == `"MType"` && mTypePos == -1 {
+			mTypePos = i
+		}
+		if i+7 <= len(firstResult) && firstResult[i:i+7] == `"ZType"` && zTypePos == -1 {
+			zTypePos = i
+		}
+	}
+
+	// Verify we found all keys
+	assert.NotEqual(t, -1, aTypePos, "AType not found in JSON")
+	assert.NotEqual(t, -1, mTypePos, "MType not found in JSON")
+	assert.NotEqual(t, -1, zTypePos, "ZType not found in JSON")
+
+	// Verify alphabetical ordering
+	if aTypePos != -1 && mTypePos != -1 && zTypePos != -1 {
+		assert.Less(t, aTypePos, mTypePos, "AType should appear before MType")
+		assert.Less(t, mTypePos, zTypePos, "MType should appear before ZType")
+	}
+}
+
+// TestSchemaMapMarshalDeterminism tests that SchemaMap type produces deterministic JSON
+func TestSchemaMapMarshalDeterminism(t *testing.T) {
+	// Create a SchemaMap directly
+	schemaMap := SchemaMap{
+		"zoo":    &Schema{Type: SchemaType{"string"}},
+		"bar":    &Schema{Type: SchemaType{"number"}},
+		"alpha":  &Schema{Type: SchemaType{"boolean"}},
+		"nested": &Schema{Type: SchemaType{"object"}},
+	}
+
+	// Multiple serialization attempts
+	var results []string
+	for i := 0; i < 10; i++ {
+		data, err := json.Marshal(schemaMap)
+		require.NoError(t, err)
+		results = append(results, string(data))
+	}
+
+	// All results should be identical
+	for i := 1; i < len(results); i++ {
+		assert.Equal(t, results[0], results[i], "SchemaMap serialization %d differs from first", i)
+	}
+
+	// Verify alphabetical ordering
+	firstResult := results[0]
+	assert.Contains(t, firstResult, `"alpha"`)
+	assert.Contains(t, firstResult, `"bar"`)
+	assert.Contains(t, firstResult, `"nested"`)
+	assert.Contains(t, firstResult, `"zoo"`)
+
+	// Check that keys appear in alphabetical order
+	alphaPos := findStringPosition(firstResult, `"alpha"`)
+	barPos := findStringPosition(firstResult, `"bar"`)
+	nestedPos := findStringPosition(firstResult, `"nested"`)
+	zooPos := findStringPosition(firstResult, `"zoo"`)
+
+	assert.Less(t, alphaPos, barPos, "alpha should appear before bar")
+	assert.Less(t, barPos, nestedPos, "bar should appear before nested")
+	assert.Less(t, nestedPos, zooPos, "nested should appear before zoo")
+}
+
+// Helper function to find position of a string
+func findStringPosition(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}

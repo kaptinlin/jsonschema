@@ -1624,3 +1624,46 @@ func TestFromStruct_CombinedSchemaProperties(t *testing.T) {
 		t.Error("Expected maxProperties to be 10")
 	}
 }
+
+// TestFromStructDeterministicSerialization tests that generated schemas serialize deterministically
+// This addresses the issue where map iteration order caused non-deterministic JSON output
+func TestFromStructDeterministicSerialization(t *testing.T) {
+	type InnerStruct struct{}
+	type OuterStruct struct {
+		Inner InnerStruct `json:"inner"`
+	}
+
+	opts := DefaultStructTagOptions()
+	opts.AllowUntaggedFields = true
+
+	// Generate schema from struct
+	schema := FromStructWithOptions[OuterStruct](opts)
+
+	// Multiple serialization attempts should produce identical results
+	var results []string
+	for i := 0; i < 10; i++ {
+		data, err := json.MarshalIndent(schema, "", "    ")
+		if err != nil {
+			t.Fatalf("Failed to marshal schema: %v", err)
+		}
+		results = append(results, string(data))
+	}
+
+	// All results should be identical
+	for i := 1; i < len(results); i++ {
+		if results[0] != results[i] {
+			t.Errorf("Serialization %d differs from first", i)
+		}
+	}
+
+	// Verify the structure contains expected elements
+	if !stringContains(results[0], `"$defs"`) {
+		t.Error("Expected $defs in serialized schema")
+	}
+	if !stringContains(results[0], `"InnerStruct"`) {
+		t.Error("Expected InnerStruct in serialized schema")
+	}
+	if !stringContains(results[0], `"OuterStruct"`) {
+		t.Error("Expected OuterStruct in serialized schema")
+	}
+}
