@@ -666,3 +666,203 @@ func parseTime(timeStr string) time.Time {
 	}
 	return t
 }
+
+// TestUnmarshalSliceOfStructs tests unmarshaling arrays of structured data
+func TestUnmarshalSliceOfStructs(t *testing.T) {
+	type InnerStruct struct {
+		Key1 string `json:"key1"`
+		Key2 bool   `json:"key2"`
+	}
+
+	type OuterStruct struct {
+		Inner []InnerStruct `json:"inner"`
+	}
+
+	tests := []struct {
+		name     string
+		input    string
+		expected OuterStruct
+		wantErr  bool
+	}{
+		{
+			name: "slice with multiple structs",
+			input: `{
+				"inner": [
+					{"key1": "value1", "key2": true},
+					{"key1": "value2", "key2": false}
+				]
+			}`,
+			expected: OuterStruct{
+				Inner: []InnerStruct{
+					{Key1: "value1", Key2: true},
+					{Key1: "value2", Key2: false},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:     "empty slice",
+			input:    `{"inner": []}`,
+			expected: OuterStruct{Inner: []InnerStruct{}},
+			wantErr:  false,
+		},
+		{
+			name:     "null slice",
+			input:    `{"inner": null}`,
+			expected: OuterStruct{Inner: nil},
+			wantErr:  false,
+		},
+		{
+			name:     "missing field",
+			input:    `{}`,
+			expected: OuterStruct{Inner: nil},
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create schema from struct
+			opts := DefaultStructTagOptions()
+			schema := FromStructWithOptions[OuterStruct](opts)
+
+			// Unmarshal
+			var result OuterStruct
+			err := schema.Unmarshal(&result, []byte(tt.input))
+
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestUnmarshalNestedSliceOfStructs tests deeply nested slice structures
+func TestUnmarshalNestedSliceOfStructs(t *testing.T) {
+	type DeepStruct struct {
+		Value string `json:"value"`
+	}
+
+	type MiddleStruct struct {
+		Items []DeepStruct `json:"items"`
+		Name  string       `json:"name"`
+	}
+
+	type TopStruct struct {
+		Middle []MiddleStruct `json:"middle"`
+	}
+
+	input := `{
+		"middle": [
+			{
+				"name": "first",
+				"items": [
+					{"value": "a"},
+					{"value": "b"}
+				]
+			},
+			{
+				"name": "second",
+				"items": [
+					{"value": "c"}
+				]
+			}
+		]
+	}`
+
+	// Create schema from struct
+	opts := DefaultStructTagOptions()
+	schema := FromStructWithOptions[TopStruct](opts)
+
+	// Unmarshal
+	var result TopStruct
+	err := schema.Unmarshal(&result, []byte(input))
+	require.NoError(t, err)
+
+	// Verify results
+	assert.Len(t, result.Middle, 2)
+	assert.Equal(t, "first", result.Middle[0].Name)
+	assert.Len(t, result.Middle[0].Items, 2)
+	assert.Equal(t, "a", result.Middle[0].Items[0].Value)
+	assert.Equal(t, "b", result.Middle[0].Items[1].Value)
+	assert.Equal(t, "second", result.Middle[1].Name)
+	assert.Len(t, result.Middle[1].Items, 1)
+	assert.Equal(t, "c", result.Middle[1].Items[0].Value)
+}
+
+// TestUnmarshalSliceOfPointers tests slices containing pointer types
+func TestUnmarshalSliceOfPointers(t *testing.T) {
+	type Item struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+
+	type Container struct {
+		Items []*Item `json:"items"`
+	}
+
+	input := `{
+		"items": [
+			{"id": 1, "name": "first"},
+			{"id": 2, "name": "second"}
+		]
+	}`
+
+	// Create schema from struct
+	opts := DefaultStructTagOptions()
+	schema := FromStructWithOptions[Container](opts)
+
+	// Unmarshal
+	var result Container
+	err := schema.Unmarshal(&result, []byte(input))
+	require.NoError(t, err)
+
+	// Verify results
+	assert.Len(t, result.Items, 2)
+	assert.NotNil(t, result.Items[0])
+	assert.Equal(t, 1, result.Items[0].ID)
+	assert.Equal(t, "first", result.Items[0].Name)
+	assert.NotNil(t, result.Items[1])
+	assert.Equal(t, 2, result.Items[1].ID)
+	assert.Equal(t, "second", result.Items[1].Name)
+}
+
+// TestUnmarshalMixedSliceTypes tests various slice element types
+func TestUnmarshalMixedSliceTypes(t *testing.T) {
+	type MixedStruct struct {
+		Strings []string         `json:"strings"`
+		Ints    []int            `json:"ints"`
+		Bools   []bool           `json:"bools"`
+		Maps    []map[string]any `json:"maps"`
+		Any     []any            `json:"any"`
+	}
+
+	input := `{
+		"strings": ["a", "b", "c"],
+		"ints": [1, 2, 3],
+		"bools": [true, false, true],
+		"maps": [{"key": "value"}, {"foo": "bar"}],
+		"any": [1, "two", true, {"nested": "object"}]
+	}`
+
+	// Create schema from struct
+	opts := DefaultStructTagOptions()
+	schema := FromStructWithOptions[MixedStruct](opts)
+
+	// Unmarshal
+	var result MixedStruct
+	err := schema.Unmarshal(&result, []byte(input))
+	require.NoError(t, err)
+
+	// Verify results
+	assert.Equal(t, []string{"a", "b", "c"}, result.Strings)
+	assert.Equal(t, []int{1, 2, 3}, result.Ints)
+	assert.Equal(t, []bool{true, false, true}, result.Bools)
+	assert.Len(t, result.Maps, 2)
+	assert.Equal(t, "value", result.Maps[0]["key"])
+	assert.Equal(t, "bar", result.Maps[1]["foo"])
+	assert.Len(t, result.Any, 4)
+}
