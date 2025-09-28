@@ -946,8 +946,15 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 
 			// Convert default value based on field type
 			value := params[0]
+
+			// Unwrap pointer type to get the underlying type
+			actualType := fieldType
+			if fieldType.Kind() == reflect.Ptr {
+				actualType = fieldType.Elem()
+			}
+
 			//exhaustive:ignore - we only handle types that need conversion for default values
-			switch fieldType.Kind() {
+			switch actualType.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				if intVal, err := strconv.Atoi(value); err == nil {
 					return []Keyword{Default(intVal)}

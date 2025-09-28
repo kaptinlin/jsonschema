@@ -203,7 +203,28 @@ func (s *Schema) applyDefaults(data map[string]any, schema *Schema) error {
 
 // applyPropertyDefaults applies defaults for a single property
 func (s *Schema) applyPropertyDefaults(data map[string]any, propName string, propSchema *Schema) error {
-	// Set default value if property doesn't exist
+	// Check if we need to handle anyOf schema (common for pointer fields)
+	if len(propSchema.AnyOf) > 0 {
+		// Look for a default value in the anyOf schemas
+		// Typically for pointer fields: [{"type": "string", "default": "..."}, {"type": "null"}]
+		for _, subSchema := range propSchema.AnyOf {
+			if subSchema.Default != nil {
+				// Check if property doesn't exist or is null
+				propData, exists := data[propName]
+				if !exists || propData == nil {
+					// Apply the default from the subschema
+					defaultValue, err := s.evaluateDefaultValue(subSchema.Default)
+					if err != nil {
+						return fmt.Errorf("%w: property '%s': %w", ErrDefaultEvaluation, propName, err)
+					}
+					data[propName] = defaultValue
+					break // Use the first default found
+				}
+			}
+		}
+	}
+
+	// Set default value if property doesn't exist (for non-anyOf schemas)
 	if _, exists := data[propName]; !exists && propSchema.Default != nil {
 		// Try to evaluate dynamic default value
 		defaultValue, err := s.evaluateDefaultValue(propSchema.Default)

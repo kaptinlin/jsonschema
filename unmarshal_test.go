@@ -866,3 +866,71 @@ func TestUnmarshalMixedSliceTypes(t *testing.T) {
 	assert.Equal(t, "bar", result.Maps[1]["foo"])
 	assert.Len(t, result.Any, 4)
 }
+
+// TestPointerFieldsWithDefaults tests that pointer fields with defaults are properly applied
+func TestPointerFieldsWithDefaults(t *testing.T) {
+	type Config struct {
+		Key1 string   `json:"key1" jsonschema:"default=key1 default value"`
+		Key2 *string  `json:"key2" jsonschema:"default=key2 default value"`
+		Key3 *int     `json:"key3" jsonschema:"default=42"`
+		Key4 *bool    `json:"key4" jsonschema:"default=true"`
+		Key5 *float64 `json:"key5" jsonschema:"default=3.14"`
+	}
+
+	tests := []struct {
+		name     string
+		manifest string
+		wantKey2 string
+		wantKey3 int
+		wantKey4 bool
+		wantKey5 float64
+	}{
+		{
+			name:     "empty object should apply defaults",
+			manifest: `{}`,
+			wantKey2: "key2 default value",
+			wantKey3: 42,
+			wantKey4: true,
+			wantKey5: 3.14,
+		},
+		{
+			name:     "null values should apply defaults",
+			manifest: `{"key2": null, "key3": null, "key4": null, "key5": null}`,
+			wantKey2: "key2 default value",
+			wantKey3: 42,
+			wantKey4: true,
+			wantKey5: 3.14,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &Config{}
+
+			opts := DefaultStructTagOptions()
+			schema := FromStructWithOptions[Config](opts)
+
+			err := schema.Unmarshal(config, []byte(tt.manifest))
+			require.NoError(t, err)
+
+			// Check Key1 (non-pointer string)
+			assert.Equal(t, "key1 default value", config.Key1, "Key1 should have default value")
+
+			// Check Key2 (pointer to string)
+			require.NotNil(t, config.Key2, "Key2 should not be nil")
+			assert.Equal(t, tt.wantKey2, *config.Key2, "Key2 should have default value")
+
+			// Check Key3 (pointer to int)
+			require.NotNil(t, config.Key3, "Key3 should not be nil")
+			assert.Equal(t, tt.wantKey3, *config.Key3, "Key3 should have default value")
+
+			// Check Key4 (pointer to bool)
+			require.NotNil(t, config.Key4, "Key4 should not be nil")
+			assert.Equal(t, tt.wantKey4, *config.Key4, "Key4 should have default value")
+
+			// Check Key5 (pointer to float64)
+			require.NotNil(t, config.Key5, "Key5 should not be nil")
+			assert.Equal(t, tt.wantKey5, *config.Key5, "Key5 should have default value")
+		})
+	}
+}
