@@ -2,9 +2,13 @@ package jsonschema
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // =============================================================================
@@ -52,15 +56,15 @@ func TestFromStruct_BasicStruct(t *testing.T) {
 	schema := FromStruct[TestUser]()
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil")
+		require.NotNil(t, schema, "Expected schema to be non-nil")
 	}
 
 	if len(schema.Type) == 0 || schema.Type[0] != "object" {
-		t.Errorf("Expected schema type to be 'object', got '%s'", schema.Type)
+		assert.Fail(t, fmt.Sprintf("Expected schema type to be 'object', got '%s'", schema.Type))
 	}
 
 	if schema.Properties == nil {
-		t.Fatal("Expected schema to have properties")
+		require.NotNil(t, schema.Properties, "Expected schema to have properties")
 	}
 
 	// Check if required properties exist
@@ -68,7 +72,7 @@ func TestFromStruct_BasicStruct(t *testing.T) {
 	expectedProps := []string{"ID", "Name", "Email", "Age"}
 	for _, prop := range expectedProps {
 		if _, exists := props[prop]; !exists {
-			t.Errorf("Expected '%s' property to exist", prop)
+			assert.Contains(t, props, prop, "Expected %s property to exist", prop)
 		}
 	}
 }
@@ -77,11 +81,11 @@ func TestFromStruct_OptionalFields(t *testing.T) {
 	schema := FromStruct[TestUserOptional]()
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil")
+		require.NotNil(t, schema, "Expected schema to be non-nil")
 	}
 
 	if schema.Properties == nil {
-		t.Fatal("Expected schema to have properties")
+		require.NotNil(t, schema.Properties, "Expected schema to have properties")
 	}
 
 	props := *schema.Properties
@@ -89,7 +93,7 @@ func TestFromStruct_OptionalFields(t *testing.T) {
 	if bioSchema, exists := props["Bio"]; exists {
 		// Bio should be anyOf with string and null
 		if bioSchema.AnyOf == nil {
-			t.Error("Expected Bio field to be anyOf (nullable)")
+			assert.Fail(t, "Expected Bio field to be anyOf (nullable)")
 		}
 	}
 }
@@ -109,16 +113,16 @@ func TestFromStructWithOptions_CustomTagName(t *testing.T) {
 	schema := FromStructWithOptions[CustomTagUser](options)
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil")
+		require.NotNil(t, schema, "Expected schema to be non-nil")
 	}
 
 	if schema.Properties == nil {
-		t.Fatal("Expected schema to have properties")
+		require.NotNil(t, schema.Properties, "Expected schema to have properties")
 	}
 
 	props := *schema.Properties
 	if _, exists := props["Name"]; !exists {
-		t.Error("Expected 'Name' property to exist with custom tag name")
+		assert.Fail(t, "Expected 'Name' property to exist with custom tag name")
 	}
 }
 
@@ -133,7 +137,7 @@ func TestFromStruct_AllowUntaggedFields(t *testing.T) {
 	schema1 := FromStruct[MixedTagUser]()
 	props1 := *schema1.Properties
 	if _, exists := props1["Name"]; exists {
-		t.Error("Expected 'Name' property to not exist when untagged fields are disabled")
+		assert.Fail(t, "Expected 'Name' property to not exist when untagged fields are disabled")
 	}
 
 	// Test with untagged fields enabled
@@ -145,12 +149,12 @@ func TestFromStruct_AllowUntaggedFields(t *testing.T) {
 	schema2 := FromStructWithOptions[MixedTagUser](options)
 	props2 := *schema2.Properties
 	if _, exists := props2["Name"]; !exists {
-		t.Error("Expected 'Name' property to exist when untagged fields are enabled")
+		assert.Fail(t, "Expected 'Name' property to exist when untagged fields are enabled")
 	}
 
 	// Internal should never exist (explicitly ignored)
 	if _, exists := props2["Internal"]; exists {
-		t.Error("Expected 'Internal' property to not exist (explicitly ignored)")
+		assert.Fail(t, "Expected 'Internal' property to not exist (explicitly ignored)")
 	}
 }
 
@@ -186,7 +190,7 @@ func TestFromStruct_BasicValidationRules(t *testing.T) {
 
 	schema := FromStruct[ValidationTest]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	// Test valid data
@@ -206,7 +210,7 @@ func TestFromStruct_BasicValidationRules(t *testing.T) {
 
 	result := schema.Validate(validData)
 	if !result.IsValid() {
-		t.Errorf("Valid data should pass validation. Errors: %v", result.Errors)
+		assert.Fail(t, fmt.Sprintf("Valid data should pass validation. Errors: %v", result.Errors))
 	}
 }
 
@@ -224,7 +228,7 @@ func TestLogicalCombinationValidators(t *testing.T) {
 
 	schema := FromStruct[LogicalTest]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	// Convert to JSON and verify structure
@@ -241,7 +245,7 @@ func TestLogicalCombinationValidators(t *testing.T) {
 
 	properties, ok := schemaMap["properties"].(map[string]any)
 	if !ok {
-		t.Fatal("Properties not found in schema")
+		require.Fail(t, "Properties not found in schema")
 	}
 
 	// Verify all logical combination fields exist
@@ -254,7 +258,7 @@ func TestLogicalCombinationValidators(t *testing.T) {
 			t.Fatalf("%s not found in properties", fieldName)
 		}
 		if _, exists := field[logicalKeys[i]]; !exists {
-			t.Errorf("%s should have %s constraint", fieldName, logicalKeys[i])
+			assert.Fail(t, fmt.Sprintf("%s should have %s constraint", fieldName, logicalKeys[i]))
 		}
 	}
 
@@ -268,7 +272,7 @@ func TestLogicalCombinationValidators(t *testing.T) {
 
 	result := schema.ValidateMap(validData)
 	if !result.IsValid() {
-		t.Errorf("Valid logical combination data should pass. Errors: %v", result.Errors)
+		assert.Fail(t, fmt.Sprintf("Valid logical combination data should pass. Errors: %v", result.Errors))
 	}
 }
 
@@ -289,7 +293,7 @@ func TestArrayAdvancedValidators(t *testing.T) {
 
 	schema := FromStruct[ArrayTest]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	// Verify schema structure
@@ -311,21 +315,21 @@ func TestArrayAdvancedValidators(t *testing.T) {
 	for _, fieldName := range arrayFields {
 		field := properties[fieldName].(map[string]any)
 		if _, exists := field["contains"]; !exists {
-			t.Errorf("%s should have contains constraint", fieldName)
+			assert.Fail(t, fmt.Sprintf("%s should have contains constraint", fieldName))
 		}
 	}
 
 	// Verify minContains/maxContains
 	if field := properties["MinContainsField"].(map[string]any); field["minContains"] == nil {
-		t.Error("MinContainsField should have minContains constraint")
+		assert.Fail(t, "MinContainsField should have minContains constraint")
 	}
 	if field := properties["MaxContainsField"].(map[string]any); field["maxContains"] == nil {
-		t.Error("MaxContainsField should have maxContains constraint")
+		assert.Fail(t, "MaxContainsField should have maxContains constraint")
 	}
 
 	// Verify prefixItems
 	if field := properties["PrefixArray"].(map[string]any); field["prefixItems"] == nil {
-		t.Error("PrefixArray should have prefixItems constraint")
+		assert.Fail(t, "PrefixArray should have prefixItems constraint")
 	}
 
 	// Test validation
@@ -362,7 +366,7 @@ func TestObjectAdvancedValidators(t *testing.T) {
 
 	schema := FromStruct[ObjectTest]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	// Verify schema structure
@@ -400,7 +404,7 @@ func TestConditionalLogicValidators(t *testing.T) {
 
 	schema := FromStruct[ConditionalTest]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	// Verify schema structure
@@ -424,7 +428,7 @@ func TestConditionalLogicValidators(t *testing.T) {
 	for i, fieldName := range conditionalFields {
 		field := properties[fieldName].(map[string]any)
 		if _, exists := field[conditionalKeys[i]]; !exists {
-			t.Errorf("%s should have %s constraint", fieldName, conditionalKeys[i])
+			assert.Fail(t, fmt.Sprintf("%s should have %s constraint", fieldName, conditionalKeys[i]))
 		}
 	}
 }
@@ -445,7 +449,7 @@ func TestContentAndReferenceValidators(t *testing.T) {
 
 	schema := FromStruct[ContentTest]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	// Verify schema structure
@@ -469,7 +473,7 @@ func TestContentAndReferenceValidators(t *testing.T) {
 	for i, fieldName := range contentFields {
 		field := properties[fieldName].(map[string]any)
 		if _, exists := field[contentKeys[i]]; !exists && fieldName != "DynamicRef" {
-			t.Errorf("%s should have %s constraint", fieldName, contentKeys[i])
+			assert.Fail(t, fmt.Sprintf("%s should have %s constraint", fieldName, contentKeys[i]))
 		}
 	}
 }
@@ -491,26 +495,26 @@ func TestFromStruct_CircularReferences(t *testing.T) {
 	case schema = <-done:
 		// Schema generated successfully
 	case <-time.After(10 * time.Second):
-		t.Fatal("Circular reference schema generation timed out after 10 seconds")
+		require.Fail(t, "Circular reference schema generation timed out after 10 seconds")
 	}
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil")
+		require.NotNil(t, schema, "Expected schema to be non-nil")
 	}
 
 	if schema.Properties == nil {
-		t.Fatal("Expected schema to have properties")
+		require.NotNil(t, schema.Properties, "Expected schema to have properties")
 	}
 
 	props := *schema.Properties
 	// Check that Friends field exists
 	if _, exists := props["friends"]; !exists {
-		t.Error("Expected 'friends' property to exist")
+		assert.Fail(t, "Expected 'friends' property to exist")
 	}
 
 	// For circular references, we should have $defs
 	if schema.Defs == nil {
-		t.Error("Expected $defs to be present for circular references")
+		assert.Fail(t, "Expected $defs to be present for circular references")
 	} else {
 		t.Logf("Found $defs with %d definitions", len(schema.Defs))
 
@@ -550,21 +554,21 @@ func TestFromStruct_ComplexCircularReferences(t *testing.T) {
 	case schema = <-done:
 		// Schema generated successfully
 	case <-time.After(10 * time.Second):
-		t.Fatal("Complex circular reference schema generation timed out")
+		require.Fail(t, "Complex circular reference schema generation timed out")
 	}
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil")
+		require.NotNil(t, schema, "Expected schema to be non-nil")
 	}
 
 	// Should handle the reference between Company and Employee
 	if schema.Properties == nil {
-		t.Fatal("Expected schema to have properties")
+		require.NotNil(t, schema.Properties, "Expected schema to have properties")
 	}
 
 	props := *schema.Properties
 	if _, exists := props["employees"]; !exists {
-		t.Error("Expected 'employees' property to exist")
+		assert.Fail(t, "Expected 'employees' property to exist")
 	}
 
 	if schema.Defs != nil {
@@ -599,7 +603,7 @@ func TestCachePerformance(t *testing.T) {
 	duration1 := time.Since(start1)
 
 	if schema1 == nil {
-		t.Fatal("First schema generation failed")
+		require.Fail(t, "First schema generation failed")
 	}
 
 	// Second generation (with cache)
@@ -608,7 +612,7 @@ func TestCachePerformance(t *testing.T) {
 	duration2 := time.Since(start2)
 
 	if schema2 == nil {
-		t.Fatal("Second schema generation failed")
+		require.Fail(t, "Second schema generation failed")
 	}
 
 	t.Logf("First generation (no cache): %v", duration1)
@@ -617,7 +621,7 @@ func TestCachePerformance(t *testing.T) {
 	// Verify cache is working
 	stats := GetCacheStats()
 	if stats["cached_schemas"] == 0 {
-		t.Error("Expected cached schemas to be > 0")
+		assert.Fail(t, "Expected cached schemas to be > 0")
 	}
 	t.Logf("Cache stats: %v", stats)
 
@@ -625,7 +629,7 @@ func TestCachePerformance(t *testing.T) {
 	ClearSchemaCache()
 	stats = GetCacheStats()
 	if stats["cached_schemas"] != 0 {
-		t.Error("Expected cache to be cleared")
+		assert.Fail(t, "Expected cache to be cleared")
 	}
 }
 
@@ -645,7 +649,8 @@ func TestCustomValidators(t *testing.T) {
 
 	schema := FromStruct[PaymentInfo]()
 	if schema == nil {
-		t.Fatal("Schema generation with custom validator failed")
+		require.Fail(t, "Schema generation with custom validator failed")
+		return
 	}
 
 	// Verify the custom validator was applied
@@ -653,7 +658,7 @@ func TestCustomValidators(t *testing.T) {
 	cardField := props["CardNumber"]
 
 	if cardField.Pattern == nil || *cardField.Pattern != "^[0-9]{16}$" {
-		t.Error("Custom validator pattern not applied correctly")
+		assert.Fail(t, "Custom validator pattern not applied correctly")
 	}
 
 	// Test validation
@@ -664,7 +669,7 @@ func TestCustomValidators(t *testing.T) {
 
 	result := schema.Validate(validData)
 	if !result.IsValid() {
-		t.Errorf("Valid payment data should pass validation: %v", result.Errors)
+		assert.Fail(t, fmt.Sprintf("Valid payment data should pass validation: %v", result.Errors))
 	}
 
 	invalidData := map[string]any{
@@ -674,7 +679,7 @@ func TestCustomValidators(t *testing.T) {
 
 	result = schema.Validate(invalidData)
 	if result.IsValid() {
-		t.Error("Invalid credit card number should fail validation")
+		assert.Fail(t, "Invalid credit card number should fail validation")
 	}
 }
 
@@ -801,17 +806,17 @@ func TestFromStruct_APICompatibility_JSONOutput(t *testing.T) {
 	case schema = <-done:
 		// Schema generated successfully
 	case <-time.After(5 * time.Second):
-		t.Fatal("Schema generation timed out after 5 seconds")
+		require.Fail(t, "Schema generation timed out after 5 seconds")
 	}
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil")
+		require.NotNil(t, schema, "Expected schema to be non-nil")
 	}
 
 	// Test that the schema can be marshaled to JSON
 	jsonBytes, err := schema.MarshalJSON()
 	if err != nil {
-		t.Errorf("Expected schema to marshal to JSON: %v", err)
+		assert.Fail(t, fmt.Sprintf("Expected schema to marshal to JSON: %v", err))
 		return
 	}
 
@@ -828,7 +833,7 @@ func TestFromStruct_APICompatibility_JSONOutput(t *testing.T) {
 
 	for _, expected := range expectedContents {
 		if !contains(jsonStr, expected) {
-			t.Errorf("Expected JSON output to contain %s", expected)
+			assert.Fail(t, fmt.Sprintf("Expected JSON output to contain %s", expected))
 		}
 	}
 
@@ -883,12 +888,12 @@ func TestFromStruct_EdgeCases(t *testing.T) {
 	emptySchema := FromStruct[EmptyStruct]()
 
 	if len(emptySchema.Type) == 0 {
-		t.Error("Expected empty struct to have object type")
+		assert.Fail(t, "Expected empty struct to have object type")
 	}
 
 	result := emptySchema.Validate(map[string]any{})
 	if !result.IsValid() {
-		t.Error("Expected empty object to validate against empty struct schema")
+		assert.Fail(t, "Expected empty object to validate against empty struct schema")
 	}
 
 	// Test struct with all optional fields (no required)
@@ -902,13 +907,13 @@ func TestFromStruct_EdgeCases(t *testing.T) {
 	// Should validate empty object
 	result = optionalSchema.Validate(map[string]any{})
 	if !result.IsValid() {
-		t.Error("Expected empty object to validate against optional-only struct")
+		assert.Fail(t, "Expected empty object to validate against optional-only struct")
 	}
 
 	// Should validate partial object
 	result = optionalSchema.Validate(map[string]any{"Name": "test"})
 	if !result.IsValid() {
-		t.Error("Expected partial object to validate")
+		assert.Fail(t, "Expected partial object to validate")
 	}
 }
 
@@ -917,11 +922,12 @@ func TestFromStruct_NilOptions(t *testing.T) {
 	schema := FromStructWithOptions[TestUser](nil)
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil even with nil options")
+		require.Fail(t, "Expected schema to be non-nil even with nil options")
+		return
 	}
 
 	if len(schema.Type) == 0 || schema.Type[0] != "object" {
-		t.Error("Expected schema to have correct type with default options")
+		assert.Fail(t, "Expected schema to have correct type with default options")
 	}
 }
 
@@ -973,11 +979,11 @@ func TestErrorHandling(t *testing.T) {
 
 	expectedMsg := "struct tag error (struct TestStruct, field TestField, tag rule testRule): test error message: underlying error"
 	if err.Error() != expectedMsg {
-		t.Errorf("Expected error message: %s, got: %s", expectedMsg, err.Error())
+		assert.Fail(t, fmt.Sprintf("Expected error message: %s, got: %s", expectedMsg, err.Error()))
 	}
 
 	if err.Unwrap().Error() != "underlying error" {
-		t.Error("Error unwrapping not working correctly")
+		assert.Fail(t, "Error unwrapping not working correctly")
 	}
 }
 
@@ -1066,11 +1072,13 @@ func TestFromStruct_BasicArrayTypes(t *testing.T) {
 	}
 	schema := FromStructWithOptions[BasicArrayStruct](options)
 	if schema == nil {
-		t.Fatal("Basic array type schema generation failed")
+		require.Fail(t, "Basic array type schema generation failed")
+		return
 	}
 
 	if schema.Properties == nil {
-		t.Fatal("Expected schema should contain property definitions")
+		require.Fail(t, "Expected schema should contain property definitions")
+		return
 	}
 
 	props := *schema.Properties
@@ -1078,71 +1086,71 @@ func TestFromStruct_BasicArrayTypes(t *testing.T) {
 	// Verify integer array items type
 	intArray, exists := props["integers"]
 	if !exists {
-		t.Error("Expected integers property should exist")
+		assert.Fail(t, "Expected integers property should exist")
 	} else {
 		if len(intArray.Type) == 0 || intArray.Type[0] != "array" {
-			t.Error("Expected integers should be array type")
+			assert.Fail(t, "Expected integers should be array type")
 		}
 		if intArray.Items == nil {
-			t.Error("Expected integers should contain items definition")
+			assert.Fail(t, "Expected integers should contain items definition")
 		} else if len(intArray.Items.Type) == 0 || intArray.Items.Type[0] != "integer" {
-			t.Errorf("Expected integers items should be integer type, got: %v", intArray.Items.Type)
+			assert.Fail(t, fmt.Sprintf("Expected integers items should be integer type, got: %v", intArray.Items.Type))
 		}
 	}
 
 	// Verify string array items type
 	stringArray, exists := props["strings"]
 	if !exists {
-		t.Error("Expected strings property should exist")
+		assert.Fail(t, "Expected strings property should exist")
 	} else {
 		if stringArray.Items == nil {
-			t.Error("Expected strings should contain items definition")
+			assert.Fail(t, "Expected strings should contain items definition")
 		} else if len(stringArray.Items.Type) == 0 || stringArray.Items.Type[0] != "string" {
-			t.Errorf("Expected strings items should be string type, got: %v", stringArray.Items.Type)
+			assert.Fail(t, fmt.Sprintf("Expected strings items should be string type, got: %v", stringArray.Items.Type))
 		}
 	}
 
 	// Verify float array items type
 	floatArray, exists := props["floats"]
 	if !exists {
-		t.Error("Expected floats property should exist")
+		assert.Fail(t, "Expected floats property should exist")
 	} else {
 		if floatArray.Items == nil {
-			t.Error("Expected floats should contain items definition")
+			assert.Fail(t, "Expected floats should contain items definition")
 		} else if len(floatArray.Items.Type) == 0 || floatArray.Items.Type[0] != "number" {
-			t.Errorf("Expected floats items should be number type, got: %v", floatArray.Items.Type)
+			assert.Fail(t, fmt.Sprintf("Expected floats items should be number type, got: %v", floatArray.Items.Type))
 		}
 	}
 
 	// Verify boolean array items type
 	boolArray, exists := props["bools"]
 	if !exists {
-		t.Error("Expected bools property should exist")
+		assert.Fail(t, "Expected bools property should exist")
 	} else {
 		if boolArray.Items == nil {
-			t.Error("Expected bools should contain items definition")
+			assert.Fail(t, "Expected bools should contain items definition")
 		} else if len(boolArray.Items.Type) == 0 || boolArray.Items.Type[0] != "boolean" {
-			t.Errorf("Expected bools items should be boolean type, got: %v", boolArray.Items.Type)
+			assert.Fail(t, fmt.Sprintf("Expected bools items should be boolean type, got: %v", boolArray.Items.Type))
 		}
 	}
 
 	// Verify nested arrays (2D arrays)
 	nestedArray, exists := props["nested_ints"]
 	if !exists {
-		t.Error("Expected nested_ints property should exist")
+		assert.Fail(t, "Expected nested_ints property should exist")
 	} else {
 		if nestedArray.Items == nil {
-			t.Error("Expected nested_ints should contain items definition")
+			assert.Fail(t, "Expected nested_ints should contain items definition")
 		} else {
 			// Nested array items should also be array type
 			if len(nestedArray.Items.Type) == 0 || nestedArray.Items.Type[0] != "array" {
-				t.Errorf("Expected nested_ints items should be array type, got: %v", nestedArray.Items.Type)
+				assert.Fail(t, fmt.Sprintf("Expected nested_ints items should be array type, got: %v", nestedArray.Items.Type))
 			}
 			// And nested array items should also have their own items (integer)
 			if nestedArray.Items.Items == nil {
-				t.Error("Expected nested array items should contain sub-items definition")
+				assert.Fail(t, "Expected nested array items should contain sub-items definition")
 			} else if len(nestedArray.Items.Items.Type) == 0 || nestedArray.Items.Items.Type[0] != "integer" {
-				t.Errorf("Expected nested array sub-items should be integer type, got: %v", nestedArray.Items.Items.Type)
+				assert.Fail(t, fmt.Sprintf("Expected nested array sub-items should be integer type, got: %v", nestedArray.Items.Items.Type))
 			}
 		}
 	}
@@ -1150,10 +1158,10 @@ func TestFromStruct_BasicArrayTypes(t *testing.T) {
 	// Verify pointer arrays (should generate nullable integer arrays)
 	ptrArray, exists := props["ptr_ints"]
 	if !exists {
-		t.Error("Expected ptr_ints property should exist")
+		assert.Fail(t, "Expected ptr_ints property should exist")
 	} else {
 		if ptrArray.Items == nil {
-			t.Error("Expected ptr_ints should contain items definition")
+			assert.Fail(t, "Expected ptr_ints should contain items definition")
 		}
 		// Pointer array elements should be nullable, typically using anyOf
 		if ptrArray.Items != nil && ptrArray.Items.AnyOf != nil {
@@ -1171,10 +1179,10 @@ func TestFromStruct_BasicArrayTypes(t *testing.T) {
 				}
 			}
 			if !foundInteger {
-				t.Error("Expected pointer array items anyOf should contain integer type")
+				assert.Fail(t, "Expected pointer array items anyOf should contain integer type")
 			}
 			if !foundNull {
-				t.Error("Expected pointer array items anyOf should contain null type")
+				assert.Fail(t, "Expected pointer array items anyOf should contain null type")
 			}
 		}
 	}
@@ -1226,7 +1234,7 @@ func TestMaxPropertiesArrayPlacement(t *testing.T) {
 
 	schema := FromStruct[TestStruct]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
@@ -1238,22 +1246,22 @@ func TestMaxPropertiesArrayPlacement(t *testing.T) {
 
 	// Verify single struct has maxProperties at correct level
 	if !stringContains(schemaStr, `"Single"`) {
-		t.Error("Single field not found in schema")
+		assert.Fail(t, "Single field not found in schema")
 	}
 
 	// Verify array schema structure - maxProperties should be in items, not on array
 	if !stringContains(schemaStr, `"Multiple"`) {
-		t.Error("Multiple field not found in schema")
+		assert.Fail(t, "Multiple field not found in schema")
 	}
 
 	// Check that array items have maxProperties (not the array itself)
 	if !stringContains(schemaStr, `"items"`) {
-		t.Error("Array items not found in schema")
+		assert.Fail(t, "Array items not found in schema")
 	}
 
 	// Verify maxProperties appears in the right context
 	if !stringContains(schemaStr, `"maxProperties"`) {
-		t.Error("maxProperties constraint not found in schema")
+		assert.Fail(t, "maxProperties constraint not found in schema")
 	}
 }
 
@@ -1268,7 +1276,7 @@ func TestEnumSpaceSeparation(t *testing.T) {
 
 	schema := FromStruct[EnumTest]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
@@ -1288,13 +1296,13 @@ func TestEnumSpaceSeparation(t *testing.T) {
 
 	for _, value := range expectedValues {
 		if !stringContains(schemaStr, value) {
-			t.Errorf("Expected enum value %s not found in schema", value)
+			assert.Fail(t, fmt.Sprintf("Expected enum value %s not found in schema", value))
 		}
 	}
 
 	// Verify enum arrays are properly formed
 	if !stringContains(schemaStr, `"enum": [`) {
-		t.Error("Enum arrays not properly formatted in schema")
+		assert.Fail(t, "Enum arrays not properly formatted in schema")
 	}
 }
 
@@ -1308,7 +1316,7 @@ func TestPointerFieldTagRules(t *testing.T) {
 
 	schema := FromStruct[PointerTest]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
@@ -1320,30 +1328,30 @@ func TestPointerFieldTagRules(t *testing.T) {
 
 	// Verify anyOf structure for nullable fields
 	if !stringContains(schemaStr, `"anyOf"`) {
-		t.Error("anyOf structure not found for nullable fields")
+		assert.Fail(t, "anyOf structure not found for nullable fields")
 	}
 
 	// Verify descriptions are preserved in nullable fields
 	if !stringContains(schemaStr, `"This is optional"`) {
-		t.Error("Description not preserved in nullable field")
+		assert.Fail(t, "Description not preserved in nullable field")
 	}
 
 	// Verify validation rules are preserved
 	if !stringContains(schemaStr, `"maxLength": 100`) {
-		t.Error("maxLength validation rule not preserved in nullable field")
+		assert.Fail(t, "maxLength validation rule not preserved in nullable field")
 	}
 
 	if !stringContains(schemaStr, `"minimum": 0`) {
-		t.Error("minimum validation rule not preserved in nullable field")
+		assert.Fail(t, "minimum validation rule not preserved in nullable field")
 	}
 
 	if !stringContains(schemaStr, `"maximum": 999`) {
-		t.Error("maximum validation rule not preserved in nullable field")
+		assert.Fail(t, "maximum validation rule not preserved in nullable field")
 	}
 
 	// Verify null type is included
 	if !stringContains(schemaStr, `"type": "null"`) {
-		t.Error("null type not found in nullable field anyOf")
+		assert.Fail(t, "null type not found in nullable field anyOf")
 	}
 }
 
@@ -1361,7 +1369,7 @@ func TestStructReferenceDeduplication(t *testing.T) {
 
 	schema := FromStruct[TestStruct]()
 	if schema == nil {
-		t.Fatal("Schema generation failed")
+		require.Fail(t, "Schema generation failed")
 	}
 
 	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
@@ -1373,12 +1381,12 @@ func TestStructReferenceDeduplication(t *testing.T) {
 
 	// Verify $defs section exists
 	if !stringContains(schemaStr, `"$defs"`) {
-		t.Error("$defs section not found in schema")
+		assert.Fail(t, "$defs section not found in schema")
 	}
 
 	// Verify $ref usage for shared struct
 	if !stringContains(schemaStr, `"$ref": "#/$defs/SharedStruct"`) {
-		t.Error("$ref to SharedStruct not found")
+		assert.Fail(t, "$ref to SharedStruct not found")
 	}
 
 	// Count occurrences of SharedStruct definition vs references
@@ -1387,11 +1395,11 @@ func TestStructReferenceDeduplication(t *testing.T) {
 	refCount := countOccurrences(schemaStr, `"$ref": "#/$defs/SharedStruct"`)
 
 	if definitionCount != 1 {
-		t.Errorf("Expected 1 SharedStruct definition, got %d", definitionCount)
+		assert.Fail(t, fmt.Sprintf("Expected 1 SharedStruct definition, got %d", definitionCount))
 	}
 
 	if refCount < 3 {
-		t.Errorf("Expected at least 3 $ref references to SharedStruct, got %d", refCount)
+		assert.Fail(t, fmt.Sprintf("Expected at least 3 $ref references to SharedStruct, got %d", refCount))
 	}
 
 	// Ensure the struct isn't duplicated inline
@@ -1399,7 +1407,7 @@ func TestStructReferenceDeduplication(t *testing.T) {
 
 	// Should appear once in the $defs definition
 	if fieldDefinitionCount < 1 {
-		t.Error("SharedStruct fields not found in $defs")
+		assert.Fail(t, "SharedStruct fields not found in $defs")
 	}
 }
 
@@ -1437,12 +1445,12 @@ func TestFromStruct_DefaultSchemaVersion(t *testing.T) {
 	schema := FromStruct[TestUser]()
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil")
+		require.NotNil(t, schema, "Expected schema to be non-nil")
 	}
 
 	expectedVersion := "https://json-schema.org/draft/2020-12/schema"
 	if schema.Schema != expectedVersion {
-		t.Errorf("Expected schema.$schema to be '%s', got '%s'", expectedVersion, schema.Schema)
+		assert.Fail(t, fmt.Sprintf("Expected schema.$schema to be '%s', got '%s'", expectedVersion, schema.Schema))
 	}
 }
 
@@ -1456,11 +1464,11 @@ func TestFromStruct_CustomSchemaVersion(t *testing.T) {
 	schema := FromStructWithOptions[TestUser](options)
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil")
+		require.NotNil(t, schema, "Expected schema to be non-nil")
 	}
 
 	if schema.Schema != customVersion {
-		t.Errorf("Expected schema.$schema to be '%s', got '%s'", customVersion, schema.Schema)
+		assert.Fail(t, fmt.Sprintf("Expected schema.$schema to be '%s', got '%s'", customVersion, schema.Schema))
 	}
 }
 
@@ -1473,11 +1481,11 @@ func TestFromStruct_EmptySchemaVersion(t *testing.T) {
 	schema := FromStructWithOptions[TestUser](options)
 
 	if schema == nil {
-		t.Fatal("Expected schema to be non-nil")
+		require.NotNil(t, schema, "Expected schema to be non-nil")
 	}
 
 	if schema.Schema != "" {
-		t.Errorf("Expected schema.$schema to be empty, got '%s'", schema.Schema)
+		assert.Fail(t, fmt.Sprintf("Expected schema.$schema to be empty, got '%s'", schema.Schema))
 	}
 }
 
@@ -1505,21 +1513,21 @@ func TestFromStruct_SchemaVersionCaching(t *testing.T) {
 
 	// Verify they have different $schema values
 	if schema1.Schema != "https://json-schema.org/draft/2020-12/schema" {
-		t.Errorf("Expected schema1.$schema to be default version, got '%s'", schema1.Schema)
+		assert.Fail(t, fmt.Sprintf("Expected schema1.$schema to be default version, got '%s'", schema1.Schema))
 	}
 
 	if schema2.Schema != "https://json-schema.org/draft/2019-09/schema" {
-		t.Errorf("Expected schema2.$schema to be custom version, got '%s'", schema2.Schema)
+		assert.Fail(t, fmt.Sprintf("Expected schema2.$schema to be custom version, got '%s'", schema2.Schema))
 	}
 
 	if schema3.Schema != "" {
-		t.Errorf("Expected schema3.$schema to be empty, got '%s'", schema3.Schema)
+		assert.Fail(t, fmt.Sprintf("Expected schema3.$schema to be empty, got '%s'", schema3.Schema))
 	}
 
 	// Verify cache stats show multiple cached schemas
 	stats := GetCacheStats()
 	if stats["cached_schemas"] < 3 {
-		t.Errorf("Expected at least 3 cached schemas, got %d", stats["cached_schemas"])
+		assert.Fail(t, fmt.Sprintf("Expected at least 3 cached schemas, got %d", stats["cached_schemas"]))
 	}
 }
 
@@ -1537,7 +1545,7 @@ func TestFromStruct_SchemaVersionInJSON(t *testing.T) {
 	// Check that $schema field is present in JSON
 	expectedSchemaField := `"$schema":"https://json-schema.org/draft/2020-12/schema"`
 	if stringIndex(jsonStr, expectedSchemaField) == -1 {
-		t.Errorf("Expected JSON to contain %s, got: %s", expectedSchemaField, jsonStr)
+		assert.Fail(t, fmt.Sprintf("Expected JSON to contain %s, got: %s", expectedSchemaField, jsonStr))
 	}
 }
 
@@ -1555,10 +1563,10 @@ func TestFromStruct_SchemaPropertiesFalse(t *testing.T) {
 	schema := FromStructWithOptions[TestUser](options)
 
 	if schema.AdditionalProperties == nil {
-		t.Fatal("Expected additionalProperties to be set")
+		require.Fail(t, "Expected additionalProperties to be set")
 	}
 	if schema.AdditionalProperties.Boolean == nil || *schema.AdditionalProperties.Boolean != false {
-		t.Error("Expected additionalProperties to be false")
+		assert.Fail(t, "Expected additionalProperties to be false")
 	}
 }
 
@@ -1572,10 +1580,10 @@ func TestFromStruct_SchemaPropertiesTrue(t *testing.T) {
 	schema := FromStructWithOptions[TestUser](options)
 
 	if schema.AdditionalProperties == nil {
-		t.Fatal("Expected additionalProperties to be set")
+		require.Fail(t, "Expected additionalProperties to be set")
 	}
 	if schema.AdditionalProperties.Boolean == nil || *schema.AdditionalProperties.Boolean != true {
-		t.Error("Expected additionalProperties to be true")
+		assert.Fail(t, "Expected additionalProperties to be true")
 	}
 }
 
@@ -1585,13 +1593,13 @@ func TestFromStruct_DefaultSchemaProperties(t *testing.T) {
 	schema := FromStruct[TestUser]()
 
 	if schema.AdditionalProperties != nil {
-		t.Error("Expected additionalProperties to not be set by default")
+		assert.Fail(t, "Expected additionalProperties to not be set by default")
 	}
 	if schema.Title != nil {
-		t.Error("Expected title to not be set by default")
+		assert.Fail(t, "Expected title to not be set by default")
 	}
 	if schema.Description != nil {
-		t.Error("Expected description to not be set by default")
+		assert.Fail(t, "Expected description to not be set by default")
 	}
 }
 
@@ -1609,19 +1617,19 @@ func TestFromStruct_CombinedSchemaProperties(t *testing.T) {
 	schema := FromStructWithOptions[TestUser](options)
 
 	if schema.AdditionalProperties == nil || *schema.AdditionalProperties.Boolean != false {
-		t.Error("Expected additionalProperties to be false")
+		assert.Fail(t, "Expected additionalProperties to be false")
 	}
 	if schema.Title == nil || *schema.Title != "User Schema" {
-		t.Error("Expected title to be set")
+		assert.Fail(t, "Expected title to be set")
 	}
 	if schema.Description == nil || *schema.Description != "Schema for user data" {
-		t.Error("Expected description to be set")
+		assert.Fail(t, "Expected description to be set")
 	}
 	if schema.MinProperties == nil || *schema.MinProperties != 1.0 {
-		t.Error("Expected minProperties to be 1")
+		assert.Fail(t, "Expected minProperties to be 1")
 	}
 	if schema.MaxProperties == nil || *schema.MaxProperties != 10.0 {
-		t.Error("Expected maxProperties to be 10")
+		assert.Fail(t, "Expected maxProperties to be 10")
 	}
 }
 
@@ -1652,18 +1660,18 @@ func TestFromStructDeterministicSerialization(t *testing.T) {
 	// All results should be identical
 	for i := 1; i < len(results); i++ {
 		if results[0] != results[i] {
-			t.Errorf("Serialization %d differs from first", i)
+			assert.Fail(t, fmt.Sprintf("Serialization %d differs from first", i))
 		}
 	}
 
 	// Verify the structure contains expected elements
 	if !stringContains(results[0], `"$defs"`) {
-		t.Error("Expected $defs in serialized schema")
+		assert.Fail(t, "Expected $defs in serialized schema")
 	}
 	if !stringContains(results[0], `"InnerStruct"`) {
-		t.Error("Expected InnerStruct in serialized schema")
+		assert.Fail(t, "Expected InnerStruct in serialized schema")
 	}
 	if !stringContains(results[0], `"OuterStruct"`) {
-		t.Error("Expected OuterStruct in serialized schema")
+		assert.Fail(t, "Expected OuterStruct in serialized schema")
 	}
 }
