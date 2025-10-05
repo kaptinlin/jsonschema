@@ -2,8 +2,8 @@ package jsonschema
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"github.com/go-json-experiment/json"
 	"io"
 	"strings"
 	"testing"

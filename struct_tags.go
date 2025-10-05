@@ -663,8 +663,8 @@ func createSchemaFromParam(param string) *Schema {
 
 	// Check if it's a custom struct type
 	if isCustomStructType(param) {
-		// For now, create a reference to the type
-		// TODO: In a full implementation, we might want to generate the schema for the referenced type
+		// Create a basic object schema for custom types.
+		// Full schema generation for referenced types is handled separately via the Compiler.
 		return &Schema{Type: SchemaType{"object"}, Description: &param}
 	}
 
@@ -1127,9 +1127,6 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 			}
 			return nil
 		},
-
-		// TODO: Add more complex validators from schemagen as needed
-		// (prefixItems, patternProperties, dependentRequired, dependentSchemas, if/then/else, etc.)
 
 		// Array advanced validators - prefixItems
 		"prefixItems": func(_ reflect.Type, params []string) []Keyword {

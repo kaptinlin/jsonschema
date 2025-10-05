@@ -3,9 +3,9 @@ package jsonschema
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"github.com/go-json-experiment/json"
 	"io"
 	"net/http"
 	"sync"
@@ -66,9 +66,9 @@ func NewCompiler() *Compiler {
 		defaultFuncs:   make(map[string]DefaultFunc),
 		customFormats:  make(map[string]*FormatDef),
 
-		// Default to standard library JSON implementation
-		jsonEncoder: json.Marshal,
-		jsonDecoder: json.Unmarshal,
+		// Default to go-json-experiment JSON implementation
+		jsonEncoder: func(v any) ([]byte, error) { return json.Marshal(v) },
+		jsonDecoder: func(data []byte, v any) error { return json.Unmarshal(data, v) },
 	}
 	compiler.initDefaults()
 	return compiler

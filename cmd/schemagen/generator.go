@@ -1221,6 +1221,7 @@ func isCustomStructType(typeName string) bool {
 // Examples: "UserProfile" -> "user_profile", "XMLParser" -> "xml_parser"
 func structNameToFileName(structName string) string {
 	var result strings.Builder
+	result.Grow(len(structName) * 2) // Pre-allocate for underscores
 
 	for i, r := range structName {
 		if i > 0 && r >= 'A' && r <= 'Z' {
