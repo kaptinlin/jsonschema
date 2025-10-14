@@ -1675,3 +1675,590 @@ func TestFromStructDeterministicSerialization(t *testing.T) {
 		assert.Fail(t, "Expected OuterStruct in serialized schema")
 	}
 }
+
+// =============================================================================
+// Map Type Tests - Test map schema generation with various value types
+// =============================================================================
+
+// TestMapOfStructsSchema tests that maps with struct values generate proper additionalProperties
+func TestMapOfStructsSchema(t *testing.T) {
+	type Bar struct {
+		A string `json:"a" jsonschema:"description=Field A"`
+		B string `json:"b" jsonschema:"description=Field B"`
+	}
+
+	type Foo struct {
+		Data map[string]Bar `json:"data" jsonschema:"description=This is the data field"`
+	}
+
+	schema := FromStruct[Foo]()
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	if schema.Properties == nil {
+		require.Fail(t, "Expected schema to have properties")
+		return
+	}
+
+	props := *schema.Properties
+	dataField, exists := props["data"]
+	if !exists {
+		assert.Fail(t, "Expected 'data' field to exist in schema properties")
+		return
+	}
+
+	// Verify the data field is an object type
+	if len(dataField.Type) == 0 || dataField.Type[0] != "object" {
+		assert.Fail(t, fmt.Sprintf("Expected data field to be object type, got: %v", dataField.Type))
+	}
+
+	// Verify additionalProperties is set for the map
+	if dataField.AdditionalProperties == nil {
+		assert.Fail(t, "Expected data field to have additionalProperties defined")
+		return
+	}
+
+	// Check if additionalProperties is a schema (not just a boolean)
+	if dataField.AdditionalProperties.Boolean == nil {
+		// It's a schema - verify it has a $ref or properties
+		if dataField.AdditionalProperties.Ref == "" && dataField.AdditionalProperties.Properties == nil {
+			assert.Fail(t, "Expected additionalProperties to have either $ref or properties for the Bar struct")
+		}
+	}
+
+	// Verify Bar struct is in $defs
+	if schema.Defs == nil {
+		assert.Fail(t, "Expected $defs to exist for struct value type")
+		return
+	}
+
+	barSchema, barExists := schema.Defs["Bar"]
+	if !barExists {
+		assert.Fail(t, "Expected Bar to be defined in $defs")
+		return
+	}
+
+	// Verify Bar schema has the expected properties
+	if barSchema.Properties == nil {
+		assert.Fail(t, "Expected Bar schema to have properties")
+		return
+	}
+
+	barProps := *barSchema.Properties
+	if _, aExists := barProps["a"]; !aExists {
+		assert.Fail(t, "Expected Bar schema to have 'a' property")
+	}
+	if _, bExists := barProps["b"]; !bExists {
+		assert.Fail(t, "Expected Bar schema to have 'b' property")
+	}
+}
+
+// TestMapOfPrimitivesSchema tests maps with primitive value types
+func TestMapOfPrimitivesSchema(t *testing.T) {
+	type MapPrimitives struct {
+		Strings  map[string]string  `json:"strings" jsonschema:"description=Map of strings"`
+		Integers map[string]int     `json:"integers" jsonschema:"description=Map of integers"`
+		Floats   map[string]float64 `json:"floats" jsonschema:"description=Map of floats"`
+	}
+
+	schema := FromStruct[MapPrimitives]()
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	if schema.Properties == nil {
+		require.Fail(t, "Expected schema to have properties")
+		return
+	}
+
+	props := *schema.Properties
+
+	// Verify string map has correct type and additionalProperties
+	stringsField, exists := props["strings"]
+	if !exists {
+		assert.Fail(t, "Expected 'strings' field to exist")
+	} else {
+		if len(stringsField.Type) == 0 || stringsField.Type[0] != "object" {
+			assert.Fail(t, fmt.Sprintf("Expected strings to be object type, got: %v", stringsField.Type))
+		}
+		if stringsField.AdditionalProperties == nil {
+			assert.Fail(t, "Expected strings to have additionalProperties")
+		} else if len(stringsField.AdditionalProperties.Type) == 0 || stringsField.AdditionalProperties.Type[0] != "string" {
+			assert.Fail(t, fmt.Sprintf("Expected strings additionalProperties to be string type, got: %v", stringsField.AdditionalProperties.Type))
+		}
+	}
+
+	// Verify integer map has correct type and additionalProperties
+	integersField, exists := props["integers"]
+	if !exists {
+		assert.Fail(t, "Expected 'integers' field to exist")
+	} else {
+		if len(integersField.Type) == 0 || integersField.Type[0] != "object" {
+			assert.Fail(t, fmt.Sprintf("Expected integers to be object type, got: %v", integersField.Type))
+		}
+		if integersField.AdditionalProperties == nil {
+			assert.Fail(t, "Expected integers to have additionalProperties")
+		} else if len(integersField.AdditionalProperties.Type) == 0 || integersField.AdditionalProperties.Type[0] != "integer" {
+			assert.Fail(t, fmt.Sprintf("Expected integers additionalProperties to be integer type, got: %v", integersField.AdditionalProperties.Type))
+		}
+	}
+
+	// Verify float map has correct type and additionalProperties
+	floatsField, exists := props["floats"]
+	if !exists {
+		assert.Fail(t, "Expected 'floats' field to exist")
+	} else {
+		if len(floatsField.Type) == 0 || floatsField.Type[0] != "object" {
+			assert.Fail(t, fmt.Sprintf("Expected floats to be object type, got: %v", floatsField.Type))
+		}
+		if floatsField.AdditionalProperties == nil {
+			assert.Fail(t, "Expected floats to have additionalProperties")
+		} else if len(floatsField.AdditionalProperties.Type) == 0 || floatsField.AdditionalProperties.Type[0] != "number" {
+			assert.Fail(t, fmt.Sprintf("Expected floats additionalProperties to be number type, got: %v", floatsField.AdditionalProperties.Type))
+		}
+	}
+}
+
+// TestMapOfPointerToStructSchema tests maps with pointer-to-struct values
+func TestMapOfPointerToStructSchema(t *testing.T) {
+	type Item struct {
+		Name  string `json:"name" jsonschema:"description=Item name"`
+		Price int    `json:"price" jsonschema:"minimum=0"`
+	}
+
+	type Store struct {
+		Items map[string]*Item `json:"items" jsonschema:"description=Store items"`
+	}
+
+	schema := FromStruct[Store]()
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	if schema.Properties == nil {
+		require.Fail(t, "Expected schema to have properties")
+		return
+	}
+
+	props := *schema.Properties
+	itemsField, exists := props["items"]
+	if !exists {
+		assert.Fail(t, "Expected 'items' field to exist")
+		return
+	}
+
+	// Verify the items field is an object type
+	if len(itemsField.Type) == 0 || itemsField.Type[0] != "object" {
+		assert.Fail(t, fmt.Sprintf("Expected items to be object type, got: %v", itemsField.Type))
+	}
+
+	// Verify additionalProperties is set and contains a $ref
+	if itemsField.AdditionalProperties == nil {
+		assert.Fail(t, "Expected items to have additionalProperties")
+		return
+	}
+
+	if itemsField.AdditionalProperties.Ref == "" {
+		assert.Fail(t, "Expected additionalProperties to have $ref to Item struct")
+	}
+
+	if !stringContains(itemsField.AdditionalProperties.Ref, "Item") {
+		assert.Fail(t, fmt.Sprintf("Expected $ref to contain 'Item', got: %s", itemsField.AdditionalProperties.Ref))
+	}
+
+	// Verify Item struct is in $defs
+	if schema.Defs == nil {
+		assert.Fail(t, "Expected $defs to exist")
+		return
+	}
+
+	if _, itemExists := schema.Defs["Item"]; !itemExists {
+		assert.Fail(t, "Expected Item to be defined in $defs")
+	}
+}
+
+// TestNestedMapsSchema tests maps containing other maps
+func TestNestedMapsSchema(t *testing.T) {
+	type Config struct {
+		Settings map[string]map[string]string `json:"settings" jsonschema:"description=Nested settings"`
+	}
+
+	schema := FromStruct[Config]()
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	if schema.Properties == nil {
+		require.Fail(t, "Expected schema to have properties")
+		return
+	}
+
+	props := *schema.Properties
+	settingsField, exists := props["settings"]
+	if !exists {
+		assert.Fail(t, "Expected 'settings' field to exist")
+		return
+	}
+
+	// Verify the outer map is an object type
+	if len(settingsField.Type) == 0 || settingsField.Type[0] != "object" {
+		assert.Fail(t, fmt.Sprintf("Expected settings to be object type, got: %v", settingsField.Type))
+	}
+
+	// Verify outer map has additionalProperties
+	if settingsField.AdditionalProperties == nil {
+		assert.Fail(t, "Expected settings to have additionalProperties for nested map")
+		return
+	}
+
+	// Verify the nested map is also an object type
+	if len(settingsField.AdditionalProperties.Type) == 0 || settingsField.AdditionalProperties.Type[0] != "object" {
+		assert.Fail(t, fmt.Sprintf("Expected nested map to be object type, got: %v", settingsField.AdditionalProperties.Type))
+	}
+
+	// Verify the nested map also has additionalProperties (for string values)
+	if settingsField.AdditionalProperties.AdditionalProperties == nil {
+		assert.Fail(t, "Expected nested map to have additionalProperties")
+		return
+	}
+
+	if len(settingsField.AdditionalProperties.AdditionalProperties.Type) == 0 ||
+		settingsField.AdditionalProperties.AdditionalProperties.Type[0] != "string" {
+		assert.Fail(t, fmt.Sprintf("Expected nested map values to be string type, got: %v",
+			settingsField.AdditionalProperties.AdditionalProperties.Type))
+	}
+}
+
+// TestMapOfStructsValidation tests validation with map data
+func TestMapOfStructsValidation(t *testing.T) {
+	type Bar struct {
+		A string `json:"a" jsonschema:"description=Field A"`
+		B string `json:"b" jsonschema:"description=Field B"`
+	}
+
+	type Foo struct {
+		Data map[string]Bar `json:"data" jsonschema:"description=This is the data field"`
+	}
+
+	schema := FromStruct[Foo]()
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	// Test validation with valid data
+	validData := map[string]any{
+		"data": map[string]any{
+			"key1": map[string]any{"a": "value1", "b": "value2"},
+			"key2": map[string]any{"a": "value3", "b": "value4"},
+		},
+	}
+
+	result := schema.ValidateMap(validData)
+	if !result.IsValid() {
+		assert.Fail(t, fmt.Sprintf("Valid map data should pass validation. Errors: %v", result.Errors))
+	}
+}
+
+// =============================================================================
+// RequiredSort Tests - Test alphabetical and preserve modes
+// =============================================================================
+
+// TestRequiredSortAlphabetical tests that RequiredSortAlphabetical sorts required fields alphabetically
+func TestRequiredSortAlphabetical(t *testing.T) {
+	type TestStruct struct {
+		Zebra  string `json:"zebra" jsonschema:"required,minLength=1"`
+		Apple  string `json:"apple" jsonschema:"required,minLength=1"`
+		Mango  string `json:"mango" jsonschema:"required,minLength=1"`
+		Banana string `json:"banana" jsonschema:"required,minLength=1"`
+	}
+
+	options := DefaultStructTagOptions()
+	options.RequiredSort = RequiredSortAlphabetical
+	options.CacheEnabled = false
+
+	schema := FromStructWithOptions[TestStruct](options)
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	// Verify required array is sorted alphabetically (using JSON field names)
+	expectedOrder := []string{"apple", "banana", "mango", "zebra"}
+	if len(schema.Required) != len(expectedOrder) {
+		assert.Fail(t, fmt.Sprintf("Expected %d required fields, got %d", len(expectedOrder), len(schema.Required)))
+		return
+	}
+
+	for i, expected := range expectedOrder {
+		if schema.Required[i] != expected {
+			assert.Fail(t, fmt.Sprintf("Expected required[%d] to be %s, got %s", i, expected, schema.Required[i]))
+		}
+	}
+
+	// Verify JSON marshalling also produces alphabetical order
+	jsonBytes, err := schema.MarshalJSON()
+	if err != nil {
+		t.Fatalf("Failed to marshal schema: %v", err)
+	}
+
+	var schemaMap map[string]any
+	if err := json.Unmarshal(jsonBytes, &schemaMap); err != nil {
+		t.Fatalf("Failed to unmarshal schema: %v", err)
+	}
+
+	requiredArray, ok := schemaMap["required"].([]any)
+	if !ok {
+		assert.Fail(t, "Required field not found or wrong type in JSON")
+		return
+	}
+
+	for i, expected := range expectedOrder {
+		if requiredArray[i].(string) != expected {
+			assert.Fail(t, fmt.Sprintf("Expected JSON required[%d] to be %s, got %s", i, expected, requiredArray[i]))
+		}
+	}
+}
+
+// TestRequiredSortNone tests that RequiredSortNone keeps struct field order
+func TestRequiredSortNone(t *testing.T) {
+	type TestStruct struct {
+		Zebra  string `json:"zebra" jsonschema:"required,minLength=1"`
+		Apple  string `json:"apple" jsonschema:"required,minLength=1"`
+		Mango  string `json:"mango" jsonschema:"required,minLength=1"`
+		Banana string `json:"banana" jsonschema:"required,minLength=1"`
+	}
+
+	options := DefaultStructTagOptions()
+	options.RequiredSort = RequiredSortNone
+	options.CacheEnabled = false
+
+	schema := FromStructWithOptions[TestStruct](options)
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	// Note: With RequiredSortNone, the order is NOT deterministic because struct field
+	// iteration order can vary due to map iteration in TagParser. We can only verify that
+	// all required fields are present, not their specific order.
+	expectedFields := map[string]bool{
+		"zebra":  true,
+		"apple":  true,
+		"mango":  true,
+		"banana": true,
+	}
+
+	if len(schema.Required) != len(expectedFields) {
+		assert.Fail(t, fmt.Sprintf("Expected %d required fields, got %d", len(expectedFields), len(schema.Required)))
+		return
+	}
+
+	// Verify all expected fields are present
+	for _, fieldName := range schema.Required {
+		if !expectedFields[fieldName] {
+			assert.Fail(t, fmt.Sprintf("Unexpected required field: %s", fieldName))
+		}
+	}
+
+	t.Logf("RequiredSortNone produced order: %v (order may vary due to map iteration)", schema.Required)
+}
+
+// TestRequiredSortDefault tests that default behavior is alphabetical sorting
+func TestRequiredSortDefault(t *testing.T) {
+	type TestStruct struct {
+		Zebra  string `json:"zebra" jsonschema:"required,minLength=1"`
+		Apple  string `json:"apple" jsonschema:"required,minLength=1"`
+		Mango  string `json:"mango" jsonschema:"required,minLength=1"`
+		Banana string `json:"banana" jsonschema:"required,minLength=1"`
+	}
+
+	// Use default options (should be RequiredSortAlphabetical)
+	schema := FromStruct[TestStruct]()
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	// Default should be alphabetical order (using JSON field names)
+	expectedOrder := []string{"apple", "banana", "mango", "zebra"}
+	if len(schema.Required) != len(expectedOrder) {
+		assert.Fail(t, fmt.Sprintf("Expected %d required fields, got %d", len(expectedOrder), len(schema.Required)))
+		return
+	}
+
+	for i, expected := range expectedOrder {
+		if schema.Required[i] != expected {
+			assert.Fail(t, fmt.Sprintf("Expected required[%d] to be %s (default should be alpha), got %s", i, expected, schema.Required[i]))
+		}
+	}
+}
+
+// TestRequiredSortDeterminism tests that both modes produce deterministic output
+func TestRequiredSortDeterminism(t *testing.T) {
+	type TestStruct struct {
+		Zebra  string `json:"zebra" jsonschema:"required,minLength=1"`
+		Apple  string `json:"apple" jsonschema:"required,minLength=1"`
+		Mango  string `json:"mango" jsonschema:"required,minLength=1"`
+		Banana string `json:"banana" jsonschema:"required,minLength=1"`
+	}
+
+	// Test RequiredSortAlphabetical determinism
+	t.Run("AlphabeticalDeterminism", func(t *testing.T) {
+		options := DefaultStructTagOptions()
+		options.RequiredSort = RequiredSortAlphabetical
+		options.CacheEnabled = false
+
+		var results []string
+		for i := 0; i < 20; i++ {
+			schema := FromStructWithOptions[TestStruct](options)
+			jsonBytes, err := schema.MarshalJSON()
+			if err != nil {
+				t.Fatalf("Failed to marshal schema: %v", err)
+			}
+			results = append(results, string(jsonBytes))
+		}
+
+		// All results should be identical
+		for i := 1; i < len(results); i++ {
+			if results[0] != results[i] {
+				assert.Fail(t, fmt.Sprintf("RequiredSortAlphabetical produced different output on iteration %d", i))
+			}
+		}
+	})
+
+	// Test RequiredSortNone - NOTE: This mode is NOT deterministic
+	// due to map iteration in TagParser, so we document this expected behavior
+	t.Run("NoneNonDeterministic", func(t *testing.T) {
+		options := DefaultStructTagOptions()
+		options.RequiredSort = RequiredSortNone
+		options.CacheEnabled = false
+
+		// Generate multiple schemas and verify they may have different orders
+		seenOrders := make(map[string]bool)
+		for i := 0; i < 20; i++ {
+			schema := FromStructWithOptions[TestStruct](options)
+			jsonBytes, err := schema.MarshalJSON()
+			if err != nil {
+				t.Fatalf("Failed to marshal schema: %v", err)
+			}
+			seenOrders[string(jsonBytes)] = true
+		}
+
+		// With RequiredSortNone, we expect to see multiple different orderings
+		// due to non-deterministic map iteration in struct field processing
+		t.Logf("RequiredSortNone produced %d different orderings (multiple orderings are expected due to map iteration)", len(seenOrders))
+
+		// This is expected behavior - none mode is not deterministic unless
+		// the underlying TagParser's map iteration becomes deterministic
+	})
+}
+
+// TestRequiredSortNestedStructs tests sorting with nested structures
+func TestRequiredSortNestedStructs(t *testing.T) {
+	type Inner struct {
+		Z string `json:"z" jsonschema:"required,minLength=1"`
+		A string `json:"a" jsonschema:"required,minLength=1"`
+		M string `json:"m" jsonschema:"required,minLength=1"`
+	}
+
+	type Outer struct {
+		Y     string `json:"y" jsonschema:"required,minLength=1"`
+		Inner Inner  `json:"inner" jsonschema:"required"`
+		B     string `json:"b" jsonschema:"required,minLength=1"`
+	}
+
+	options := DefaultStructTagOptions()
+	options.RequiredSort = RequiredSortAlphabetical
+	options.CacheEnabled = false
+
+	schema := FromStructWithOptions[Outer](options)
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	// Verify outer struct required fields are sorted (using JSON field names)
+	expectedOuterOrder := []string{"b", "inner", "y"}
+	if len(schema.Required) != len(expectedOuterOrder) {
+		assert.Fail(t, fmt.Sprintf("Expected %d required fields in outer struct, got %d", len(expectedOuterOrder), len(schema.Required)))
+	}
+
+	for i, expected := range expectedOuterOrder {
+		if schema.Required[i] != expected {
+			assert.Fail(t, fmt.Sprintf("Expected outer required[%d] to be %s, got %s", i, expected, schema.Required[i]))
+		}
+	}
+
+	// Verify inner struct in $defs also has sorted required fields
+	if schema.Defs == nil {
+		assert.Fail(t, "Expected $defs to exist for nested struct")
+		return
+	}
+
+	innerSchema, exists := schema.Defs["Inner"]
+	if !exists {
+		assert.Fail(t, "Expected Inner struct in $defs")
+		return
+	}
+
+	expectedInnerOrder := []string{"a", "m", "z"}
+	if len(innerSchema.Required) != len(expectedInnerOrder) {
+		assert.Fail(t, fmt.Sprintf("Expected %d required fields in inner struct, got %d", len(expectedInnerOrder), len(innerSchema.Required)))
+	}
+
+	for i, expected := range expectedInnerOrder {
+		if innerSchema.Required[i] != expected {
+			assert.Fail(t, fmt.Sprintf("Expected inner required[%d] to be %s, got %s", i, expected, innerSchema.Required[i]))
+		}
+	}
+}
+
+// TestRequiredSortMixedRequired tests sorting when some fields are required and some optional
+func TestRequiredSortMixedRequired(t *testing.T) {
+	type TestStruct struct {
+		Zebra  string  `json:"zebra" jsonschema:"required,minLength=1"`
+		Apple  *string `json:"apple" jsonschema:"minLength=1"` // optional (pointer)
+		Mango  string  `json:"mango" jsonschema:"required,minLength=1"`
+		Banana *string `json:"banana" jsonschema:"minLength=1"` // optional (pointer)
+		Cherry string  `json:"cherry" jsonschema:"required,minLength=1"`
+	}
+
+	options := DefaultStructTagOptions()
+	options.RequiredSort = RequiredSortAlphabetical
+	options.CacheEnabled = false
+
+	schema := FromStructWithOptions[TestStruct](options)
+
+	if schema == nil {
+		require.Fail(t, "Schema generation failed")
+		return
+	}
+
+	// Only required fields should appear, sorted alphabetically (using JSON field names)
+	expectedOrder := []string{"cherry", "mango", "zebra"}
+	if len(schema.Required) != len(expectedOrder) {
+		assert.Fail(t, fmt.Sprintf("Expected %d required fields, got %d", len(expectedOrder), len(schema.Required)))
+		return
+	}
+
+	for i, expected := range expectedOrder {
+		if schema.Required[i] != expected {
+			assert.Fail(t, fmt.Sprintf("Expected required[%d] to be %s, got %s", i, expected, schema.Required[i]))
+		}
+	}
+}

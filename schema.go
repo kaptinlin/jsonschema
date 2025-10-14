@@ -529,6 +529,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	}
 
 	// Use deterministic marshaling to ensure consistent key ordering
+	// Note: Required and DependentRequired arrays maintain their order from generation/parsing
 	return json.Marshal(result, json.Deterministic(true))
 }
 

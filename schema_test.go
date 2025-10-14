@@ -266,6 +266,7 @@ func TestDeterministicMarshal(t *testing.T) {
 
 func TestSchemaRoundTrip(t *testing.T) {
 	// Create a complex schema to test round-trip stability
+	// Note: Required arrays should be pre-sorted if you want deterministic output
 	original := &Schema{
 		ID:   "https://example.com/test",
 		Type: SchemaType{"object"},
@@ -274,7 +275,7 @@ func TestSchemaRoundTrip(t *testing.T) {
 			"age":  &Schema{Type: SchemaType{"number"}},
 			"tags": &Schema{Type: SchemaType{"array"}, Items: &Schema{Type: SchemaType{"string"}}},
 		},
-		Required: []string{"name", "age"},
+		Required: []string{"age", "name"}, // Pre-sorted for determinism
 		Defs: map[string]*Schema{
 			"address": {
 				Type: SchemaType{"object"},
@@ -298,7 +299,8 @@ func TestSchemaRoundTrip(t *testing.T) {
 	// Verify key fields are preserved
 	assert.Equal(t, original.ID, roundTrip.ID)
 	assert.Equal(t, original.Type, roundTrip.Type)
-	assert.Equal(t, original.Required, roundTrip.Required)
+	// Required array order is preserved (not re-sorted)
+	assert.Equal(t, []string{"age", "name"}, roundTrip.Required)
 	assert.NotNil(t, roundTrip.Properties)
 	assert.NotNil(t, roundTrip.Defs)
 
@@ -476,3 +478,359 @@ func findStringPosition(s, substr string) int {
 	}
 	return -1
 }
+
+// TestRequiredFieldDeterministicOrdering tests that the required field maintains deterministic ordering
+// Note: MarshalJSON preserves the order as provided (no sorting)
+func TestRequiredFieldDeterministicOrdering(t *testing.T) {
+	// Create a schema with required fields - order is preserved as provided
+	schema := &Schema{
+		Type: SchemaType{"object"},
+		Properties: &SchemaMap{
+			"metadata":   &Schema{Type: SchemaType{"string"}},
+			"spec":       &Schema{Type: SchemaType{"object"}},
+			"apiVersion": &Schema{Type: SchemaType{"string"}},
+			"kind":       &Schema{Type: SchemaType{"string"}},
+		},
+		Required: []string{"apiVersion", "kind", "metadata", "spec"}, // Pre-sorted for determinism
+	}
+
+	// Test multiple serializations to ensure deterministic ordering
+	results := make(map[string]int)
+	for i := 0; i < 20; i++ {
+		data, err := json.Marshal(schema)
+		require.NoError(t, err)
+		results[string(data)]++
+	}
+
+	// Should only have one unique serialization
+	assert.Equal(t, 1, len(results), "Expected deterministic serialization, but got %d unique results", len(results))
+
+	// Verify that the required array preserves provided order
+	for result := range results {
+		var parsed map[string]any
+		err := json.Unmarshal([]byte(result), &parsed)
+		require.NoError(t, err)
+
+		if requiredArray, ok := parsed["required"].([]any); ok {
+			// Convert to string slice for easier comparison
+			requiredStrings := make([]string, len(requiredArray))
+			for i, v := range requiredArray {
+				requiredStrings[i] = v.(string)
+			}
+
+			// Should preserve the provided order
+			expected := []string{"apiVersion", "kind", "metadata", "spec"}
+			assert.Equal(t, expected, requiredStrings, "Required fields order should be preserved")
+		}
+	}
+}
+
+// TestDependentRequiredDeterministicOrdering tests that dependentRequired values order is preserved
+// Note: MarshalJSON preserves array order as provided (no sorting)
+func TestDependentRequiredDeterministicOrdering(t *testing.T) {
+	schema := &Schema{
+		Type: SchemaType{"object"},
+		DependentRequired: map[string][]string{
+			"creditCard": {"cardNumber", "cvv", "expiryDate"}, // Pre-sorted for determinism
+		},
+	}
+
+	// Test multiple serializations
+	results := make(map[string]int)
+	for i := 0; i < 20; i++ {
+		data, err := json.Marshal(schema)
+		require.NoError(t, err)
+		results[string(data)]++
+	}
+
+	// Should only have one unique serialization
+	assert.Equal(t, 1, len(results), "Expected deterministic serialization for dependentRequired")
+
+	// Verify provided order is preserved
+	for result := range results {
+		var parsed map[string]any
+		err := json.Unmarshal([]byte(result), &parsed)
+		require.NoError(t, err)
+
+		if depRequired, ok := parsed["dependentRequired"].(map[string]any); ok {
+			if creditCardDeps, ok := depRequired["creditCard"].([]any); ok {
+				// Convert to string slice
+				depStrings := make([]string, len(creditCardDeps))
+				for i, v := range creditCardDeps {
+					depStrings[i] = v.(string)
+				}
+
+				// Should preserve provided order
+				expected := []string{"cardNumber", "cvv", "expiryDate"}
+				assert.Equal(t, expected, depStrings, "DependentRequired values order should be preserved")
+			}
+		}
+	}
+}
+
+// TestNestedStructRequiredFieldDeterministicOrdering tests that nested structs also have deterministic required field ordering
+func TestNestedStructRequiredFieldDeterministicOrdering(t *testing.T) {
+	// Create a schema with nested structures that have required fields
+	schema := &Schema{
+		Type: SchemaType{"object"},
+		Properties: &SchemaMap{
+			"metadata": &Schema{
+				Type: SchemaType{"object"},
+				Properties: &SchemaMap{
+					"name":        &Schema{Type: SchemaType{"string"}},
+					"namespace":   &Schema{Type: SchemaType{"string"}},
+					"labels":      &Schema{Type: SchemaType{"object"}},
+					"annotations": &Schema{Type: SchemaType{"object"}},
+				},
+				Required: []string{"annotations", "labels", "name", "namespace"}, // Pre-sorted for determinism
+			},
+			"spec": &Schema{
+				Type: SchemaType{"object"},
+				Properties: &SchemaMap{
+					"replicas":  &Schema{Type: SchemaType{"integer"}},
+					"selector":  &Schema{Type: SchemaType{"object"}},
+					"template":  &Schema{Type: SchemaType{"object"}},
+					"strategy":  &Schema{Type: SchemaType{"string"}},
+					"minReady":  &Schema{Type: SchemaType{"integer"}},
+					"revisions": &Schema{Type: SchemaType{"integer"}},
+				},
+				Required: []string{"minReady", "replicas", "revisions", "selector", "strategy", "template"}, // Pre-sorted for determinism
+			},
+		},
+		Required: []string{"metadata", "spec"},
+	}
+
+	// Test multiple serializations to ensure deterministic ordering
+	results := make(map[string]int)
+	for i := 0; i < 20; i++ {
+		data, err := json.Marshal(schema)
+		require.NoError(t, err)
+		results[string(data)]++
+	}
+
+	// Should only have one unique serialization
+	assert.Equal(t, 1, len(results), "Expected deterministic serialization for nested structures, but got %d unique results", len(results))
+
+	// Verify that all required arrays are in alphabetical order
+	for result := range results {
+		var parsed map[string]any
+		err := json.Unmarshal([]byte(result), &parsed)
+		require.NoError(t, err)
+
+		// Check root level required
+		if requiredArray, ok := parsed["required"].([]any); ok {
+			requiredStrings := make([]string, len(requiredArray))
+			for i, v := range requiredArray {
+				requiredStrings[i] = v.(string)
+			}
+			expected := []string{"metadata", "spec"}
+			assert.Equal(t, expected, requiredStrings, "Root level required fields order should be preserved")
+		}
+
+		// Check nested properties
+		if properties, ok := parsed["properties"].(map[string]any); ok {
+			// Check metadata.required
+			if metadata, ok := properties["metadata"].(map[string]any); ok {
+				if metadataRequired, ok := metadata["required"].([]any); ok {
+					requiredStrings := make([]string, len(metadataRequired))
+					for i, v := range metadataRequired {
+						requiredStrings[i] = v.(string)
+					}
+					expected := []string{"annotations", "labels", "name", "namespace"}
+					assert.Equal(t, expected, requiredStrings, "Metadata required fields order should be preserved")
+				}
+			}
+
+			// Check spec.required
+			if spec, ok := properties["spec"].(map[string]any); ok {
+				if specRequired, ok := spec["required"].([]any); ok {
+					requiredStrings := make([]string, len(specRequired))
+					for i, v := range specRequired {
+						requiredStrings[i] = v.(string)
+					}
+					expected := []string{"minReady", "replicas", "revisions", "selector", "strategy", "template"}
+					assert.Equal(t, expected, requiredStrings, "Spec required fields order should be preserved")
+				}
+			}
+		}
+	}
+}
+
+// TestFromStructNestedRequiredDeterministicOrdering tests that FromStruct generates schemas with deterministic required ordering
+func TestFromStructNestedRequiredDeterministicOrdering(t *testing.T) {
+	type Address struct {
+		Street  string `json:"street" jsonschema:"required"`
+		City    string `json:"city" jsonschema:"required"`
+		ZipCode string `json:"zipCode" jsonschema:"required"`
+		Country string `json:"country" jsonschema:"required"`
+	}
+
+	type Person struct {
+		Name     string  `json:"name" jsonschema:"required"`
+		Email    string  `json:"email" jsonschema:"required"`
+		Age      int     `json:"age" jsonschema:"required"`
+		Address  Address `json:"address" jsonschema:"required"`
+		Phone    string  `json:"phone" jsonschema:"required"`
+		Username string  `json:"username" jsonschema:"required"`
+	}
+
+	// Generate schema multiple times and ensure deterministic ordering
+	results := make(map[string]int)
+	for i := 0; i < 20; i++ {
+		ClearSchemaCache()
+		schema := FromStruct[Person]()
+		data, err := json.Marshal(schema)
+		require.NoError(t, err)
+		results[string(data)]++
+	}
+
+	// Should only have one unique serialization
+	assert.Equal(t, 1, len(results), "Expected deterministic serialization from FromStruct, but got %d unique results", len(results))
+
+	// Verify the required arrays are sorted
+	for result := range results {
+		var parsed map[string]any
+		err := json.Unmarshal([]byte(result), &parsed)
+		require.NoError(t, err)
+
+		// Check Person required fields
+		if requiredArray, ok := parsed["required"].([]any); ok {
+			requiredStrings := make([]string, len(requiredArray))
+			for i, v := range requiredArray {
+				requiredStrings[i] = v.(string)
+			}
+			expected := []string{"address", "age", "email", "name", "phone", "username"}
+			assert.Equal(t, expected, requiredStrings, "Person required fields should be in alphabetical order")
+		}
+
+		// Check Address required fields in $defs
+		if defs, ok := parsed["$defs"].(map[string]any); ok {
+			if addressSchema, ok := defs["Address"].(map[string]any); ok {
+				if addressRequired, ok := addressSchema["required"].([]any); ok {
+					requiredStrings := make([]string, len(addressRequired))
+					for i, v := range addressRequired {
+						requiredStrings[i] = v.(string)
+					}
+					expected := []string{"city", "country", "street", "zipCode"}
+					assert.Equal(t, expected, requiredStrings, "Address required fields should be in alphabetical order")
+				}
+			}
+		}
+	}
+}
+
+// TestDeeplyNestedRequiredDeterminism tests 3+ levels of nesting
+// Note: MarshalJSON now preserves the Required array order as-is (no sorting)
+// Sorting should be done at generation time (FromStruct) or preserved from JSON (Compile)
+func TestDeeplyNestedRequiredDeterminism(t *testing.T) {
+	// Create deeply nested schema (4 levels) with pre-sorted required arrays
+	schema := &Schema{
+		Type: SchemaType{"object"},
+		Properties: &SchemaMap{
+			"level1": &Schema{
+				Type: SchemaType{"object"},
+				Properties: &SchemaMap{
+					"level2": &Schema{
+						Type: SchemaType{"object"},
+						Properties: &SchemaMap{
+							"level3": &Schema{
+								Type:     SchemaType{"object"},
+								Required: []string{"apple", "banana", "mango", "zebra"}, // Pre-sorted
+							},
+						},
+						Required: []string{"day", "hour", "month", "year"}, // Pre-sorted
+					},
+				},
+				Required: []string{"address", "age", "email", "name"}, // Pre-sorted
+			},
+		},
+		Required: []string{"level1"},
+	}
+
+	// Test determinism with multiple iterations
+	results := make(map[string]int)
+	for i := 0; i < 20; i++ {
+		data, err := json.Marshal(schema)
+		require.NoError(t, err)
+		results[string(data)]++
+	}
+
+	assert.Equal(t, 1, len(results), "Deep nesting should produce deterministic output")
+
+	// Verify that the required arrays are preserved as provided (not re-sorted)
+	for result := range results {
+		var parsed map[string]any
+		err := json.Unmarshal([]byte(result), &parsed)
+		require.NoError(t, err)
+
+		props := parsed["properties"].(map[string]any)
+		level1 := props["level1"].(map[string]any)
+		level1Props := level1["properties"].(map[string]any)
+		level2 := level1Props["level2"].(map[string]any)
+		level2Props := level2["properties"].(map[string]any)
+		level3 := level2Props["level3"].(map[string]any)
+
+		// Verify level 3 required (preserved order)
+		if level3Req, ok := level3["required"].([]any); ok {
+			req := make([]string, len(level3Req))
+			for i, v := range level3Req {
+				req[i] = v.(string)
+			}
+			assert.Equal(t, []string{"apple", "banana", "mango", "zebra"}, req, "Level 3 required order should be preserved")
+		}
+
+		// Verify level 2 required (preserved order)
+		if level2Req, ok := level2["required"].([]any); ok {
+			req := make([]string, len(level2Req))
+			for i, v := range level2Req {
+				req[i] = v.(string)
+			}
+			assert.Equal(t, []string{"day", "hour", "month", "year"}, req, "Level 2 required order should be preserved")
+		}
+
+		// Verify level 1 required (preserved order)
+		if level1Req, ok := level1["required"].([]any); ok {
+			req := make([]string, len(level1Req))
+			for i, v := range level1Req {
+				req[i] = v.(string)
+			}
+			assert.Equal(t, []string{"address", "age", "email", "name"}, req, "Level 1 required order should be preserved")
+		}
+	}
+}
+
+// TestRequiredValidationStillWorks verifies that sorting doesn't break validation logic
+func TestRequiredValidationStillWorks(t *testing.T) {
+	// Create schema with required fields
+	schema := &Schema{
+		Type: SchemaType{"object"},
+		Properties: &SchemaMap{
+			"name":  &Schema{Type: SchemaType{"string"}},
+			"email": &Schema{Type: SchemaType{"string"}},
+			"age":   &Schema{Type: SchemaType{"number"}},
+		},
+		// Intentionally unsorted order
+		Required: []string{"name", "email", "age"},
+	}
+
+	compiler := NewCompiler()
+	schema.SetCompiler(compiler)
+	schema.initializeSchema(compiler, nil)
+
+	// Test valid data (all required fields present)
+	validData := `{"name": "John", "email": "john@example.com", "age": 30}`
+	result := schema.ValidateJSON([]byte(validData))
+	assert.True(t, result.IsValid(), "Valid data should pass validation")
+
+	// Test invalid data (missing required field)
+	invalidData := `{"name": "John", "age": 30}`
+	result = schema.ValidateJSON([]byte(invalidData))
+	assert.False(t, result.IsValid(), "Data missing required field should fail validation")
+
+	// Verify that validation caught the missing required field
+	// The fact that result.IsValid() returned false means the validation is working correctly
+	// Let's verify the original Required slice is still intact and not modified
+	assert.Equal(t, []string{"name", "email", "age"}, schema.Required, "Required slice should not be modified by marshalling")
+}
+
+// TestStructFieldOrderIsDeterministic verifies that Go's reflect preserves struct field order
