@@ -20,11 +20,14 @@ func evaluateFormat(schema *Schema, value any) *EvaluationError {
 	var formatDef *FormatDef
 	var customValidator func(any) bool
 
+	// Get the effective compiler (may be from parent or defaultCompiler)
+	compiler := schema.GetCompiler()
+
 	// 1. Check compiler-specific custom formats first
-	if schema.compiler != nil {
-		schema.compiler.customFormatsRW.RLock()
-		formatDef = schema.compiler.customFormats[formatName]
-		schema.compiler.customFormatsRW.RUnlock()
+	if compiler != nil {
+		compiler.customFormatsRW.RLock()
+		formatDef = compiler.customFormats[formatName]
+		compiler.customFormatsRW.RUnlock()
 	}
 
 	if formatDef != nil {
@@ -44,7 +47,7 @@ func evaluateFormat(schema *Schema, value any) *EvaluationError {
 	// If a validator was found (either custom or global)
 	if customValidator != nil {
 		if !customValidator(value) {
-			if schema.compiler != nil && schema.compiler.AssertFormat {
+			if compiler != nil && compiler.AssertFormat {
 				return NewEvaluationError("format", "format_mismatch", "Value does not match format '{format}'", map[string]any{"format": formatName})
 			}
 		}
@@ -52,7 +55,7 @@ func evaluateFormat(schema *Schema, value any) *EvaluationError {
 	}
 
 	// If no validator was found and AssertFormat is true, fail
-	if schema.compiler != nil && schema.compiler.AssertFormat {
+	if compiler != nil && compiler.AssertFormat {
 		return NewEvaluationError("format", "unknown_format", "Unknown format '{format}'", map[string]any{"format": formatName})
 	}
 

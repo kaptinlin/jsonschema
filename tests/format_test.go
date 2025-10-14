@@ -256,3 +256,179 @@ func TestCompileBatchVsRegularCompileFormatValidation(t *testing.T) {
 		"Both methods should produce the same number of format errors")
 	assert.Greater(t, regularFormatErrors, 0, "Should have format errors")
 }
+
+// TestEmailFormatValidation_IssueCase tests the specific case from GitHub issue
+// where "test.com" (without @) should be considered invalid email format
+func TestEmailFormatValidation_IssueCase(t *testing.T) {
+	t.Run("test.com without @ symbol - default behavior (format as annotation)", func(t *testing.T) {
+		// Default behavior: format is annotation-only per JSON Schema 2020-12 spec
+		schema := jsonschema.Email()
+		result := schema.Validate("test.com")
+
+		// According to JSON Schema 2020-12 spec, format is annotation-only by default
+		// So validation should PASS even though the email format is invalid
+		assert.True(t, result.IsValid(), "Expected validation to pass with default settings (format as annotation)")
+
+		// Verify the format validator itself works correctly
+		assert.False(t, jsonschema.IsEmail("test.com"), "IsEmail('test.com') should return false")
+	})
+
+	t.Run("test.com without @ symbol - with format assertion enabled", func(t *testing.T) {
+		// Enable format assertion
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+		compiler.RegisterFormat("email", jsonschema.IsEmail, "string")
+
+		schema := jsonschema.Email().SetCompiler(compiler)
+		result := schema.Validate("test.com")
+
+		// With format assertion enabled, validation should FAIL
+		assert.False(t, result.IsValid(), "Expected validation to fail with AssertFormat=true for 'test.com'")
+
+		// Verify error contains format keyword
+		hasFormatError := false
+		for _, err := range result.Errors {
+			if err.Keyword == "format" {
+				hasFormatError = true
+				break
+			}
+		}
+		assert.True(t, hasFormatError, "Expected format validation error")
+	})
+
+	t.Run("valid email addresses should pass", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+		compiler.RegisterFormat("email", jsonschema.IsEmail, "string")
+
+		schema := jsonschema.Email().SetCompiler(compiler)
+
+		validEmails := []string{
+			"test@test.com",
+			"user@example.com",
+			"joe.bloggs@example.com",
+			"user+tag@domain.co.uk",
+		}
+
+		for _, email := range validEmails {
+			result := schema.Validate(email)
+			assert.True(t, result.IsValid(), "Expected '%s' to be valid", email)
+		}
+	})
+
+	t.Run("invalid email addresses should fail with assertion", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+		compiler.RegisterFormat("email", jsonschema.IsEmail, "string")
+
+		schema := jsonschema.Email().SetCompiler(compiler)
+
+		invalidEmails := []string{
+			"test.com",      // No @ symbol
+			"@test.com",     // No local part
+			"test@",         // No domain
+			"invalid-email", // No @ symbol
+			"2962",          // Just numbers, no @
+		}
+
+		for _, email := range invalidEmails {
+			result := schema.Validate(email)
+			assert.False(t, result.IsValid(), "Expected '%s' to be invalid", email)
+		}
+	})
+}
+
+// TestEmailFormatValidation_CompilerMethods tests different ways to enable format validation
+func TestEmailFormatValidation_CompilerMethods(t *testing.T) {
+	t.Run("Method 1: Using Compiler.Compile", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+		compiler.RegisterFormat("email", jsonschema.IsEmail, "string")
+
+		schemaJSON := []byte(`{"type": "string", "format": "email"}`)
+		schema, err := compiler.Compile(schemaJSON)
+		require.NoError(t, err, "Failed to compile schema")
+
+		// Should fail for invalid email
+		result := schema.Validate("test.com")
+		assert.False(t, result.IsValid(), "Expected validation to fail for 'test.com'")
+
+		// Should pass for valid email
+		result2 := schema.Validate("test@test.com")
+		assert.True(t, result2.IsValid(), "Expected validation to pass for 'test@test.com'")
+	})
+
+	t.Run("Method 2: Using SetCompiler on constructor schema", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+		compiler.RegisterFormat("email", jsonschema.IsEmail, "string")
+
+		schema := jsonschema.Email().SetCompiler(compiler)
+
+		// Should fail for invalid email
+		result := schema.Validate("test.com")
+		assert.False(t, result.IsValid(), "Expected validation to fail for 'test.com'")
+
+		// Should pass for valid email
+		result2 := schema.Validate("test@test.com")
+		assert.True(t, result2.IsValid(), "Expected validation to pass for 'test@test.com'")
+	})
+
+	t.Run("Method 3: Using custom default compiler", func(t *testing.T) {
+		// Save original default compiler
+		originalCompiler := jsonschema.GetDefaultCompiler()
+		defer jsonschema.SetDefaultCompiler(originalCompiler)
+
+		// Create custom default compiler
+		customCompiler := jsonschema.NewCompiler()
+		customCompiler.SetAssertFormat(true)
+		customCompiler.RegisterFormat("email", jsonschema.IsEmail, "string")
+		jsonschema.SetDefaultCompiler(customCompiler)
+
+		// Constructor should now use the custom compiler
+		schema := jsonschema.Email()
+
+		// Should fail for invalid email
+		result := schema.Validate("test.com")
+		assert.False(t, result.IsValid(), "Expected validation to fail for 'test.com' with custom default compiler")
+
+		// Should pass for valid email
+		result2 := schema.Validate("test@test.com")
+		assert.True(t, result2.IsValid(), "Expected validation to pass for 'test@test.com'")
+	})
+}
+
+// TestIsEmailFunction tests the IsEmail function directly
+func TestIsEmailFunction(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected bool
+		reason   string
+	}{
+		// Invalid emails (no @ symbol)
+		{"test.com", false, "missing @ symbol"},
+		{"invalid-email", false, "missing @ symbol"},
+		{"2962", false, "missing @ symbol"},
+		{"@", false, "only @ symbol"},
+		{"", false, "empty string"},
+
+		// Invalid emails (missing parts)
+		{"@test.com", false, "missing local part"},
+		{"test@", false, "missing domain part"},
+
+		// Valid emails
+		{"test@test.com", true, "standard email"},
+		{"user@example.com", true, "standard email"},
+		{"joe.bloggs@example.com", true, "dot in local part"},
+		{"user+tag@domain.co.uk", true, "plus sign in local part"},
+		{"test_user@domain.com", true, "underscore in local part"},
+		{"user.name@sub.domain.com", true, "subdomain"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			result := jsonschema.IsEmail(tc.input)
+			assert.Equal(t, tc.expected, result, "IsEmail('%s') failed: %s", tc.input, tc.reason)
+		})
+	}
+}
