@@ -232,6 +232,10 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 		schema.Defs = defsMap
 	}
 
+	// Resolve all references to ensure ResolvedRef fields are populated
+	// This is critical for validation to work correctly with nested structs
+	schema.resolveReferences()
+
 	// Clean up visited state
 	generator.visited = make(map[reflect.Type]int)
 

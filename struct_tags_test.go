@@ -48,6 +48,16 @@ type Company struct {
 	Employees []*Employee `json:"employees" jsonschema:"minItems=0"`
 }
 
+// Nested validation test structs
+type NestedWithMinimum struct {
+	Number int `json:"number" jsonschema:"required,minimum=5"`
+}
+
+type ParentWithNested struct {
+	ID     int               `json:"id" jsonschema:"required,minimum=5"`
+	Nested NestedWithMinimum `json:"nested" jsonschema:"required"`
+}
+
 // =============================================================================
 // Basic Functionality Tests
 // =============================================================================
@@ -574,6 +584,28 @@ func TestFromStruct_ComplexCircularReferences(t *testing.T) {
 	if schema.Defs != nil {
 		t.Logf("Schema has %d definitions", len(schema.Defs))
 	}
+}
+
+func TestFromStruct_NestedValidation(t *testing.T) {
+	schema := FromStruct[ParentWithNested]()
+
+	t.Run("invalid_nested_constraint", func(t *testing.T) {
+		test := &ParentWithNested{
+			ID:     5,
+			Nested: NestedWithMinimum{Number: 2}, // Less than minimum of 5
+		}
+		v := schema.ValidateStruct(test)
+		assert.False(t, v.Valid, "Should be invalid: nested.number < minimum")
+	})
+
+	t.Run("valid_all_constraints", func(t *testing.T) {
+		test := &ParentWithNested{
+			ID:     5,
+			Nested: NestedWithMinimum{Number: 5},
+		}
+		v := schema.ValidateStruct(test)
+		assert.True(t, v.Valid, "Should be valid: all constraints satisfied")
+	})
 }
 
 // =============================================================================

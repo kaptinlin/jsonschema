@@ -45,3 +45,6 @@ cmd/schemagen/jshcemagen
 
 # vscode
 .vscode/
+
+# debug directory
+debug/
