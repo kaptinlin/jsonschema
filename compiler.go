@@ -29,7 +29,6 @@ type FormatDef struct {
 type Compiler struct {
 	mu             sync.RWMutex                                       // Protects concurrent access to schemas map
 	schemas        map[string]*Schema                                 // Cache of compiled schemas.
-	allSchemas     []*Schema                                          // All compiled schemas, including those without IDs
 	unresolvedRefs map[string][]*Schema                               // Track schemas that have unresolved references by URI
 	Decoders       map[string]func(string) ([]byte, error)            // Decoders for various encoding formats.
 	MediaTypes     map[string]func([]byte) (any, error)               // Media type handlers for unmarshalling data.
@@ -56,7 +55,6 @@ type DefaultFunc func(args ...any) (any, error)
 func NewCompiler() *Compiler {
 	compiler := &Compiler{
 		schemas:        make(map[string]*Schema),
-		allSchemas:     make([]*Schema, 0),
 		unresolvedRefs: make(map[string][]*Schema),
 		Decoders:       make(map[string]func(string) ([]byte, error)),
 		MediaTypes:     make(map[string]func([]byte) (any, error)),
@@ -116,10 +114,7 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 		return nil, err
 	}
 
-	// Track all schemas, whether they have an ID or not
 	c.mu.Lock()
-	c.allSchemas = append(c.allSchemas, schema)
-
 	if schema.uri != "" && isValidURI(schema.uri) {
 		c.schemas[schema.uri] = schema
 	}
@@ -382,7 +377,6 @@ func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, 
 		compiledSchemas[id] = schema
 
 		c.mu.Lock()
-		c.allSchemas = append(c.allSchemas, schema)
 		if schema.uri != "" && isValidURI(schema.uri) {
 			c.schemas[schema.uri] = schema
 		}
