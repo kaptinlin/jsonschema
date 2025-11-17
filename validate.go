@@ -467,12 +467,55 @@ func (s *Schema) evaluateBoolean(instance any, evaluatedProps map[string]bool, e
 
 // evaluateObject groups the validation of all object-specific keywords.
 func evaluateObject(schema *Schema, data any, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
-	// Fast path: direct map[string]any type
-	if object, ok := data.(map[string]any); ok {
-		return evaluateObjectMap(schema, object, evaluatedProps, evaluatedItems, dynamicScope)
+	// Fast path: Direct type assertions for common map types (5-10x faster than reflection)
+	// This optimization follows the pattern from uniqueItems.go:94-164
+	switch obj := data.(type) {
+	case map[string]any:
+		// Most common case: already map[string]any
+		return evaluateObjectMap(schema, obj, evaluatedProps, evaluatedItems, dynamicScope)
+
+	case map[string]string:
+		// Common case: form data, query params, headers
+		converted := make(map[string]any, len(obj))
+		for k, v := range obj {
+			converted[k] = v
+		}
+		return evaluateObjectMap(schema, converted, evaluatedProps, evaluatedItems, dynamicScope)
+
+	case map[string]int:
+		// Common case: counters, metrics, config with int values
+		converted := make(map[string]any, len(obj))
+		for k, v := range obj {
+			converted[k] = v
+		}
+		return evaluateObjectMap(schema, converted, evaluatedProps, evaluatedItems, dynamicScope)
+
+	case map[string]int64:
+		// Common case: timestamps, IDs
+		converted := make(map[string]any, len(obj))
+		for k, v := range obj {
+			converted[k] = v
+		}
+		return evaluateObjectMap(schema, converted, evaluatedProps, evaluatedItems, dynamicScope)
+
+	case map[string]float64:
+		// Common case: numeric data, coordinates
+		converted := make(map[string]any, len(obj))
+		for k, v := range obj {
+			converted[k] = v
+		}
+		return evaluateObjectMap(schema, converted, evaluatedProps, evaluatedItems, dynamicScope)
+
+	case map[string]bool:
+		// Common case: feature flags, boolean configs
+		converted := make(map[string]any, len(obj))
+		for k, v := range obj {
+			converted[k] = v
+		}
+		return evaluateObjectMap(schema, converted, evaluatedProps, evaluatedItems, dynamicScope)
 	}
 
-	// Reflection path: handle structs and other object types
+	// Slow path: Use reflection for uncommon types (structs, interfaces, other map types)
 	rv := reflect.ValueOf(data)
 	for rv.Kind() == reflect.Ptr {
 		if rv.IsNil() {

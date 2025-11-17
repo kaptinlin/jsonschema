@@ -94,7 +94,7 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 
 		if !found && i == len(segments)-1 {
 			// If no schema is found and it's the last segment, throw error
-			return nil, ErrSegmentNotFoundForJSONPointer
+			return nil, ErrJSONPointerSegmentNotFound
 		}
 
 		previousSegment = decodedSegment
