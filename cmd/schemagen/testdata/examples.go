@@ -3,19 +3,21 @@ package testdata
 
 import "time"
 
-// User demonstrates basic validation rules and common field types
+// Basic validation examples (KISS principle - simple, focused structs)
+
+// User demonstrates basic field validation rules
 type User struct {
-	ID       string    `json:"id" jsonschema:"required,format=uuid"`
-	Name     string    `json:"name" jsonschema:"required,minLength=2,maxLength=50"`
-	Email    string    `json:"email" jsonschema:"required,format=email"`
-	Age      int       `json:"age" jsonschema:"required,minimum=18,maximum=120"`
-	Status   string    `json:"status" jsonschema:"enum=active inactive suspended"`
-	IsAdmin  bool      `json:"is_admin" jsonschema:"default=false"`
-	Bio      *string   `json:"bio" jsonschema:"maxLength=500"`
-	CreateAt time.Time `json:"created_at" jsonschema:"required"`
+	ID        string    `json:"id" jsonschema:"required,format=uuid"`
+	Name      string    `json:"name" jsonschema:"required,minLength=2,maxLength=50"`
+	Email     string    `json:"email" jsonschema:"required,format=email"`
+	Age       int       `json:"age" jsonschema:"required,minimum=18,maximum=120"`
+	Status    string    `json:"status" jsonschema:"enum=active inactive suspended"`
+	IsAdmin   bool      `json:"is_admin" jsonschema:"default=false"`
+	Bio       *string   `json:"bio" jsonschema:"maxLength=500"`
+	CreatedAt time.Time `json:"created_at" jsonschema:"required"`
 }
 
-// Address demonstrates struct references and pattern validation
+// Address demonstrates pattern validation
 type Address struct {
 	Street  string `json:"street" jsonschema:"required,minLength=1,maxLength=200"`
 	City    string `json:"city" jsonschema:"required,minLength=2,maxLength=100"`
@@ -24,7 +26,7 @@ type Address struct {
 	Country string `json:"country" jsonschema:"required,enum=US CA UK FR DE JP"`
 }
 
-// Product demonstrates arrays, complex validation, and enum types
+// Product demonstrates array and numeric validation
 type Product struct {
 	SKU         string   `json:"sku" jsonschema:"required,pattern=^[A-Z0-9-]+$"`
 	Name        string   `json:"name" jsonschema:"required,minLength=1,maxLength=200"`
@@ -36,32 +38,34 @@ type Product struct {
 	CategoryID  *string  `json:"category_id" jsonschema:"format=uuid"`
 }
 
-// Category demonstrates circular references and $refs/$defs generation
+// Advanced examples
+
+// Category demonstrates circular references and nested structures
 type Category struct {
 	ID          string      `json:"id" jsonschema:"required,format=uuid"`
 	Name        string      `json:"name" jsonschema:"required,minLength=1,maxLength=100"`
 	Description *string     `json:"description" jsonschema:"maxLength=500"`
-	Parent      *Category   `json:"parent" jsonschema:""`
+	Parent      *Category   `json:"parent"`
 	Children    []*Category `json:"children" jsonschema:"items=Category,minItems=0,maxItems=100"`
 	Products    []*Product  `json:"products" jsonschema:"items=Product,minItems=0"`
 	Level       int         `json:"level" jsonschema:"minimum=0,maximum=10"`
 	IsActive    bool        `json:"is_active" jsonschema:"default=true"`
 }
 
-// ReferenceDemo demonstrates manual reference usage for advanced JSON Schema features
-type ReferenceDemo struct {
-	// Manual $ref usage - reference to another schema definition
+// RefDemo demonstrates advanced JSON Schema features: $ref, $anchor, $defs, $dynamicRef
+type RefDemo struct {
+	// $ref - reference to another schema definition
 	UserRef any `json:"user_ref" jsonschema:"ref=#/$defs/User"`
 
-	// Manual $anchor usage - creates an anchor point for referencing
+	// $anchor - creates an anchor point for referencing
 	MainField string `json:"main_field" jsonschema:"anchor=main,required"`
 
-	// Manual $defs usage - includes schema definitions (typically at root level)
+	// $defs - includes schema definitions
 	Definitions any `json:"definitions" jsonschema:"defs=User,Address"`
 
-	// Manual $dynamicRef usage - dynamic reference for recursive schemas
+	// $dynamicRef - dynamic reference for recursive schemas
 	DynamicRef any `json:"dynamic_ref" jsonschema:"dynamicRef=#meta"`
 
-	// Mixed usage - field with both reference and additional validation
+	// Combined: reference with additional validation
 	ValidatedRef any `json:"validated_ref" jsonschema:"ref=#/$defs/Product,description=Product reference with validation"`
 }

@@ -40,6 +40,10 @@ schema, err := compiler.Compile([]byte(`{
     },
     "required": ["name"]
 }`))
+if err != nil {
+    // Handle compilation errors (e.g., invalid regex patterns)
+    log.Fatal(err)
+}
 
 // Recommended workflow: validate first, then unmarshal
 data := []byte(`{"name": "John", "age": 25}`)
@@ -100,7 +104,10 @@ schemaJSON := `{
     "required": ["name"]
 }`
 
-schema, _ := compiler.Compile([]byte(schemaJSON))
+schema, err := compiler.Compile([]byte(schemaJSON))
+if err != nil {
+    log.Fatal(err)
+}
 
 // Validation + Unmarshal workflow
 data := []byte(`{"name": "John"}`)
@@ -183,7 +190,10 @@ type User struct {
 }
 
 // Generate schema from struct tags
-schema := jsonschema.FromStruct[User]()
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
 result := schema.Validate(userData)
 ```
 
@@ -303,7 +313,32 @@ result := schema.ValidateMap(mapData)        // Fastest for maps
 
 ## Error Handling
 
-### Detailed Error Information
+### Compilation Errors
+
+Errors can occur during schema compilation, such as invalid regex patterns:
+
+```go
+schema, err := compiler.Compile(schemaJSON)
+if err != nil {
+    // Check for regex validation errors
+    if errors.Is(err, jsonschema.ErrRegexValidation) {
+        log.Printf("Invalid regex pattern: %v", err)
+    }
+}
+
+// FromStruct also validates patterns at compile time
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    var tagErr *jsonschema.StructTagError
+    if errors.As(err, &tagErr) {
+        log.Printf("Field %s has invalid tag: %s", tagErr.FieldName, tagErr.TagRule)
+    }
+}
+```
+
+**📖 Full Documentation**: [docs/error-handling.md](docs/error-handling.md#compilation-errors)
+
+### Validation Errors
 
 ```go
 result := schema.Validate(data)
@@ -315,7 +350,7 @@ if !result.IsValid() {
         fmt.Printf("Value: %v\n", err.Value)
         fmt.Printf("Schema: %v\n", err.Schema)
     }
-    
+
     // Or get as a list
     errors := result.ToList()
     for _, err := range errors {

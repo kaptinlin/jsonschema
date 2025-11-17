@@ -26,7 +26,8 @@ func TestRoundTripFromStruct(t *testing.T) {
 
 	// Generate schema from struct (uses default RequiredSortAlphabetical)
 	ClearSchemaCache()
-	originalSchema := FromStruct[Person]()
+	originalSchema, err := FromStruct[Person]()
+	require.NoError(t, err)
 	require.NotNil(t, originalSchema)
 
 	// Marshal to JSON
@@ -211,7 +212,8 @@ func TestRoundTripNestedFromStruct(t *testing.T) {
 	}
 
 	ClearSchemaCache()
-	schema := FromStruct[Resource]()
+	schema, err := FromStruct[Resource]()
+	require.NoError(t, err)
 	require.NotNil(t, schema)
 
 	// First marshal
@@ -396,7 +398,8 @@ func TestRoundTripMixedSources(t *testing.T) {
 
 	// Generate from struct
 	ClearSchemaCache()
-	schema1 := FromStruct[MyStruct]()
+	schema1, err := FromStruct[MyStruct]()
+	require.NoError(t, err)
 
 	// Marshal to JSON
 	jsonBytes, err := json.Marshal(schema1, json.Deterministic(true))

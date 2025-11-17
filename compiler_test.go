@@ -3,11 +3,11 @@ package jsonschema
 import (
 	"bytes"
 	"fmt"
-	"github.com/go-json-experiment/json"
 	"io"
 	"strings"
 	"testing"
 
+	"github.com/go-json-experiment/json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -158,6 +158,29 @@ func TestSetAssertFormat(t *testing.T) {
 
 	result := schema.Validate("not-an-email")
 	assert.False(t, result.IsValid(), "Expected validation to fail for invalid email format")
+}
+
+func TestCompileInvalidPatternFails(t *testing.T) {
+	compiler := NewCompiler()
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"name": {
+				"type": "string",
+				"pattern": "^(?!x).*$"
+			}
+		}
+	}`
+
+	_, err := compiler.Compile([]byte(schemaJSON))
+	require.Error(t, err, "Expected invalid regex pattern to cause compilation failure")
+	require.ErrorIs(t, err, ErrRegexValidation, "Error should be wrapped with ErrRegexValidation")
+
+	var regexErr *RegexPatternError
+	require.ErrorAs(t, err, &regexErr)
+	assert.Equal(t, "pattern", regexErr.Keyword)
+	assert.Equal(t, "#/properties/name/pattern", regexErr.Location)
+	assert.Equal(t, "^(?!x).*$", regexErr.Pattern)
 }
 
 func TestRegisterDecoder(t *testing.T) {
@@ -550,4 +573,217 @@ func TestCompileBatchWithNestedReferences(t *testing.T) {
 
 	result := rootSchema.Validate(testData)
 	assert.True(t, result.IsValid(), "Valid nested data should pass validation")
+}
+
+// TestNestedRegexValidation tests that regex patterns in nested $defs are validated
+// This addresses the issue where negative lookaheads and other unsupported regex
+// features in Go would compile successfully but fail silently during validation
+func TestNestedRegexValidation(t *testing.T) {
+	t.Run("invalid negative lookahead in $defs", func(t *testing.T) {
+		schemaJSON := []byte(`{
+			"$defs": {
+				"Spec": {
+					"properties": {
+						"appId": {
+							"pattern": "^(?!x).*$",
+							"type": "string"
+						}
+					},
+					"required": ["appId"],
+					"type": "object"
+				}
+			},
+			"properties": {
+				"spec": {
+					"$ref": "#/$defs/Spec"
+				}
+			},
+			"type": "object"
+		}`)
+
+		compiler := NewCompiler()
+		_, err := compiler.Compile(schemaJSON)
+		require.Error(t, err, "Expected compilation to fail for negative lookahead pattern")
+		require.ErrorIs(t, err, ErrRegexValidation, "Error should be ErrRegexValidation")
+
+		var regexErr *RegexPatternError
+		require.ErrorAs(t, err, &regexErr)
+		assert.Equal(t, "pattern", regexErr.Keyword)
+		assert.Equal(t, "#/properties/spec/$ref/properties/appId/pattern", regexErr.Location)
+		assert.Equal(t, "^(?!x).*$", regexErr.Pattern)
+	})
+
+	t.Run("invalid pattern in nested $defs ManifestMetadata", func(t *testing.T) {
+		schemaJSON := []byte(`{
+			"$defs": {
+				"ManifestMetadata": {
+					"properties": {
+						"id": {
+							"pattern": "(?!invalid).*",
+							"type": "string"
+						}
+					},
+					"required": ["id"],
+					"type": "object"
+				}
+			},
+			"properties": {
+				"metadata": {
+					"$ref": "#/$defs/ManifestMetadata"
+				}
+			},
+			"type": "object"
+		}`)
+
+		compiler := NewCompiler()
+		_, err := compiler.Compile(schemaJSON)
+		require.Error(t, err, "Expected compilation to fail for invalid regex in nested $defs")
+		require.ErrorIs(t, err, ErrRegexValidation)
+
+		var regexErr *RegexPatternError
+		require.ErrorAs(t, err, &regexErr)
+		assert.Equal(t, "pattern", regexErr.Keyword)
+		assert.Equal(t, "#/properties/metadata/$ref/properties/id/pattern", regexErr.Location)
+		assert.Equal(t, "(?!invalid).*", regexErr.Pattern)
+	})
+
+	t.Run("valid patterns in nested $defs should compile", func(t *testing.T) {
+		schemaJSON := []byte(`{
+			"$defs": {
+				"Spec": {
+					"properties": {
+						"appId": {
+							"pattern": "^[a-z0-9-]+$",
+							"type": "string"
+						}
+					},
+					"required": ["appId"],
+					"type": "object"
+				},
+				"ManifestMetadata": {
+					"properties": {
+						"id": {
+							"pattern": "^[a-zA-Z0-9]+$",
+							"type": "string"
+						}
+					},
+					"required": ["id"],
+					"type": "object"
+				}
+			},
+			"properties": {
+				"metadata": {
+					"$ref": "#/$defs/ManifestMetadata"
+				},
+				"spec": {
+					"$ref": "#/$defs/Spec"
+				}
+			},
+			"type": "object"
+		}`)
+
+		compiler := NewCompiler()
+		schema, err := compiler.Compile(schemaJSON)
+		require.NoError(t, err, "Valid patterns should compile successfully")
+		require.NotNil(t, schema)
+
+		// Test that validation works correctly with the compiled schema
+		validData := map[string]any{
+			"metadata": map[string]any{
+				"id": "test123",
+			},
+			"spec": map[string]any{
+				"appId": "my-app-123",
+			},
+		}
+		result := schema.Validate(validData)
+		assert.True(t, result.IsValid(), "Valid data should pass validation")
+
+		// Test that invalid pattern fails validation
+		invalidData := map[string]any{
+			"metadata": map[string]any{
+				"id": "test-invalid!",
+			},
+			"spec": map[string]any{
+				"appId": "MyApp", // uppercase should fail
+			},
+		}
+		result = schema.Validate(invalidData)
+		assert.False(t, result.IsValid(), "Invalid data should fail validation")
+	})
+
+	t.Run("multiple invalid patterns should report error", func(t *testing.T) {
+		schemaJSON := []byte(`{
+			"$defs": {
+				"A": {
+					"properties": {
+						"field1": {
+							"pattern": "(?!a).*"
+						}
+					}
+				},
+				"B": {
+					"properties": {
+						"field2": {
+							"pattern": "(?!b).*"
+						}
+					}
+				}
+			},
+			"properties": {
+				"a": {"$ref": "#/$defs/A"},
+				"b": {"$ref": "#/$defs/B"}
+			}
+		}`)
+
+		compiler := NewCompiler()
+		_, err := compiler.Compile(schemaJSON)
+		require.Error(t, err, "Expected compilation to fail for multiple invalid patterns")
+		require.ErrorIs(t, err, ErrRegexValidation)
+
+		var regexErr *RegexPatternError
+		require.ErrorAs(t, err, &regexErr)
+		assert.Contains(t, []string{"(?!a).*", "(?!b).*"}, regexErr.Pattern, "Should report one of the invalid patterns")
+	})
+}
+
+// TestInvalidRegexInPatternProperties tests invalid regex in patternProperties
+func TestInvalidRegexInPatternProperties(t *testing.T) {
+	t.Run("invalid lookahead in patternProperties key", func(t *testing.T) {
+		schemaJSON := []byte(`{
+			"type": "object",
+			"patternProperties": {
+				"(?!invalid).*": {
+					"type": "string"
+				}
+			}
+		}`)
+
+		compiler := NewCompiler()
+		_, err := compiler.Compile(schemaJSON)
+		require.Error(t, err, "Expected compilation to fail for invalid patternProperties key")
+		require.ErrorIs(t, err, ErrRegexValidation)
+
+		var regexErr *RegexPatternError
+		require.ErrorAs(t, err, &regexErr)
+		assert.Equal(t, "patternProperties", regexErr.Keyword)
+		assert.Equal(t, "#/patternProperties/(?!invalid).*", regexErr.Location)
+		assert.Equal(t, "(?!invalid).*", regexErr.Pattern)
+	})
+
+	t.Run("valid patternProperties should compile", func(t *testing.T) {
+		schemaJSON := []byte(`{
+			"type": "object",
+			"patternProperties": {
+				"^[a-z]+$": {
+					"type": "string"
+				}
+			}
+		}`)
+
+		compiler := NewCompiler()
+		schema, err := compiler.Compile(schemaJSON)
+		require.NoError(t, err, "Valid patternProperties should compile successfully")
+		require.NotNil(t, schema)
+	})
 }

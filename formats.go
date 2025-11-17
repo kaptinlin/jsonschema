@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kaptinlin/jsonpointer"
 )
 
 // Formats is a registry of functions, which know how to validate
@@ -471,25 +473,12 @@ func IsJSONPointer(v any) bool {
 	if !ok {
 		return true
 	}
-	if s != "" && !strings.HasPrefix(s, "/") {
-		return false
+	// Empty string is a valid JSON Pointer (points to the whole document)
+	if s == "" {
+		return true
 	}
-	for _, item := range strings.Split(s, "/") {
-		for i := 0; i < len(item); i++ {
-			if item[i] == '~' {
-				if i == len(item)-1 {
-					return false
-				}
-				switch item[i+1] {
-				case '0', '1':
-					// valid
-				default:
-					return false
-				}
-			}
-		}
-	}
-	return true
+	// Use jsonpointer library for validation
+	return jsonpointer.Validate(s) == nil
 }
 
 // IsRelativeJSONPointer tells whether given string is a valid Relative JSON Pointer.

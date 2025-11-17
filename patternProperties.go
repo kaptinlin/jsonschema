@@ -36,7 +36,7 @@ func evaluatePatternProperties(schema *Schema, object map[string]any, evaluatedP
 		return nil, nil // No patternProperties defined, nothing to do.
 	}
 
-	// invalid_regex  := []string{}
+	invalidPatterns := []string{}
 	invalidProperties := []string{}
 	results := []*EvaluationResult{}
 
@@ -48,7 +48,9 @@ func evaluatePatternProperties(schema *Schema, object map[string]any, evaluatedP
 			var err error
 			regex, err = regexp.Compile(patternKey)
 			if err != nil {
-				// invalid_regex = append(invalid_regex, patternKey)
+				if !slices.Contains(invalidPatterns, patternKey) {
+					invalidPatterns = append(invalidPatterns, patternKey)
+				}
 				continue
 			}
 			schema.compiledPatterns[patternKey] = regex
@@ -75,6 +77,16 @@ func evaluatePatternProperties(schema *Schema, object map[string]any, evaluatedP
 				}
 			}
 		}
+	}
+
+	if len(invalidPatterns) > 0 {
+		quoted := make([]string, len(invalidPatterns))
+		for i, pattern := range invalidPatterns {
+			quoted[i] = fmt.Sprintf("'%s'", pattern)
+		}
+		return results, NewEvaluationError("patternProperties", "invalid_pattern", "Invalid regular expression pattern {pattern}", map[string]any{
+			"pattern": strings.Join(quoted, ", "),
+		})
 	}
 
 	if len(invalidProperties) == 1 {

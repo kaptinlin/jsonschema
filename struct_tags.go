@@ -11,40 +11,49 @@ import (
 	"github.com/kaptinlin/jsonschema/pkg/tagparser"
 )
 
-// StructTagError represents an error that occurred during struct tag processing
+// StructTagError represents an error that occurred during struct tag processing.
+// It provides detailed context about which struct, field, and tag rule caused the error.
 type StructTagError struct {
-	StructType string
-	FieldName  string
-	TagRule    string
-	Message    string
-	Cause      error
+	StructType string // The type name of the struct being processed
+	FieldName  string // The name of the field with the error
+	TagRule    string // The tag rule that failed (e.g., "pattern=...")
+	Message    string // Human-readable error message
+	Err        error  // Underlying error (renamed from Cause for consistency with UnmarshalError)
 }
 
+// Error returns a formatted error message with full context.
 func (e *StructTagError) Error() string {
 	var parts []string
+
 	if e.StructType != "" {
-		parts = append(parts, fmt.Sprintf("struct %s", e.StructType))
+		parts = append(parts, fmt.Sprintf("struct=%s", e.StructType))
 	}
 	if e.FieldName != "" {
-		parts = append(parts, fmt.Sprintf("field %s", e.FieldName))
+		parts = append(parts, fmt.Sprintf("field=%s", e.FieldName))
 	}
 	if e.TagRule != "" {
-		parts = append(parts, fmt.Sprintf("tag rule %s", e.TagRule))
+		parts = append(parts, fmt.Sprintf("rule=%s", e.TagRule))
 	}
 
-	context := strings.Join(parts, ", ")
-	if context != "" {
-		context = fmt.Sprintf("(%s)", context)
+	msg := "struct tag error"
+	if len(parts) > 0 {
+		msg = fmt.Sprintf("%s (%s)", msg, strings.Join(parts, ", "))
 	}
 
-	if e.Cause != nil {
-		return fmt.Sprintf("struct tag error %s: %s: %v", context, e.Message, e.Cause)
+	if e.Message != "" {
+		msg = fmt.Sprintf("%s: %s", msg, e.Message)
 	}
-	return fmt.Sprintf("struct tag error %s: %s", context, e.Message)
+
+	if e.Err != nil {
+		msg = fmt.Sprintf("%s: %v", msg, e.Err)
+	}
+
+	return msg
 }
 
+// Unwrap returns the underlying error, allowing error chain inspection with errors.Is/As.
 func (e *StructTagError) Unwrap() error {
-	return e.Cause
+	return e.Err
 }
 
 // Import schemagen components for reuse
@@ -71,7 +80,6 @@ type StructTagOptions struct {
 	FieldNameMapper     func(string) string // function to map Go field names to JSON names
 	CustomValidators    map[string]any      // custom validators (for future extension)
 	CacheEnabled        bool                // whether to enable schema caching (default: true)
-	ErrorHandler        func(error)         // optional error handler for processing errors
 	SchemaVersion       string              // $schema URI to include in generated schemas (empty string = omit $schema, default = Draft 2020-12)
 	RequiredSort        RequiredSort        // controls ordering of required fields (default: RequiredSortAlphabetical)
 
@@ -124,6 +132,30 @@ func DefaultStructTagOptions() *StructTagOptions {
 	}
 }
 
+// normalizeOptions ensures options fields have valid defaults. Returns new options if nil.
+// Creates a copy to avoid mutating the input.
+func normalizeOptions(options *StructTagOptions) *StructTagOptions {
+	if options == nil {
+		return DefaultStructTagOptions()
+	}
+
+	// Create a copy to avoid mutating the input
+	normalized := *options
+
+	// Set defaults for empty fields
+	if normalized.TagName == "" {
+		normalized.TagName = "jsonschema"
+	}
+	if normalized.CustomValidators == nil {
+		normalized.CustomValidators = make(map[string]any)
+	}
+	if normalized.RequiredSort == "" {
+		normalized.RequiredSort = RequiredSortAlphabetical
+	}
+
+	return &normalized
+}
+
 // structTagGenerator handles runtime struct tag schema generation with reused schemagen logic
 type structTagGenerator struct {
 	options      *StructTagOptions
@@ -157,9 +189,7 @@ type cacheKey struct {
 
 // newStructTagGenerator creates a new struct tag generator with the given options
 func newStructTagGenerator(options *StructTagOptions) *structTagGenerator {
-	if options == nil {
-		options = DefaultStructTagOptions()
-	}
+	options = normalizeOptions(options)
 
 	return &structTagGenerator{
 		options:       options,
@@ -172,20 +202,18 @@ func newStructTagGenerator(options *StructTagOptions) *structTagGenerator {
 	}
 }
 
-// FromStruct generates a JSON Schema from a struct type with jsonschema tags
-func FromStruct[T any]() *Schema {
+// FromStruct generates a JSON Schema from a struct type with jsonschema tags.
+func FromStruct[T any]() (*Schema, error) {
 	return FromStructWithOptions[T](nil)
 }
 
-// FromStructWithOptions generates a JSON Schema from a struct type with custom options
-func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
+// FromStructWithOptions generates a JSON Schema from a struct type with custom options.
+func FromStructWithOptions[T any](options *StructTagOptions) (*Schema, error) {
 	var zero T
 	structType := reflect.TypeOf(zero)
 
-	// Use default options if none provided
-	if options == nil {
-		options = DefaultStructTagOptions()
-	}
+	// Normalize options with defaults
+	options = normalizeOptions(options)
 
 	// Check global cache first if enabled
 	if options.CacheEnabled {
@@ -198,7 +226,7 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 			schemaVersion:       options.SchemaVersion,
 		}
 		if cached, ok := globalSchemaCache.Load(key); ok {
-			return cached.(*Schema)
+			return cached.(*Schema), nil
 		}
 	}
 
@@ -208,9 +236,7 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 	// Generate schema using reused schemagen logic
 	schema, err := generator.generateSchemaWithDependencyAnalysis(structType)
 	if err != nil {
-		// For now, return a basic schema but log the error
-		// In a production environment, you might want to return the error instead
-		schema = &Schema{Type: SchemaType{"object"}}
+		return nil, err
 	}
 
 	// Set $schema if specified in options (empty string means omit $schema)
@@ -236,6 +262,10 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 	// This is critical for validation to work correctly with nested structs
 	schema.resolveReferences()
 
+	if err := schema.validateRegexSyntax(); err != nil {
+		return nil, err
+	}
+
 	// Clean up visited state
 	generator.visited = make(map[reflect.Type]int)
 
@@ -252,7 +282,7 @@ func FromStructWithOptions[T any](options *StructTagOptions) *Schema {
 		globalSchemaCache.Store(key, schema)
 	}
 
-	return schema
+	return schema, nil
 }
 
 // ClearSchemaCache clears the global schema cache - useful for testing and memory management
@@ -329,9 +359,9 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 		}
 
 		// Generate schema for this field using reused schemagen logic
-		fieldSchema, err := g.generateFieldSchemaWithValidators(fieldInfo.Type, fieldInfo.Rules)
+		fieldSchema, err := g.generateFieldSchemaWithValidators(structType, &fieldInfo)
 		if err != nil {
-			continue // Skip fields with errors for now
+			return nil, err
 		}
 
 		if fieldSchema != nil {
@@ -384,7 +414,14 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 }
 
 // generateFieldSchemaWithValidators generates schema for a field using reused schemagen validator logic
-func (g *structTagGenerator) generateFieldSchemaWithValidators(fieldType reflect.Type, rules []tagparser.TagRule) (*Schema, error) {
+func (g *structTagGenerator) generateFieldSchemaWithValidators(structType reflect.Type, fieldInfo *tagparser.FieldInfo) (*Schema, error) {
+	fieldType := fieldInfo.Type
+	rules := fieldInfo.Rules
+
+	if err := g.validateFieldRules(structType, fieldInfo); err != nil {
+		return nil, err
+	}
+
 	// Handle pointer types - make nullable
 	var isNullable bool
 	for fieldType.Kind() == reflect.Ptr {
@@ -446,6 +483,41 @@ func (g *structTagGenerator) generateFieldSchemaWithValidators(fieldType reflect
 	}
 
 	return baseSchema, nil
+}
+
+func (g *structTagGenerator) validateFieldRules(structType reflect.Type, fieldInfo *tagparser.FieldInfo) error {
+	for _, rule := range fieldInfo.Rules {
+		switch rule.Name {
+		case "pattern":
+			if len(rule.Params) == 0 {
+				continue
+			}
+			if err := compilePattern(rule.Params[0]); err != nil {
+				return &StructTagError{
+					StructType: structType.String(),
+					FieldName:  fieldInfo.Name,
+					TagRule:    fmt.Sprintf("pattern=%s", rule.Params[0]),
+					Message:    "invalid regular expression pattern",
+					Err:        fmt.Errorf("%w: %w", ErrRegexValidation, err),
+				}
+			}
+		case "patternProperties":
+			if len(rule.Params) == 0 {
+				continue
+			}
+			if err := compilePattern(rule.Params[0]); err != nil {
+				return &StructTagError{
+					StructType: structType.String(),
+					FieldName:  fieldInfo.Name,
+					TagRule:    fmt.Sprintf("patternProperties=%s", rule.Params[0]),
+					Message:    "invalid regular expression pattern",
+					Err:        fmt.Errorf("%w: %w", ErrRegexValidation, err),
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // getSchemaFromTypeWithMapping converts Go types to JSON Schema using reused schemagen logic

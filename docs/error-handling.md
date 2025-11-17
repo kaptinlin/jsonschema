@@ -219,49 +219,24 @@ if !result.IsValid() {
 }
 ```
 
-### Choosing the Right Error Method
+### Error Access Methods
 
-This library provides a dual-track design to accommodate different usage patterns:
+| Method | Use Case | Returns |
+|--------|----------|---------|
+| `result.Errors` | Quick access to top-level errors | Map of field paths to error details |
+| `result.ToList()` | Complete validation tree | Hierarchical error structure |
+| `result.GetDetailedErrors()` | Flat, detailed error messages | Map of JSON paths to messages |
 
-#### For Most Common Use Cases (90% of users)
-- **`result.GetDetailedErrors()`** ⭐ **Recommended** - One line of code to get all specific validation errors with clear paths and messages
-  ```go
-  // Default English errors (clean, no nil required)
-  detailedErrors := result.GetDetailedErrors()
-  for path, msg := range detailedErrors {
-      fmt.Printf("%s: %s\n", path, msg)
-  }
-  
-  // Localized errors (consistent with existing pattern)
-  i18n, _ := jsonschema.GetI18n()
-  localizer := i18n.NewLocalizer("zh-Hans")
-  localizedErrors := result.GetDetailedErrors(localizer)
-  ```
-
-#### For Advanced Use Cases
-- **`result.Errors`** - Top-level JSON Schema keyword errors (limited detail, but fast)
-- **`result.ToList()`** - Complete JSON Schema 2020-12 compliant hierarchical structure
-- **`result.ToList(false)`** - Flattened structure but still requires array traversal
-
-#### Why GetDetailedErrors is Recommended
-
-**Problem with result.Errors:**
 ```go
-// Only shows generic messages like:
-// "properties: Property 'jobs' does not match the schema"
-// User doesn't know WHY jobs failed validation
-```
+// Basic error access
+for path, err := range result.Errors {
+    fmt.Printf("%s: %s\n", path, err.Message)
+}
 
-**Solution with GetDetailedErrors:**
-```go
-// Shows specific problems like:
-// "/jobs/test/required: Required property 'runs-on' is missing"
-// "/jobs/test/runs-on/type: Value is null but should be array"
+// Detailed errors with localization support
+detailedErrors := result.GetDetailedErrors()
+// Or with localizer: result.GetDetailedErrors(localizer)
 ```
-
-**Code Complexity Comparison:**
-- `result.GetDetailedErrors()`: **1 line of code** ✅ (clean, no nil needed)
-- `result.ToList() + recursive traversal`: **20-30 lines of code** ❌
 
 ### Complete Usage Examples
 
@@ -464,28 +439,6 @@ for field, message := range localizedList.Errors {
 
 ## Error Recovery Patterns
 
-### Graceful Degradation
-
-```go
-func processUser(data []byte) (*User, error) {
-    var user User
-    err := schema.Unmarshal(&user, data)
-    if err != nil {
-        if unmarshalErr, ok := err.(*jsonschema.UnmarshalError); ok {
-            if unmarshalErr.Type == "validation" {
-                // Try basic JSON unmarshaling as fallback
-                if fallbackErr := json.Unmarshal(data, &user); fallbackErr == nil {
-                    log.Printf("Used fallback for invalid data: %s", unmarshalErr.Reason)
-                    return &user, nil
-                }
-            }
-        }
-        return nil, err
-    }
-    return &user, nil
-}
-```
-
 ### Error Aggregation
 
 ```go
@@ -634,3 +587,259 @@ func TestUnmarshalErrors(t *testing.T) {
         })
     }
 } 
+
+---
+
+## Compilation Errors
+
+Errors that occur during schema compilation or generation from struct tags.
+
+### Schema Compilation Errors
+
+Returned by `compiler.Compile()` when the JSON Schema itself is invalid:
+
+```go
+compiler := jsonschema.NewCompiler()
+schema, err := compiler.Compile(invalidSchemaJSON)
+if err != nil {
+    // Check for specific error types using errors.Is
+    if errors.Is(err, jsonschema.ErrRegexValidation) {
+        log.Printf("Invalid regex pattern in schema: %v", err)
+    } else if errors.Is(err, jsonschema.ErrJSONUnmarshal) {
+        log.Printf("Invalid JSON syntax: %v", err)
+    } else {
+        log.Printf("Schema compilation failed: %v", err)
+    }
+}
+```
+
+### Regex Validation Errors
+
+The library validates all regular expression patterns at **compilation time** to catch Go regex incompatibilities early:
+
+```go
+// This will fail at compile time (negative lookahead not supported in Go)
+schemaJSON := []byte(`{
+    "type": "object",
+    "properties": {
+        "username": {
+            "type": "string",
+            "pattern": "^(?!admin).*$"
+        }
+    }
+}`)
+
+compiler := jsonschema.NewCompiler()
+schema, err := compiler.Compile(schemaJSON)
+if err != nil {
+    if errors.Is(err, jsonschema.ErrRegexValidation) {
+        // Invalid regex pattern detected
+        log.Printf("Invalid regex pattern: %v", err)
+        // Error message will show the exact pattern that failed
+
+        var regexErr *jsonschema.RegexPatternError
+        if errors.As(err, &regexErr) {
+            log.Printf("Keyword: %s, location: %s, pattern: %s", regexErr.Keyword, regexErr.Location, regexErr.Pattern)
+        }
+    }
+}
+```
+
+**Common regex issues in Go:**
+- ❌ Negative lookaheads: `(?!...)` not supported
+- ❌ Negative lookbehinds: `(?<!...)` not supported
+- ❌ Positive lookaheads: `(?=...)` not supported
+- ❌ Positive lookbehinds: `(?<=...)` not supported
+- ✅ Use Go-compatible RE2 syntax instead
+
+**Validation covers:**
+- `pattern` keyword in schema properties
+- `patternProperties` keys
+- Patterns in nested `$defs`
+- Patterns in `allOf`, `anyOf`, `oneOf` schemas
+
+---
+
+### StructTagError
+
+Returned by `FromStruct()` when struct tags contain invalid patterns or rules:
+
+```go
+type User struct {
+    // Invalid regex pattern - negative lookahead not supported
+    Username string `jsonschema:"required,pattern=^(?!admin).*$"`
+}
+
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    // Type assertion to get detailed error information
+    var tagErr *jsonschema.StructTagError
+    if errors.As(err, &tagErr) {
+        log.Printf("Struct: %s\n", tagErr.StructType)
+        log.Printf("Field: %s\n", tagErr.FieldName)
+        log.Printf("Tag Rule: %s\n", tagErr.TagRule)
+        log.Printf("Message: %s\n", tagErr.Message)
+
+        // Access underlying error
+        if tagErr.Err != nil {
+            log.Printf("Cause: %v\n", tagErr.Err)
+        }
+    }
+}
+```
+
+**StructTagError Fields:**
+- `StructType` (string) - The Go struct type name
+- `FieldName` (string) - The field with the invalid tag
+- `TagRule` (string) - The specific tag rule that failed (e.g., "pattern=...")
+- `Message` (string) - Human-readable error description
+- `Err` (error) - The underlying error (supports error unwrapping)
+
+**Example error message:**
+```
+struct tag error (struct=User, field=Username, rule=pattern=^(?!admin).*$):
+invalid regular expression pattern: error parsing regexp: invalid or unsupported Perl syntax: `(?!`
+```
+
+---
+
+### Error Chain Inspection
+
+Use Go's standard error inspection functions with compilation errors:
+
+```go
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    // Check if error is a specific type
+    if errors.Is(err, jsonschema.ErrRegexValidation) {
+        log.Println("Regex validation failed")
+    }
+
+    // Extract error details using errors.As
+    var tagErr *jsonschema.StructTagError
+    if errors.As(err, &tagErr) {
+        log.Printf("Field %s.%s has invalid tag: %s",
+            tagErr.StructType, tagErr.FieldName, tagErr.TagRule)
+    }
+
+    // Get the root cause
+    rootErr := errors.Unwrap(err)
+    if rootErr != nil {
+        log.Printf("Root cause: %v", rootErr)
+    }
+}
+```
+
+---
+
+## Sentinel Errors
+
+The library defines sentinel errors for common error conditions. Use `errors.Is()` to check for these:
+
+```go
+// Compilation errors
+var (
+    ErrRegexValidation         = errors.New("regex validation failed")
+    ErrSchemaCompilation       = errors.New("schema compilation failed")
+    ErrReferenceResolution     = errors.New("reference resolution failed")
+    ErrJSONUnmarshal           = errors.New("json unmarshal failed")
+    // ... see errors.go for complete list
+)
+
+// Usage with errors.Is
+if errors.Is(err, jsonschema.ErrRegexValidation) {
+    // Handle regex validation error specifically
+}
+```
+
+**Best practices:**
+1. Use `errors.Is()` to check for sentinel errors
+2. Use `errors.As()` to extract custom error types like `StructTagError`
+3. Always handle compilation errors during application startup
+4. Validate regex patterns are Go-compatible before deploying
+5. For schema compilation, use `errors.As(err, *jsonschema.RegexPatternError)` to inspect failing keyword, pattern, and JSON Pointer location
+
+---
+
+## Complete Error Handling Example
+
+```go
+package main
+
+import (
+    "errors"
+    "log"
+    "github.com/kaptinlin/jsonschema"
+)
+
+type User struct {
+    Username string `jsonschema:"required,pattern=^[a-zA-Z0-9_]+$"`
+    Email    string `jsonschema:"required,format=email"`
+}
+
+func main() {
+    // Step 1: Generate schema with error handling
+    schema, err := jsonschema.FromStruct[User]()
+    if err != nil {
+        handleCompilationError(err)
+        return
+    }
+
+    // Step 2: Validate data
+    userData := map[string]interface{}{
+        "username": "alice123",
+        "email":    "alice@example.com",
+    }
+
+    result := schema.Validate(userData)
+    if !result.IsValid() {
+        handleValidationErrors(result)
+        return
+    }
+
+    // Step 3: Unmarshal with error handling
+    var user User
+    if err := schema.Unmarshal(&user, userData); err != nil {
+        handleUnmarshalError(err)
+        return
+    }
+
+    log.Printf("Success: %+v", user)
+}
+
+func handleCompilationError(err error) {
+    // Check for specific error types
+    if errors.Is(err, jsonschema.ErrRegexValidation) {
+        log.Printf("❌ Regex validation error: %v", err)
+
+        // Get detailed information for struct tag errors
+        var tagErr *jsonschema.StructTagError
+        if errors.As(err, &tagErr) {
+            log.Printf("  Struct: %s", tagErr.StructType)
+            log.Printf("  Field: %s", tagErr.FieldName)
+            log.Printf("  Invalid tag: %s", tagErr.TagRule)
+        }
+    } else {
+        log.Printf("❌ Compilation error: %v", err)
+    }
+}
+
+func handleValidationErrors(result *jsonschema.Result) {
+    log.Println("❌ Validation failed:")
+    for field, err := range result.Errors {
+        log.Printf("  - %s: %s", field, err.Message)
+    }
+}
+
+func handleUnmarshalError(err error) {
+    var unmarshalErr *jsonschema.UnmarshalError
+    if errors.As(err, &unmarshalErr) {
+        log.Printf("❌ Unmarshal error (%s): %s",
+            unmarshalErr.Type, unmarshalErr.Reason)
+    } else {
+        log.Printf("❌ Error: %v", err)
+    }
+}
+```
+
+This comprehensive approach ensures all error types are properly handled throughout the validation workflow.

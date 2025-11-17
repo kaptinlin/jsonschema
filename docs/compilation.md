@@ -311,15 +311,21 @@ postSchema, _ := compiler.GetSchema("post.json")
 
 ### Compilation Errors
 
+Use standard Go error inspection with `errors.Is()`:
+
 ```go
-schema, err := compiler.Compile(invalidSchemaBytes)
+import "errors"
+
+schema, err := compiler.Compile(schemaBytes)
 if err != nil {
-    switch {
-    case strings.Contains(err.Error(), "invalid JSON"):
+    // Check for specific error types
+    if errors.Is(err, jsonschema.ErrJSONUnmarshal) {
         log.Printf("Schema JSON syntax error: %v", err)
-    case strings.Contains(err.Error(), "unresolved reference"):
+    } else if errors.Is(err, jsonschema.ErrReferenceResolution) {
         log.Printf("Schema reference error: %v", err)
-    default:
+    } else if errors.Is(err, jsonschema.ErrRegexValidation) {
+        log.Printf("Invalid regex pattern: %v", err)
+    } else {
         log.Printf("Schema compilation error: %v", err)
     }
 }
@@ -336,7 +342,9 @@ schema, err := compiler.Compile([]byte(`{
 }`))
 
 if err != nil {
-    log.Printf("Failed to resolve schema reference: %v", err)
+    if errors.Is(err, jsonschema.ErrReferenceResolution) {
+        log.Printf("Failed to resolve schema reference: %v", err)
+    }
 }
 ```
 

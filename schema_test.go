@@ -678,7 +678,8 @@ func TestFromStructNestedRequiredDeterministicOrdering(t *testing.T) {
 	results := make(map[string]int)
 	for i := 0; i < 20; i++ {
 		ClearSchemaCache()
-		schema := FromStruct[Person]()
+		schema, err := FromStruct[Person]()
+		require.NoError(t, err)
 		data, err := json.Marshal(schema)
 		require.NoError(t, err)
 		results[string(data)]++

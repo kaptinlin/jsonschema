@@ -1,23 +1,16 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/kaptinlin/jsonschema/pkg/tagparser"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Basic Reference Tests
 func TestCodeGenerator_BasicReferences(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	// Test simple struct reference
 	field := tagparser.FieldInfo{
@@ -31,27 +24,15 @@ func TestCodeGenerator_BasicReferences(t *testing.T) {
 	}
 
 	property, err := generator.generateFieldProperty(field)
-	if err != nil {
-		t.Fatalf("generateFieldProperty failed: %v", err)
-	}
+	require.NoError(t, err, "generateFieldProperty should succeed")
 
 	// Should generate direct method call for simple references
-	if !strings.Contains(property, "(&UserProfile{}).Schema") {
-		t.Errorf("Expected simple struct reference, got: %s", property)
-	}
+	assert.Contains(t, property, "(&UserProfile{}).Schema", "should generate simple struct reference")
 }
 
 // $refs and $defs Tests
 func TestCodeGenerator_RefsAndDefs(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	// Initialize the analyzer for ref detection
 	if generator.analyzer == nil {
@@ -103,14 +84,10 @@ func TestCodeGenerator_RefsAndDefs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			validatorGen, exists := generator.validatorMap[tt.ruleName]
-			if !exists {
-				t.Fatalf("Validator %s not found", tt.ruleName)
-			}
+			require.True(t, exists, "validator %s should exist", tt.ruleName)
 
 			result := validatorGen(tt.field.TypeName, tt.params)
-			if !strings.Contains(result, tt.expectedMatch) {
-				t.Errorf("Expected result to contain %s, got: %s", tt.expectedMatch, result)
-			}
+			assert.Contains(t, result, tt.expectedMatch, "result should contain expected match")
 
 			// Test $ref transformation
 			transformed := generator.applyRefTransformation(result, tt.ruleName, tt.params)
@@ -122,16 +99,7 @@ func TestCodeGenerator_RefsAndDefs(t *testing.T) {
 
 // Circular Reference Tests
 func TestCodeGenerator_CircularReferences(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-		Verbose:      true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newVerboseTestGenerator(t)
 
 	// Test circular reference detection and handling
 	tests := []struct {
@@ -174,14 +142,10 @@ func TestCodeGenerator_CircularReferences(t *testing.T) {
 
 			if tt.shouldTransform {
 				// If circular reference is detected, should use $ref
-				if !strings.Contains(result, "jsonschema.Ref") {
-					t.Errorf("Expected $ref transformation, got: %s", result)
-				}
+				assert.Contains(t, result, "jsonschema.Ref", "should contain $ref transformation")
 			} else {
 				// If no circular reference, should preserve original
-				if !strings.Contains(result, tt.expectedPattern) {
-					t.Errorf("Expected to preserve %s, got: %s", tt.expectedPattern, result)
-				}
+				assert.Contains(t, result, tt.expectedPattern, "should preserve expected pattern")
 			}
 		})
 	}
@@ -189,16 +153,7 @@ func TestCodeGenerator_CircularReferences(t *testing.T) {
 
 // Complex Reference Scenarios
 func TestCodeGenerator_ComplexReferenceScenarios(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-		Verbose:      true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newVerboseTestGenerator(t)
 
 	// Test struct with multiple reference types
 	structInfo := &GenerationInfo{
@@ -258,56 +213,29 @@ func TestCodeGenerator_ComplexReferenceScenarios(t *testing.T) {
 		FilePath: "complex_reference_struct.go",
 	}
 
-	err = generator.generateStructCode(structInfo)
-	if err != nil {
-		t.Fatalf("generateStructCode failed: %v", err)
-	}
+	err := generator.generateStructCode(structInfo)
+	assert.NoError(t, err, "generateStructCode should succeed")
 
 	t.Log("=== Complex Reference Scenarios Test Completed ===")
 }
 
 // $defs Generation Test
 func TestCodeGenerator_DefsGeneration(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-		Verbose:      true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newVerboseTestGenerator(t)
 
 	// Test generateDefinition method
 	defData, err := generator.generateDefinition("TestStruct")
-	if err != nil {
-		t.Fatalf("generateDefinition failed: %v", err)
-	}
+	require.NoError(t, err, "generateDefinition should succeed")
+	require.NotNil(t, defData, "definition should not be nil")
 
-	if defData == nil {
-		t.Fatal("generateDefinition returned nil")
-	}
-
-	if defData.Name != "TestStruct" {
-		t.Errorf("Expected definition name TestStruct, got %s", defData.Name)
-	}
+	assert.Equal(t, "TestStruct", defData.Name, "definition name should match")
 
 	t.Logf("Generated definition: %+v", defData)
 }
 
 // Reference Resolution Demo
 func TestCodeGenerator_ReferenceResolutionDemo(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-		Verbose:      true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newVerboseTestGenerator(t)
 
 	// Demo showing different reference scenarios
 	structInfo := &GenerationInfo{
@@ -353,10 +281,8 @@ func TestCodeGenerator_ReferenceResolutionDemo(t *testing.T) {
 		FilePath: "reference_demo.go",
 	}
 
-	err = generator.generateStructCode(structInfo)
-	if err != nil {
-		t.Fatalf("generateStructCode failed: %v", err)
-	}
+	err := generator.generateStructCode(structInfo)
+	assert.NoError(t, err, "generateStructCode should succeed")
 
 	t.Log("=== Reference Resolution Demo Completed ===")
 	t.Log("This demo shows how references are handled:")

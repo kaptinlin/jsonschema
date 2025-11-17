@@ -724,11 +724,12 @@ func TestUnmarshalSliceOfStructs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create schema from struct
 			opts := DefaultStructTagOptions()
-			schema := FromStructWithOptions[OuterStruct](opts)
+			schema, err := FromStructWithOptions[OuterStruct](opts)
+			require.NoError(t, err)
 
 			// Unmarshal
 			var result OuterStruct
-			err := schema.Unmarshal(&result, []byte(tt.input))
+			err = schema.Unmarshal(&result, []byte(tt.input))
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -775,11 +776,12 @@ func TestUnmarshalNestedSliceOfStructs(t *testing.T) {
 
 	// Create schema from struct
 	opts := DefaultStructTagOptions()
-	schema := FromStructWithOptions[TopStruct](opts)
+	schema, err := FromStructWithOptions[TopStruct](opts)
+	require.NoError(t, err)
 
 	// Unmarshal
 	var result TopStruct
-	err := schema.Unmarshal(&result, []byte(input))
+	err = schema.Unmarshal(&result, []byte(input))
 	require.NoError(t, err)
 
 	// Verify results
@@ -813,11 +815,12 @@ func TestUnmarshalSliceOfPointers(t *testing.T) {
 
 	// Create schema from struct
 	opts := DefaultStructTagOptions()
-	schema := FromStructWithOptions[Container](opts)
+	schema, err := FromStructWithOptions[Container](opts)
+	require.NoError(t, err)
 
 	// Unmarshal
 	var result Container
-	err := schema.Unmarshal(&result, []byte(input))
+	err = schema.Unmarshal(&result, []byte(input))
 	require.NoError(t, err)
 
 	// Verify results
@@ -850,11 +853,12 @@ func TestUnmarshalMixedSliceTypes(t *testing.T) {
 
 	// Create schema from struct
 	opts := DefaultStructTagOptions()
-	schema := FromStructWithOptions[MixedStruct](opts)
+	schema, err := FromStructWithOptions[MixedStruct](opts)
+	require.NoError(t, err)
 
 	// Unmarshal
 	var result MixedStruct
-	err := schema.Unmarshal(&result, []byte(input))
+	err = schema.Unmarshal(&result, []byte(input))
 	require.NoError(t, err)
 
 	// Verify results
@@ -908,9 +912,10 @@ func TestPointerFieldsWithDefaults(t *testing.T) {
 			config := &Config{}
 
 			opts := DefaultStructTagOptions()
-			schema := FromStructWithOptions[Config](opts)
+			schema, err := FromStructWithOptions[Config](opts)
+			require.NoError(t, err)
 
-			err := schema.Unmarshal(config, []byte(tt.manifest))
+			err = schema.Unmarshal(config, []byte(tt.manifest))
 			require.NoError(t, err)
 
 			// Check Key1 (non-pointer string)

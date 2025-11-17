@@ -1,23 +1,51 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/kaptinlin/jsonschema/pkg/tagparser"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// Basic Generator Tests
-func TestCodeGenerator_BasicFunctionality(t *testing.T) {
+// Test helpers following DRY principle
+
+// newTestGenerator creates a standard test generator
+func newTestGenerator(t *testing.T) *CodeGenerator {
+	t.Helper()
+
 	config := &GeneratorConfig{
 		OutputSuffix: "_schema.go",
 		DryRun:       true,
 	}
 
 	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
+	require.NoError(t, err, "failed to create generator")
+	require.NotNil(t, generator, "generator should not be nil")
+
+	return generator
+}
+
+// newVerboseTestGenerator creates a verbose test generator
+func newVerboseTestGenerator(t *testing.T) *CodeGenerator {
+	t.Helper()
+
+	config := &GeneratorConfig{
+		OutputSuffix: "_schema.go",
+		DryRun:       true,
+		Verbose:      true,
 	}
+
+	generator, err := NewCodeGenerator(config)
+	require.NoError(t, err, "failed to create generator")
+	require.NotNil(t, generator, "generator should not be nil")
+
+	return generator
+}
+
+// Basic Generator Tests
+func TestCodeGenerator_BasicFunctionality(t *testing.T) {
+	generator := newTestGenerator(t)
 
 	// Test basic struct code generation
 	structInfo := &GenerationInfo{
@@ -46,23 +74,13 @@ func TestCodeGenerator_BasicFunctionality(t *testing.T) {
 		FilePath: "basic_user.go",
 	}
 
-	err = generator.generateStructCode(structInfo)
-	if err != nil {
-		t.Fatalf("generateStructCode failed: %v", err)
-	}
+	err := generator.generateStructCode(structInfo)
+	assert.NoError(t, err, "generateStructCode should succeed")
 }
 
 // Complex Data Types Tests
 func TestCodeGenerator_ComplexDataTypeGeneration(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	tests := []struct {
 		name     string
@@ -108,27 +126,15 @@ func TestCodeGenerator_ComplexDataTypeGeneration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schema, err := generator.generateFieldSchema(tt.field)
-			if err != nil {
-				t.Fatalf("generateFieldSchema failed: %v", err)
-			}
-			if !strings.Contains(schema, tt.expected) {
-				t.Errorf("Expected schema to contain %s, got %s", tt.expected, schema)
-			}
+			require.NoError(t, err, "generateFieldSchema should succeed")
+			assert.Contains(t, schema, tt.expected, "schema should contain expected substring")
 		})
 	}
 }
 
 // Advanced Array Features Tests
 func TestCodeGenerator_AdvancedArrayFeatures(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	tests := []struct {
 		name              string
@@ -176,27 +182,15 @@ func TestCodeGenerator_AdvancedArrayFeatures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			property, err := generator.generateFieldProperty(tt.field)
-			if err != nil {
-				t.Fatalf("generateFieldProperty failed: %v", err)
-			}
-			if !strings.Contains(property, tt.expectedSubstring) {
-				t.Errorf("Expected property to contain %s, got: %s", tt.expectedSubstring, property)
-			}
+			require.NoError(t, err, "generateFieldProperty should succeed")
+			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
 	}
 }
 
 // Advanced Object Features Tests
 func TestCodeGenerator_AdvancedObjectFeatures(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	tests := []struct {
 		name              string
@@ -244,27 +238,15 @@ func TestCodeGenerator_AdvancedObjectFeatures(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			property, err := generator.generateFieldProperty(tt.field)
-			if err != nil {
-				t.Fatalf("generateFieldProperty failed: %v", err)
-			}
-			if !strings.Contains(property, tt.expectedSubstring) {
-				t.Errorf("Expected property to contain %s, got: %s", tt.expectedSubstring, property)
-			}
+			require.NoError(t, err, "generateFieldProperty should succeed")
+			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
 	}
 }
 
 // Logical Combination Tests
 func TestCodeGenerator_LogicalCombinations(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	tests := []struct {
 		name              string
@@ -324,27 +306,15 @@ func TestCodeGenerator_LogicalCombinations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			property, err := generator.generateFieldProperty(tt.field)
-			if err != nil {
-				t.Fatalf("generateFieldProperty failed: %v", err)
-			}
-			if !strings.Contains(property, tt.expectedSubstring) {
-				t.Errorf("Expected property to contain %s, got: %s", tt.expectedSubstring, property)
-			}
+			require.NoError(t, err, "generateFieldProperty should succeed")
+			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
 	}
 }
 
 // Conditional Logic Tests
 func TestCodeGenerator_ConditionalLogic(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	tests := []struct {
 		name              string
@@ -392,27 +362,15 @@ func TestCodeGenerator_ConditionalLogic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			property, err := generator.generateFieldProperty(tt.field)
-			if err != nil {
-				t.Fatalf("generateFieldProperty failed: %v", err)
-			}
-			if !strings.Contains(property, tt.expectedSubstring) {
-				t.Errorf("Expected property to contain %s, got: %s", tt.expectedSubstring, property)
-			}
+			require.NoError(t, err, "generateFieldProperty should succeed")
+			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
 	}
 }
 
 // Metadata Annotations Tests
 func TestCodeGenerator_MetadataAnnotations(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	tests := []struct {
 		name              string
@@ -461,27 +419,15 @@ func TestCodeGenerator_MetadataAnnotations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			property, err := generator.generateFieldProperty(tt.field)
-			if err != nil {
-				t.Fatalf("generateFieldProperty failed: %v", err)
-			}
-			if !strings.Contains(property, tt.expectedSubstring) {
-				t.Errorf("Expected property to contain %s, got: %s", tt.expectedSubstring, property)
-			}
+			require.NoError(t, err, "generateFieldProperty should succeed")
+			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
 	}
 }
 
 // Content Validation Tests
 func TestCodeGenerator_ContentValidation(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	tests := []struct {
 		name              string
@@ -529,27 +475,15 @@ func TestCodeGenerator_ContentValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			property, err := generator.generateFieldProperty(tt.field)
-			if err != nil {
-				t.Fatalf("generateFieldProperty failed: %v", err)
-			}
-			if !strings.Contains(property, tt.expectedSubstring) {
-				t.Errorf("Expected property to contain %s, got: %s", tt.expectedSubstring, property)
-			}
+			require.NoError(t, err, "generateFieldProperty should succeed")
+			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
 	}
 }
 
 // Validator Mapping Tests
 func TestCodeGenerator_ValidatorMappingGeneration(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newTestGenerator(t)
 
 	tests := []struct {
 		name        string
@@ -591,30 +525,17 @@ func TestCodeGenerator_ValidatorMappingGeneration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			validatorGen, exists := generator.validatorMap[tt.ruleName]
-			if !exists {
-				t.Fatalf("Validator %s not found", tt.ruleName)
-			}
+			require.True(t, exists, "validator %s should exist", tt.ruleName)
 
 			result := validatorGen(tt.fieldType, tt.params)
-			if result != tt.expectedGen {
-				t.Errorf("Expected %s, got %s", tt.expectedGen, result)
-			}
+			assert.Equal(t, tt.expectedGen, result, "validator should generate expected code")
 		})
 	}
 }
 
 // Integration Test Demo
 func TestCodeGenerator_CompleteIntegrationDemo(t *testing.T) {
-	config := &GeneratorConfig{
-		OutputSuffix: "_schema.go",
-		DryRun:       true,
-		Verbose:      true,
-	}
-
-	generator, err := NewCodeGenerator(config)
-	if err != nil {
-		t.Fatalf("Failed to create generator: %v", err)
-	}
+	generator := newVerboseTestGenerator(t)
 
 	// Complete example showing all features together
 	structInfo := &GenerationInfo{
@@ -660,10 +581,8 @@ func TestCodeGenerator_CompleteIntegrationDemo(t *testing.T) {
 		FilePath: "comprehensive_example.go",
 	}
 
-	err = generator.generateStructCode(structInfo)
-	if err != nil {
-		t.Fatalf("generateStructCode failed: %v", err)
-	}
+	err := generator.generateStructCode(structInfo)
+	assert.NoError(t, err, "generateStructCode should succeed")
 
 	t.Log("=== Comprehensive Generator Test Completed Successfully ===")
 }

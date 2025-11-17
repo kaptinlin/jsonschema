@@ -112,6 +112,10 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 
 	schema.initializeSchema(c, nil)
 
+	if err := schema.validateRegexSyntax(); err != nil {
+		return nil, err
+	}
+
 	// Track all schemas, whether they have an ID or not
 	c.mu.Lock()
 	c.allSchemas = append(c.allSchemas, schema)

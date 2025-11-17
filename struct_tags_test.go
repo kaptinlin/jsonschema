@@ -63,7 +63,8 @@ type ParentWithNested struct {
 // =============================================================================
 
 func TestFromStruct_BasicStruct(t *testing.T) {
-	schema := FromStruct[TestUser]()
+	schema, err := FromStruct[TestUser]()
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.NotNil(t, schema, "Expected schema to be non-nil")
@@ -88,7 +89,8 @@ func TestFromStruct_BasicStruct(t *testing.T) {
 }
 
 func TestFromStruct_OptionalFields(t *testing.T) {
-	schema := FromStruct[TestUserOptional]()
+	schema, err := FromStruct[TestUserOptional]()
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.NotNil(t, schema, "Expected schema to be non-nil")
@@ -120,7 +122,8 @@ func TestFromStructWithOptions_CustomTagName(t *testing.T) {
 		CacheEnabled:        false,
 	}
 
-	schema := FromStructWithOptions[CustomTagUser](options)
+	schema, err := FromStructWithOptions[CustomTagUser](options)
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.NotNil(t, schema, "Expected schema to be non-nil")
@@ -144,7 +147,8 @@ func TestFromStruct_AllowUntaggedFields(t *testing.T) {
 	}
 
 	// Test with untagged fields disabled (default)
-	schema1 := FromStruct[MixedTagUser]()
+	schema1, err := FromStruct[MixedTagUser]()
+	require.NoError(t, err)
 	props1 := *schema1.Properties
 	if _, exists := props1["Name"]; exists {
 		assert.Fail(t, "Expected 'Name' property to not exist when untagged fields are disabled")
@@ -156,7 +160,8 @@ func TestFromStruct_AllowUntaggedFields(t *testing.T) {
 		AllowUntaggedFields: true,
 		CacheEnabled:        false,
 	}
-	schema2 := FromStructWithOptions[MixedTagUser](options)
+	schema2, err := FromStructWithOptions[MixedTagUser](options)
+	require.NoError(t, err)
 	props2 := *schema2.Properties
 	if _, exists := props2["Name"]; !exists {
 		assert.Fail(t, "Expected 'Name' property to exist when untagged fields are enabled")
@@ -198,7 +203,8 @@ func TestFromStruct_BasicValidationRules(t *testing.T) {
 		Avatar string `jsonschema:"format=uri,contentEncoding=base64,contentMediaType=image/png"`
 	}
 
-	schema := FromStruct[ValidationTest]()
+	schema, err := FromStruct[ValidationTest]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -236,7 +242,8 @@ func TestLogicalCombinationValidators(t *testing.T) {
 		NotField   any    `jsonschema:"not=string"`
 	}
 
-	schema := FromStruct[LogicalTest]()
+	schema, err := FromStruct[LogicalTest]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -301,7 +308,8 @@ func TestArrayAdvancedValidators(t *testing.T) {
 		UnevaluatedArr []any `jsonschema:"unevaluatedItems=false"`
 	}
 
-	schema := FromStruct[ArrayTest]()
+	schema, err := FromStruct[ArrayTest]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -374,7 +382,8 @@ func TestObjectAdvancedValidators(t *testing.T) {
 		UnevaluatedObj map[string]any `jsonschema:"unevaluatedProperties=false"`
 	}
 
-	schema := FromStruct[ObjectTest]()
+	schema, err := FromStruct[ObjectTest]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -412,7 +421,8 @@ func TestConditionalLogicValidators(t *testing.T) {
 		ElseField any `jsonschema:"else=boolean"`
 	}
 
-	schema := FromStruct[ConditionalTest]()
+	schema, err := FromStruct[ConditionalTest]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -457,7 +467,8 @@ func TestContentAndReferenceValidators(t *testing.T) {
 		ExampleField string `jsonschema:"examples=test,sample,demo"`
 	}
 
-	schema := FromStruct[ContentTest]()
+	schema, err := FromStruct[ContentTest]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -496,7 +507,8 @@ func TestFromStruct_CircularReferences(t *testing.T) {
 	// Test schema generation with timeout protection
 	done := make(chan *Schema, 1)
 	go func() {
-		schema := FromStruct[Person]()
+		schema, err := FromStruct[Person]()
+		require.NoError(t, err)
 		done <- schema
 	}()
 
@@ -555,7 +567,8 @@ func TestFromStruct_CircularReferences(t *testing.T) {
 func TestFromStruct_ComplexCircularReferences(t *testing.T) {
 	done := make(chan *Schema, 1)
 	go func() {
-		schema := FromStruct[Company]()
+		schema, err := FromStruct[Company]()
+		require.NoError(t, err)
 		done <- schema
 	}()
 
@@ -587,7 +600,8 @@ func TestFromStruct_ComplexCircularReferences(t *testing.T) {
 }
 
 func TestFromStruct_NestedValidation(t *testing.T) {
-	schema := FromStruct[ParentWithNested]()
+	schema, err := FromStruct[ParentWithNested]()
+	require.NoError(t, err)
 
 	t.Run("invalid_nested_constraint", func(t *testing.T) {
 		test := &ParentWithNested{
@@ -607,6 +621,19 @@ func TestFromStruct_NestedValidation(t *testing.T) {
 		assert.True(t, v.Valid, "Should be valid: all constraints satisfied")
 	})
 }
+
+func TestFromStruct_InvalidPatternReturnsError(t *testing.T) {
+	type InvalidPattern struct {
+		Value string `jsonschema:"pattern=^(?!x).*$"`
+	}
+
+	schema, err := FromStruct[InvalidPattern]()
+	require.Error(t, err, "Expected FromStruct to return error on unsupported regex lookahead")
+	assert.Nil(t, schema, "Schema should be nil when generation fails")
+}
+
+// TestFromStruct_InvalidPatternWithHandler removed - ErrorHandler feature was removed
+// as it was redundant after FromStruct started returning errors directly
 
 // =============================================================================
 // Performance and Caching Tests
@@ -631,7 +658,8 @@ func TestCachePerformance(t *testing.T) {
 
 	// First generation (without cache)
 	start1 := time.Now()
-	schema1 := FromStruct[LargeStruct]()
+	schema1, err := FromStruct[LargeStruct]()
+	require.NoError(t, err)
 	duration1 := time.Since(start1)
 
 	if schema1 == nil {
@@ -640,7 +668,8 @@ func TestCachePerformance(t *testing.T) {
 
 	// Second generation (with cache)
 	start2 := time.Now()
-	schema2 := FromStruct[LargeStruct]()
+	schema2, err := FromStruct[LargeStruct]()
+	require.NoError(t, err)
 	duration2 := time.Since(start2)
 
 	if schema2 == nil {
@@ -679,7 +708,8 @@ func TestCustomValidators(t *testing.T) {
 		CVV        string `jsonschema:"required,pattern=^[0-9]{3,4}$"`
 	}
 
-	schema := FromStruct[PaymentInfo]()
+	schema, err := FromStruct[PaymentInfo]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation with custom validator failed")
 		return
@@ -720,7 +750,8 @@ func TestCustomValidators(t *testing.T) {
 // =============================================================================
 
 func TestFromStruct_APICompatibility_ValidationMethods(t *testing.T) {
-	schema := FromStruct[TestUser]()
+	schema, err := FromStruct[TestUser]()
+	require.NoError(t, err)
 
 	// Test data
 	validUser := TestUser{
@@ -779,7 +810,8 @@ func TestFromStruct_APICompatibility_ConstructorInterop(t *testing.T) {
 	}
 
 	// Generate schema from struct tags
-	addressSchema := FromStruct[Address]()
+	addressSchema, err := FromStruct[Address]()
+	require.NoError(t, err)
 
 	// Create a larger schema using constructor API with embedded struct tag schema
 	userSchema := Object(
@@ -829,7 +861,8 @@ func TestFromStruct_APICompatibility_JSONOutput(t *testing.T) {
 
 	done := make(chan *Schema, 1)
 	go func() {
-		schema := FromStruct[Product]()
+		schema, err := FromStruct[Product]()
+		require.NoError(t, err)
 		done <- schema
 	}()
 
@@ -873,13 +906,15 @@ func TestFromStruct_APICompatibility_JSONOutput(t *testing.T) {
 }
 
 func TestFromStruct_APICompatibility_Composition(t *testing.T) {
-	personSchema := FromStruct[Person]()
+	personSchema, err := FromStruct[Person]()
+	require.NoError(t, err)
 
 	type Address struct {
 		Street string `jsonschema:"required"`
 		City   string `jsonschema:"required"`
 	}
-	addressSchema := FromStruct[Address]()
+	addressSchema, err := FromStruct[Address]()
+	require.NoError(t, err)
 
 	// Test with AllOf composition
 	combinedSchema := AllOf(personSchema, addressSchema)
@@ -917,7 +952,8 @@ func TestFromStruct_APICompatibility_Composition(t *testing.T) {
 func TestFromStruct_EdgeCases(t *testing.T) {
 	// Test empty struct
 	type EmptyStruct struct{}
-	emptySchema := FromStruct[EmptyStruct]()
+	emptySchema, err := FromStruct[EmptyStruct]()
+	require.NoError(t, err)
 
 	if len(emptySchema.Type) == 0 {
 		assert.Fail(t, "Expected empty struct to have object type")
@@ -934,7 +970,8 @@ func TestFromStruct_EdgeCases(t *testing.T) {
 		Age  *int    `jsonschema:"minimum=0"`
 	}
 
-	optionalSchema := FromStruct[OptionalStruct]()
+	optionalSchema, err := FromStruct[OptionalStruct]()
+	require.NoError(t, err)
 
 	// Should validate empty object
 	result = optionalSchema.Validate(map[string]any{})
@@ -951,7 +988,8 @@ func TestFromStruct_EdgeCases(t *testing.T) {
 
 func TestFromStruct_NilOptions(t *testing.T) {
 	// Should work with nil options (use defaults)
-	schema := FromStructWithOptions[TestUser](nil)
+	schema, err := FromStructWithOptions[TestUser](nil)
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Expected schema to be non-nil even with nil options")
@@ -1006,10 +1044,10 @@ func TestErrorHandling(t *testing.T) {
 		FieldName:  "TestField",
 		TagRule:    "testRule",
 		Message:    "test error message",
-		Cause:      ErrUnderlyingError,
+		Err:        ErrUnderlyingError,
 	}
 
-	expectedMsg := "struct tag error (struct TestStruct, field TestField, tag rule testRule): test error message: underlying error"
+	expectedMsg := "struct tag error (struct=TestStruct, field=TestField, rule=testRule): test error message: underlying error"
 	if err.Error() != expectedMsg {
 		assert.Fail(t, fmt.Sprintf("Expected error message: %s, got: %s", expectedMsg, err.Error()))
 	}
@@ -1041,7 +1079,10 @@ func BenchmarkSchemaGeneration(b *testing.B) {
 			CacheEnabled: false,
 		}
 		for i := 0; i < b.N; i++ {
-			schema := FromStructWithOptions[BenchStruct](options)
+			schema, err := FromStructWithOptions[BenchStruct](options)
+			if err != nil {
+				b.Fatal(err)
+			}
 			if schema == nil {
 				b.Fatal("Schema generation failed")
 			}
@@ -1052,7 +1093,10 @@ func BenchmarkSchemaGeneration(b *testing.B) {
 	b.Run("WithCache", func(b *testing.B) {
 		ClearSchemaCache() // Start fresh
 		for i := 0; i < b.N; i++ {
-			schema := FromStruct[BenchStruct]()
+			schema, err := FromStruct[BenchStruct]()
+			if err != nil {
+				b.Fatal(err)
+			}
 			if schema == nil {
 				b.Fatal("Schema generation failed")
 			}
@@ -1102,7 +1146,8 @@ func TestFromStruct_BasicArrayTypes(t *testing.T) {
 		AllowUntaggedFields: true,
 		CacheEnabled:        false,
 	}
-	schema := FromStructWithOptions[BasicArrayStruct](options)
+	schema, err := FromStructWithOptions[BasicArrayStruct](options)
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Basic array type schema generation failed")
 		return
@@ -1264,7 +1309,8 @@ func TestMaxPropertiesArrayPlacement(t *testing.T) {
 		Multiple []InnerStruct `jsonschema:"maxProperties=1"`
 	}
 
-	schema := FromStruct[TestStruct]()
+	schema, err := FromStruct[TestStruct]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -1306,7 +1352,8 @@ func TestEnumSpaceSeparation(t *testing.T) {
 		Valid    bool   `jsonschema:"enum=true false"`
 	}
 
-	schema := FromStruct[EnumTest]()
+	schema, err := FromStruct[EnumTest]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -1346,7 +1393,8 @@ func TestPointerFieldTagRules(t *testing.T) {
 		OptionalNumber *int    `jsonschema:"minimum=0,maximum=999"`
 	}
 
-	schema := FromStruct[PointerTest]()
+	schema, err := FromStruct[PointerTest]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -1399,7 +1447,8 @@ func TestStructReferenceDeduplication(t *testing.T) {
 		Third  SharedStruct `jsonschema:"required"`
 	}
 
-	schema := FromStruct[TestStruct]()
+	schema, err := FromStruct[TestStruct]()
+	require.NoError(t, err)
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
 	}
@@ -1474,7 +1523,8 @@ func stringIndex(s, substr string) int {
 
 // TestFromStruct_DefaultSchemaVersion tests that $schema is set by default
 func TestFromStruct_DefaultSchemaVersion(t *testing.T) {
-	schema := FromStruct[TestUser]()
+	schema, err := FromStruct[TestUser]()
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.NotNil(t, schema, "Expected schema to be non-nil")
@@ -1493,7 +1543,8 @@ func TestFromStruct_CustomSchemaVersion(t *testing.T) {
 		SchemaVersion: customVersion,
 	}
 
-	schema := FromStructWithOptions[TestUser](options)
+	schema, err := FromStructWithOptions[TestUser](options)
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.NotNil(t, schema, "Expected schema to be non-nil")
@@ -1510,7 +1561,8 @@ func TestFromStruct_EmptySchemaVersion(t *testing.T) {
 		SchemaVersion: "", // empty string should omit $schema
 	}
 
-	schema := FromStructWithOptions[TestUser](options)
+	schema, err := FromStructWithOptions[TestUser](options)
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.NotNil(t, schema, "Expected schema to be non-nil")
@@ -1527,21 +1579,24 @@ func TestFromStruct_SchemaVersionCaching(t *testing.T) {
 	ClearSchemaCache()
 
 	// Generate schema with default version
-	schema1 := FromStruct[TestUser]()
+	schema1, err := FromStruct[TestUser]()
+	require.NoError(t, err)
 
 	// Generate schema with custom version (ensure caching is enabled)
 	options := &StructTagOptions{
 		SchemaVersion: "https://json-schema.org/draft/2019-09/schema",
 		CacheEnabled:  true, // explicitly enable caching
 	}
-	schema2 := FromStructWithOptions[TestUser](options)
+	schema2, err := FromStructWithOptions[TestUser](options)
+	require.NoError(t, err)
 
 	// Generate schema with empty version (no $schema, ensure caching is enabled)
 	optionsEmpty := &StructTagOptions{
 		SchemaVersion: "",
 		CacheEnabled:  true, // explicitly enable caching
 	}
-	schema3 := FromStructWithOptions[TestUser](optionsEmpty)
+	schema3, err := FromStructWithOptions[TestUser](optionsEmpty)
+	require.NoError(t, err)
 
 	// Verify they have different $schema values
 	if schema1.Schema != "https://json-schema.org/draft/2020-12/schema" {
@@ -1565,7 +1620,8 @@ func TestFromStruct_SchemaVersionCaching(t *testing.T) {
 
 // TestFromStruct_SchemaVersionInJSON tests that $schema appears correctly in marshaled JSON
 func TestFromStruct_SchemaVersionInJSON(t *testing.T) {
-	schema := FromStruct[TestUser]()
+	schema, err := FromStruct[TestUser]()
+	require.NoError(t, err)
 
 	jsonBytes, err := json.Marshal(schema)
 	if err != nil {
@@ -1592,7 +1648,8 @@ func TestFromStruct_SchemaPropertiesFalse(t *testing.T) {
 			"additionalProperties": false,
 		},
 	}
-	schema := FromStructWithOptions[TestUser](options)
+	schema, err := FromStructWithOptions[TestUser](options)
+	require.NoError(t, err)
 
 	if schema.AdditionalProperties == nil {
 		require.Fail(t, "Expected additionalProperties to be set")
@@ -1609,7 +1666,8 @@ func TestFromStruct_SchemaPropertiesTrue(t *testing.T) {
 			"additionalProperties": true,
 		},
 	}
-	schema := FromStructWithOptions[TestUser](options)
+	schema, err := FromStructWithOptions[TestUser](options)
+	require.NoError(t, err)
 
 	if schema.AdditionalProperties == nil {
 		require.Fail(t, "Expected additionalProperties to be set")
@@ -1622,7 +1680,8 @@ func TestFromStruct_SchemaPropertiesTrue(t *testing.T) {
 // TestFromStruct_DefaultSchemaProperties tests default behavior (no schema properties)
 func TestFromStruct_DefaultSchemaProperties(t *testing.T) {
 	// Default schema should not set any additional schema properties
-	schema := FromStruct[TestUser]()
+	schema, err := FromStruct[TestUser]()
+	require.NoError(t, err)
 
 	if schema.AdditionalProperties != nil {
 		assert.Fail(t, "Expected additionalProperties to not be set by default")
@@ -1646,7 +1705,8 @@ func TestFromStruct_CombinedSchemaProperties(t *testing.T) {
 			"maxProperties":        10,
 		},
 	}
-	schema := FromStructWithOptions[TestUser](options)
+	schema, err := FromStructWithOptions[TestUser](options)
+	require.NoError(t, err)
 
 	if schema.AdditionalProperties == nil || *schema.AdditionalProperties.Boolean != false {
 		assert.Fail(t, "Expected additionalProperties to be false")
@@ -1677,7 +1737,8 @@ func TestFromStructDeterministicSerialization(t *testing.T) {
 	opts.AllowUntaggedFields = true
 
 	// Generate schema from struct
-	schema := FromStructWithOptions[OuterStruct](opts)
+	schema, err := FromStructWithOptions[OuterStruct](opts)
+	require.NoError(t, err)
 
 	// Multiple serialization attempts should produce identical results
 	var results []string
@@ -1723,7 +1784,8 @@ func TestMapOfStructsSchema(t *testing.T) {
 		Data map[string]Bar `json:"data" jsonschema:"description=This is the data field"`
 	}
 
-	schema := FromStruct[Foo]()
+	schema, err := FromStruct[Foo]()
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -1796,7 +1858,8 @@ func TestMapOfPrimitivesSchema(t *testing.T) {
 		Floats   map[string]float64 `json:"floats" jsonschema:"description=Map of floats"`
 	}
 
-	schema := FromStruct[MapPrimitives]()
+	schema, err := FromStruct[MapPrimitives]()
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -1867,7 +1930,8 @@ func TestMapOfPointerToStructSchema(t *testing.T) {
 		Items map[string]*Item `json:"items" jsonschema:"description=Store items"`
 	}
 
-	schema := FromStruct[Store]()
+	schema, err := FromStruct[Store]()
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -1922,7 +1986,8 @@ func TestNestedMapsSchema(t *testing.T) {
 		Settings map[string]map[string]string `json:"settings" jsonschema:"description=Nested settings"`
 	}
 
-	schema := FromStruct[Config]()
+	schema, err := FromStruct[Config]()
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -1981,7 +2046,8 @@ func TestMapOfStructsValidation(t *testing.T) {
 		Data map[string]Bar `json:"data" jsonschema:"description=This is the data field"`
 	}
 
-	schema := FromStruct[Foo]()
+	schema, err := FromStruct[Foo]()
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -2019,7 +2085,8 @@ func TestRequiredSortAlphabetical(t *testing.T) {
 	options.RequiredSort = RequiredSortAlphabetical
 	options.CacheEnabled = false
 
-	schema := FromStructWithOptions[TestStruct](options)
+	schema, err := FromStructWithOptions[TestStruct](options)
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -2076,7 +2143,8 @@ func TestRequiredSortNone(t *testing.T) {
 	options.RequiredSort = RequiredSortNone
 	options.CacheEnabled = false
 
-	schema := FromStructWithOptions[TestStruct](options)
+	schema, err := FromStructWithOptions[TestStruct](options)
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -2118,7 +2186,8 @@ func TestRequiredSortDefault(t *testing.T) {
 	}
 
 	// Use default options (should be RequiredSortAlphabetical)
-	schema := FromStruct[TestStruct]()
+	schema, err := FromStruct[TestStruct]()
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -2156,7 +2225,8 @@ func TestRequiredSortDeterminism(t *testing.T) {
 
 		var results []string
 		for i := 0; i < 20; i++ {
-			schema := FromStructWithOptions[TestStruct](options)
+			schema, err := FromStructWithOptions[TestStruct](options)
+			require.NoError(t, err)
 			jsonBytes, err := schema.MarshalJSON()
 			if err != nil {
 				t.Fatalf("Failed to marshal schema: %v", err)
@@ -2182,7 +2252,8 @@ func TestRequiredSortDeterminism(t *testing.T) {
 		// Generate multiple schemas and verify they may have different orders
 		seenOrders := make(map[string]bool)
 		for i := 0; i < 20; i++ {
-			schema := FromStructWithOptions[TestStruct](options)
+			schema, err := FromStructWithOptions[TestStruct](options)
+			require.NoError(t, err)
 			jsonBytes, err := schema.MarshalJSON()
 			if err != nil {
 				t.Fatalf("Failed to marshal schema: %v", err)
@@ -2217,7 +2288,8 @@ func TestRequiredSortNestedStructs(t *testing.T) {
 	options.RequiredSort = RequiredSortAlphabetical
 	options.CacheEnabled = false
 
-	schema := FromStructWithOptions[Outer](options)
+	schema, err := FromStructWithOptions[Outer](options)
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -2274,7 +2346,8 @@ func TestRequiredSortMixedRequired(t *testing.T) {
 	options.RequiredSort = RequiredSortAlphabetical
 	options.CacheEnabled = false
 
-	schema := FromStructWithOptions[TestStruct](options)
+	schema, err := FromStructWithOptions[TestStruct](options)
+	require.NoError(t, err)
 
 	if schema == nil {
 		require.Fail(t, "Schema generation failed")
@@ -2293,4 +2366,152 @@ func TestRequiredSortMixedRequired(t *testing.T) {
 			assert.Fail(t, fmt.Sprintf("Expected required[%d] to be %s, got %s", i, expected, schema.Required[i]))
 		}
 	}
+}
+
+// TestFromStructWithInvalidPattern tests FromStruct with invalid regex pattern
+// This addresses the issue where unsupported Go regex features like negative
+// lookaheads would compile successfully but fail silently during validation
+func TestFromStructWithInvalidPattern(t *testing.T) {
+	t.Run("invalid negative lookahead in nested struct", func(t *testing.T) {
+		type NestedStruct struct {
+			AppID string `json:"appId" jsonschema:"required,pattern=^(?!x).*$"`
+		}
+
+		type TestStruct struct {
+			Spec NestedStruct `json:"spec" jsonschema:"required"`
+		}
+
+		_, err := FromStruct[TestStruct]()
+		require.Error(t, err, "Expected FromStruct to fail for invalid regex pattern in nested struct")
+		require.ErrorIs(t, err, ErrRegexValidation, "Error should be wrapped with ErrRegexValidation")
+
+		var tagErr *StructTagError
+		require.ErrorAs(t, err, &tagErr, "Error should be a StructTagError")
+		require.Equal(t, "AppID", tagErr.FieldName)
+		require.Equal(t, "pattern=^(?!x).*$", tagErr.TagRule)
+	})
+
+	t.Run("invalid lookahead at root level", func(t *testing.T) {
+		type TestStruct struct {
+			Name string `json:"name" jsonschema:"required,pattern=(?!invalid).*"`
+		}
+
+		_, err := FromStruct[TestStruct]()
+		require.Error(t, err, "Expected FromStruct to fail for invalid regex pattern")
+		require.ErrorIs(t, err, ErrRegexValidation, "Error should be wrapped with ErrRegexValidation")
+
+		var tagErr *StructTagError
+		require.ErrorAs(t, err, &tagErr)
+		require.Equal(t, "Name", tagErr.FieldName)
+		require.Equal(t, "pattern=(?!invalid).*", tagErr.TagRule)
+	})
+
+	t.Run("valid pattern should succeed", func(t *testing.T) {
+		type NestedStruct struct {
+			AppID string `json:"appId" jsonschema:"required,pattern=^[a-z0-9-]+$"`
+		}
+
+		type TestStruct struct {
+			Spec     NestedStruct `json:"spec" jsonschema:"required"`
+			Metadata struct {
+				ID string `json:"id" jsonschema:"required,pattern=^[a-zA-Z0-9]+$"`
+			} `json:"metadata" jsonschema:"required"`
+		}
+
+		schema, err := FromStruct[TestStruct]()
+		require.NoError(t, err, "Valid patterns should compile successfully")
+		require.NotNil(t, schema)
+
+		// Verify the schema has the correct structure
+		require.NotNil(t, schema.Properties)
+		require.Contains(t, *schema.Properties, "spec")
+		require.Contains(t, *schema.Properties, "metadata")
+	})
+
+	t.Run("invalid patterns should be detected", func(t *testing.T) {
+		type TestStruct struct {
+			Field1 string `json:"field1" jsonschema:"pattern=(?!a).*"`
+			Field2 string `json:"field2" jsonschema:"pattern=(?!b).*"`
+		}
+
+		_, err := FromStruct[TestStruct]()
+		require.Error(t, err, "Expected FromStruct to fail for invalid patterns")
+		require.ErrorIs(t, err, ErrRegexValidation, "Error should be wrapped with ErrRegexValidation")
+
+		var tagErr *StructTagError
+		require.ErrorAs(t, err, &tagErr)
+		require.Contains(t, []string{"pattern=(?!a).*", "pattern=(?!b).*"}, tagErr.TagRule, "Error should reference one of the invalid patterns")
+	})
+
+	t.Run("invalid pattern in deeply nested struct", func(t *testing.T) {
+		type DeepNested struct {
+			Value string `json:"value" jsonschema:"pattern=(?!test).*"`
+		}
+
+		type MiddleNested struct {
+			Deep DeepNested `json:"deep" jsonschema:"required"`
+		}
+
+		type TestStruct struct {
+			Middle MiddleNested `json:"middle" jsonschema:"required"`
+		}
+
+		_, err := FromStruct[TestStruct]()
+		require.Error(t, err, "Expected FromStruct to fail for invalid pattern in deeply nested struct")
+		require.ErrorIs(t, err, ErrRegexValidation, "Error should be wrapped with ErrRegexValidation")
+
+		var tagErr *StructTagError
+		require.ErrorAs(t, err, &tagErr)
+		require.Equal(t, "Value", tagErr.FieldName)
+		require.Equal(t, "pattern=(?!test).*", tagErr.TagRule)
+	})
+
+	// Regression test for GitHub Issue #80: Pattern validation for schemas generated from structs
+	// https://github.com/kaptinlin/jsonschema/issues/80
+	// Ensures that invalid regex patterns in nested struct tags are caught at schema
+	// generation time with proper ErrRegexValidation wrapping
+	t.Run("nested_struct_with_unsupported_lookahead_pattern", func(t *testing.T) {
+		// This reproduces the exact scenario from the issue where:
+		// "Negative look-aheads are not supported in go, so I would expect the
+		// following pattern to fail in the compilation stage when generating a
+		// schema from a nested struct: jsonschema:"required,pattern=^(?!x).*$".
+		// However jsonschema will compile it without any errors, and the
+		// validation stage never fails."
+
+		type Spec struct {
+			AppID string `json:"appId" jsonschema:"required,pattern=^(?!x).*$"`
+		}
+
+		type ManifestMetadata struct {
+			ID string `json:"id" jsonschema:"required"`
+		}
+
+		type Manifest struct {
+			APIVersion string           `json:"apiVersion" jsonschema:"required,pattern=^test\\.test2\\.io\\/.*\\/[vV].*$"`
+			Kind       string           `json:"kind" jsonschema:"required"`
+			Metadata   ManifestMetadata `json:"metadata" jsonschema:"required"`
+			Spec       Spec             `json:"spec" jsonschema:"required"`
+		}
+
+		// This should now fail at schema generation time with ErrRegexValidation
+		_, err := FromStruct[Manifest]()
+
+		// Verify the error is returned
+		require.Error(t, err, "Expected error for invalid pattern ^(?!x).*$ in nested Spec.AppID")
+
+		// Verify it's wrapped with ErrRegexValidation sentinel error
+		require.ErrorIs(t, err, ErrRegexValidation,
+			"Error should be wrapped with ErrRegexValidation for proper error handling")
+
+		// Verify the error mentions the invalid lookahead pattern
+		require.Contains(t, err.Error(), "(?!x)",
+			"Error message should mention the invalid lookahead pattern")
+
+		// Verify we can extract StructTagError for detailed diagnostics
+		var tagErr *StructTagError
+		require.ErrorAs(t, err, &tagErr, "Should be able to extract StructTagError")
+		assert.Equal(t, "AppID", tagErr.FieldName, "Error should identify the AppID field")
+		assert.Contains(t, tagErr.StructType, "Spec", "Error should identify the Spec struct")
+		assert.Contains(t, tagErr.TagRule, "pattern=^(?!x).*$", "Error should include the full invalid pattern")
+	})
 }

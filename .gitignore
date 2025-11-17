@@ -19,6 +19,8 @@
 
 # Go workspace file
 go.work
+.gocache
+.gomodcache
 
 # IntelliJ files
 .idea/

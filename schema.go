@@ -1,10 +1,14 @@
 package jsonschema
 
 import (
+	"errors"
 	"regexp"
+	"slices"
+	"strconv"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
+	"github.com/kaptinlin/jsonpointer"
 )
 
 // Schema represents a JSON Schema as per the 2020-12 draft, containing all
@@ -368,6 +372,134 @@ func initializeNestedSchemasWithoutReferences(s *Schema, compiler *Compiler) {
 	if s.PropertyNames != nil {
 		s.PropertyNames.initializeSchemaWithoutReferences(compiler, s)
 	}
+}
+
+// validateRegexSyntax validates that all regex patterns in the schema are valid Go RE2 syntax.
+// It recursively checks pattern and patternProperties in the schema and all nested schemas.
+func (s *Schema) validateRegexSyntax() error {
+	if s == nil {
+		return nil
+	}
+
+	visited := make(map[*Schema]bool)
+	errs := s.collectRegexErrors(nil, visited)
+	if len(errs) == 0 {
+		return nil
+	}
+
+	combined := append([]error{ErrRegexValidation}, errs...)
+	return errors.Join(combined...)
+}
+
+// collectRegexErrors recursively collects regex compilation errors from the schema tree.
+// It uses a token slice to track the JSON Pointer path, avoiding string parsing overhead.
+func (s *Schema) collectRegexErrors(pathTokens []string, visited map[*Schema]bool) []error {
+	if s == nil || visited[s] {
+		return nil
+	}
+	visited[s] = true
+
+	var errs []error
+
+	// Validate pattern field
+	if s.Pattern != nil {
+		if err := compilePattern(*s.Pattern); err != nil {
+			patternTokens := slices.Concat(pathTokens, []string{"pattern"})
+			errs = append(errs, &RegexPatternError{
+				Keyword:  "pattern",
+				Location: "#" + jsonpointer.Format(patternTokens...),
+				Pattern:  *s.Pattern,
+				Err:      err,
+			})
+		}
+	}
+
+	// Validate patternProperties keys and recurse into values
+	if s.PatternProperties != nil {
+		for pattern, schema := range *s.PatternProperties {
+			patternPropTokens := slices.Concat(pathTokens, []string{"patternProperties", pattern})
+			if err := compilePattern(pattern); err != nil {
+				errs = append(errs, &RegexPatternError{
+					Keyword:  "patternProperties",
+					Location: "#" + jsonpointer.Format(patternPropTokens...),
+					Pattern:  pattern,
+					Err:      err,
+				})
+				continue
+			}
+			errs = append(errs, schema.collectRegexErrors(patternPropTokens, visited)...)
+		}
+	}
+
+	// Helper to recurse into a single schema
+	addSchema := func(child *Schema, token string) {
+		childTokens := slices.Concat(pathTokens, []string{token})
+		errs = append(errs, child.collectRegexErrors(childTokens, visited)...)
+	}
+
+	// Helper to recurse into a map of schemas
+	addSchemaMap := func(m map[string]*Schema, prefix string) {
+		if len(m) == 0 {
+			return
+		}
+		for key, schema := range m {
+			mapTokens := slices.Concat(pathTokens, []string{prefix, key})
+			errs = append(errs, schema.collectRegexErrors(mapTokens, visited)...)
+		}
+	}
+
+	// Helper to recurse into a slice of schemas
+	addSchemaSlice := func(children []*Schema, prefix string) {
+		if len(children) == 0 {
+			return
+		}
+		for i, child := range children {
+			sliceTokens := slices.Concat(pathTokens, []string{prefix, strconv.Itoa(i)})
+			errs = append(errs, child.collectRegexErrors(sliceTokens, visited)...)
+		}
+	}
+
+	// Recurse into all nested schemas
+	if s.Properties != nil {
+		addSchemaMap(map[string]*Schema(*s.Properties), "properties")
+	}
+	if s.Defs != nil {
+		addSchemaMap(s.Defs, "$defs")
+	}
+	if s.DependentSchemas != nil {
+		addSchemaMap(s.DependentSchemas, "dependentSchemas")
+	}
+
+	addSchema(s.AdditionalProperties, "additionalProperties")
+	addSchema(s.UnevaluatedProperties, "unevaluatedProperties")
+	addSchema(s.UnevaluatedItems, "unevaluatedItems")
+	addSchema(s.PropertyNames, "propertyNames")
+	addSchema(s.ContentSchema, "contentSchema")
+	addSchema(s.Items, "items")
+	addSchema(s.Contains, "contains")
+	addSchema(s.Not, "not")
+	addSchema(s.If, "if")
+	addSchema(s.Then, "then")
+	addSchema(s.Else, "else")
+	addSchema(s.ResolvedRef, "$ref")
+	addSchema(s.ResolvedDynamicRef, "$dynamicRef")
+
+	addSchemaSlice(s.PrefixItems, "prefixItems")
+	addSchemaSlice(s.AllOf, "allOf")
+	addSchemaSlice(s.AnyOf, "anyOf")
+	addSchemaSlice(s.OneOf, "oneOf")
+
+	return errs
+}
+
+// compilePattern validates that a regex pattern is valid Go RE2 syntax.
+// Returns nil if the pattern is valid, or the regexp compilation error if invalid.
+func compilePattern(pattern string) error {
+	if pattern == "" {
+		return nil
+	}
+	_, err := regexp.Compile(pattern)
+	return err
 }
 
 // setAnchor creates or updates the anchor mapping for the current schema and propagates it to parent schemas.
