@@ -255,17 +255,23 @@ result := schema.Validate(data)
 ### Custom Formats
 
 ```go
-compiler.RegisterFormat("uuid", func(value string) bool {
-    _, err := uuid.Parse(value)
-    return err == nil
-})
+compiler := jsonschema.NewCompiler()
+compiler.SetAssertFormat(true)  // Enable format validation
 
-// Use in schema
-schema := `{
-    "type": "string",
-    "format": "uuid"
-}`
+compiler.RegisterFormat("custom-id", func(v any) bool {
+    s, ok := v.(string)
+    if !ok { return false }
+    return strings.HasPrefix(s, "ID-")
+}, "string")
+
+schema, _ := compiler.Compile([]byte(`{"type": "string", "format": "custom-id"}`))
+schema.Validate("ID-123")   // valid=true
+schema.Validate("ABC-123")  // valid=false
 ```
+
+> **Note**: Per JSON Schema Draft 2020-12, format validation is disabled by default. Use `SetAssertFormat(true)` to enable it.
+
+**Full Documentation**: [docs/format-validation.md](docs/format-validation.md)
 
 ### Schema References
 

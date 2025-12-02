@@ -432,3 +432,345 @@ func TestIsEmailFunction(t *testing.T) {
 		})
 	}
 }
+
+// TestUUIDFormatValidation tests UUID format validation with AssertFormat
+func TestUUIDFormatValidation(t *testing.T) {
+	t.Run("default behavior - format as annotation only", func(t *testing.T) {
+		// Default behavior: format is annotation-only per JSON Schema 2020-12 spec
+		schema := jsonschema.UUID()
+
+		// All these should pass because format is not asserted by default
+		assert.True(t, schema.Validate("asd").IsValid(), "invalid UUID should pass with default settings")
+		assert.True(t, schema.Validate("").IsValid(), "empty string should pass with default settings")
+		assert.True(t, schema.Validate("not-a-uuid").IsValid(), "non-UUID should pass with default settings")
+
+		// Valid UUID should also pass
+		assert.True(t, schema.Validate("550e8400-e29b-41d4-a716-446655440000").IsValid(), "valid UUID should pass")
+	})
+
+	t.Run("with AssertFormat enabled - invalid UUIDs should fail", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+
+		schema := jsonschema.UUID().SetCompiler(compiler)
+
+		// Invalid UUIDs should fail
+		result := schema.Validate("asd")
+		assert.False(t, result.IsValid(), "invalid UUID 'asd' should fail with AssertFormat=true")
+
+		result = schema.Validate("")
+		assert.False(t, result.IsValid(), "empty string should fail with AssertFormat=true")
+
+		result = schema.Validate("not-a-uuid")
+		assert.False(t, result.IsValid(), "'not-a-uuid' should fail with AssertFormat=true")
+
+		result = schema.Validate("asd-123")
+		assert.False(t, result.IsValid(), "'asd-123' should fail with AssertFormat=true")
+	})
+
+	t.Run("with AssertFormat enabled - valid UUIDs should pass", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+
+		schema := jsonschema.UUID().SetCompiler(compiler)
+
+		validUUIDs := []string{
+			"550e8400-e29b-41d4-a716-446655440000",
+			"6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+			"6ba7b811-9dad-11d1-80b4-00c04fd430c8",
+			"6ba7b812-9dad-11d1-80b4-00c04fd430c8",
+			"6ba7b814-9dad-11d1-80b4-00c04fd430c8",
+			"00000000-0000-0000-0000-000000000000",
+			"ffffffff-ffff-ffff-ffff-ffffffffffff",
+			"FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF", // uppercase
+		}
+
+		for _, uuid := range validUUIDs {
+			result := schema.Validate(uuid)
+			assert.True(t, result.IsValid(), "valid UUID '%s' should pass", uuid)
+		}
+	})
+
+	t.Run("format error should contain correct keyword", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+
+		schema := jsonschema.UUID().SetCompiler(compiler)
+		result := schema.Validate("invalid-uuid")
+
+		assert.False(t, result.IsValid())
+
+		// Check that error contains format keyword
+		hasFormatError := false
+		for _, err := range result.Errors {
+			if err.Keyword == "format" {
+				hasFormatError = true
+				break
+			}
+		}
+		assert.True(t, hasFormatError, "error should contain format keyword")
+	})
+}
+
+// TestIsUUIDFunction tests the IsUUID function directly
+func TestIsUUIDFunction(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected bool
+		reason   string
+	}{
+		// Invalid UUIDs
+		{"", false, "empty string"},
+		{"asd", false, "too short"},
+		{"not-a-uuid", false, "invalid format"},
+		{"asd-123", false, "invalid format"},
+		{"550e8400-e29b-41d4-a716", false, "incomplete UUID"},
+		{"550e8400-e29b-41d4-a716-44665544000", false, "one character short"},
+		{"550e8400-e29b-41d4-a716-4466554400000", false, "one character long"},
+		{"550e8400e29b41d4a716446655440000", false, "missing dashes"},
+		{"550e8400-e29b-41d4-a716-44665544000g", false, "invalid hex character"},
+		{"550e8400-e29b-41d4-a716-44665544000G", false, "invalid hex character uppercase"},
+
+		// Valid UUIDs
+		{"550e8400-e29b-41d4-a716-446655440000", true, "valid UUID v4"},
+		{"6ba7b810-9dad-11d1-80b4-00c04fd430c8", true, "valid UUID v1"},
+		{"00000000-0000-0000-0000-000000000000", true, "nil UUID"},
+		{"ffffffff-ffff-ffff-ffff-ffffffffffff", true, "max UUID lowercase"},
+		{"FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF", true, "max UUID uppercase"},
+		{"FfFfFfFf-FfFf-FfFf-FfFf-FfFfFfFfFfFf", true, "mixed case"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			result := jsonschema.IsUUID(tc.input)
+			assert.Equal(t, tc.expected, result, "IsUUID('%s') failed: %s", tc.input, tc.reason)
+		})
+	}
+}
+
+// TestCustomFormatValidatorLogic tests the correct implementation pattern
+// for custom format validators to prevent common bugs like inverted return values
+func TestCustomFormatValidatorLogic(t *testing.T) {
+	t.Run("correct custom validator implementation", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+
+		// CORRECT: Returns true when validation passes (no error)
+		correctValidator := func(v any) bool {
+			s, ok := v.(string)
+			if !ok {
+				return false // non-string should fail for string format
+			}
+			// Example: validate that string starts with "valid-"
+			return len(s) >= 6 && s[:6] == "valid-"
+		}
+
+		compiler.RegisterFormat("custom-prefix", correctValidator, "string")
+
+		schema, err := compiler.Compile([]byte(`{"type": "string", "format": "custom-prefix"}`))
+		require.NoError(t, err)
+
+		// Valid value should pass
+		result := schema.Validate("valid-test")
+		assert.True(t, result.IsValid(), "value with correct prefix should pass")
+
+		// Invalid value should fail
+		result = schema.Validate("invalid-test")
+		assert.False(t, result.IsValid(), "value without correct prefix should fail")
+	})
+
+	t.Run("buggy validator with inverted logic - demonstration", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+
+		// BUGGY: Returns true when validation FAILS (has error) - this is WRONG
+		// This demonstrates the bug pattern: return err != nil (incorrect)
+		buggyValidator := func(v any) bool {
+			s, ok := v.(string)
+			if !ok {
+				return false
+			}
+			// Bug: returns true when string does NOT start with "valid-"
+			hasError := !(len(s) >= 6 && s[:6] == "valid-")
+			return hasError // WRONG! Should be: return !hasError
+		}
+
+		compiler.RegisterFormat("buggy-format", buggyValidator, "string")
+
+		schema, err := compiler.Compile([]byte(`{"type": "string", "format": "buggy-format"}`))
+		require.NoError(t, err)
+
+		// With buggy validator, valid input fails and invalid input passes (inverted!)
+		result := schema.Validate("valid-test")
+		assert.False(t, result.IsValid(), "buggy validator: valid input incorrectly fails")
+
+		result = schema.Validate("invalid-test")
+		assert.True(t, result.IsValid(), "buggy validator: invalid input incorrectly passes")
+	})
+}
+
+// TestAssertFormatWithStructValidation tests format validation with struct validation
+func TestAssertFormatWithStructValidation(t *testing.T) {
+	type Event struct {
+		ID   string `json:"id" jsonschema:"format=uuid"`
+		Name string `json:"name" jsonschema:"required"`
+	}
+
+	t.Run("default - format not asserted", func(t *testing.T) {
+		schema, err := jsonschema.FromStruct[Event]()
+		require.NoError(t, err)
+
+		// Invalid UUID should pass because format is annotation-only by default
+		result := schema.ValidateStruct(Event{
+			ID:   "invalid-uuid",
+			Name: "test",
+		})
+		assert.True(t, result.IsValid(), "invalid UUID should pass with default settings")
+	})
+
+	t.Run("with AssertFormat - format is asserted", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+
+		schema, err := jsonschema.FromStruct[Event]()
+		require.NoError(t, err)
+		schema.SetCompiler(compiler)
+
+		// Invalid UUID should fail
+		result := schema.ValidateStruct(Event{
+			ID:   "invalid-uuid",
+			Name: "test",
+		})
+		assert.False(t, result.IsValid(), "invalid UUID should fail with AssertFormat=true")
+
+		// Valid UUID should pass
+		result = schema.ValidateStruct(Event{
+			ID:   "550e8400-e29b-41d4-a716-446655440000",
+			Name: "test",
+		})
+		assert.True(t, result.IsValid(), "valid UUID should pass")
+	})
+}
+
+// TestNotWithFormatValidation tests the behavior of "not" combined with "format"
+// This is an important edge case where the behavior differs based on AssertFormat setting
+func TestNotWithFormatValidation(t *testing.T) {
+	schemaJSON := []byte(`{
+		"type": "string",
+		"minLength": 1,
+		"not": {
+			"format": "uuid"
+		}
+	}`)
+
+	t.Run("default AssertFormat=false - format is annotation only", func(t *testing.T) {
+		// Per JSON Schema 2020-12 spec: format is annotation-only by default
+		// This means { "format": "uuid" } validates successfully for ANY string
+		// Therefore "not" inverts this, and ALL strings fail validation
+		compiler := jsonschema.NewCompiler()
+		schema, err := compiler.Compile(schemaJSON)
+		require.NoError(t, err)
+
+		// All strings fail because:
+		// 1. format is annotation-only, so { "format": "uuid" } passes for any string
+		// 2. "not" inverts this, so all strings fail
+		assert.False(t, schema.Validate("hello world").IsValid(),
+			"Expected to fail: format is annotation-only, so 'not' always fails")
+		assert.False(t, schema.Validate("12345").IsValid(),
+			"Expected to fail: format is annotation-only, so 'not' always fails")
+		assert.False(t, schema.Validate("550e8400-e29b-41d4-a716-446655440000").IsValid(),
+			"Expected to fail: even valid UUIDs fail because 'not' always fails")
+	})
+
+	t.Run("with AssertFormat=true - format is validated", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+
+		schema, err := compiler.Compile(schemaJSON)
+		require.NoError(t, err)
+
+		// Non-UUID strings should PASS (they fail format validation, so "not" succeeds)
+		assert.True(t, schema.Validate("hello world").IsValid(),
+			"Non-UUID string should pass when AssertFormat=true")
+		assert.True(t, schema.Validate("12345").IsValid(),
+			"Non-UUID string should pass when AssertFormat=true")
+		assert.True(t, schema.Validate("550e8400-e29b").IsValid(),
+			"Partial UUID should pass when AssertFormat=true")
+
+		// Valid UUIDs should FAIL (they pass format validation, so "not" fails)
+		assert.False(t, schema.Validate("550e8400-e29b-41d4-a716-446655440000").IsValid(),
+			"Valid UUID should fail when AssertFormat=true")
+		assert.False(t, schema.Validate("550E8400-E29B-41D4-A716-446655440000").IsValid(),
+			"Valid UUID (uppercase) should fail when AssertFormat=true")
+	})
+
+	t.Run("workaround: use pattern instead of format for 'not'", func(t *testing.T) {
+		// This is the recommended approach for "not" + format validation
+		// that works regardless of AssertFormat setting
+		uuidPattern := `^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`
+		schemaWithPattern := []byte(`{
+			"type": "string",
+			"minLength": 1,
+			"not": {
+				"pattern": "` + uuidPattern + `"
+			}
+		}`)
+
+		compiler := jsonschema.NewCompiler()
+		// Note: AssertFormat is false (default), but pattern always works
+		schema, err := compiler.Compile(schemaWithPattern)
+		require.NoError(t, err)
+
+		// Non-UUID strings should PASS
+		assert.True(t, schema.Validate("hello world").IsValid(),
+			"Non-UUID string should pass with pattern workaround")
+		assert.True(t, schema.Validate("12345").IsValid(),
+			"Non-UUID string should pass with pattern workaround")
+
+		// Valid UUIDs should FAIL
+		assert.False(t, schema.Validate("550e8400-e29b-41d4-a716-446655440000").IsValid(),
+			"Valid UUID should fail with pattern workaround")
+	})
+}
+
+// TestAssertFormatWithJSONValidation tests format validation with JSON validation
+func TestAssertFormatWithJSONValidation(t *testing.T) {
+	schemaJSON := []byte(`{
+		"type": "object",
+		"properties": {
+			"id": {"type": "string", "format": "uuid"},
+			"email": {"type": "string", "format": "email"}
+		},
+		"required": ["id", "email"]
+	}`)
+
+	t.Run("default - format not asserted", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		schema, err := compiler.Compile(schemaJSON)
+		require.NoError(t, err)
+
+		data := []byte(`{"id": "not-a-uuid", "email": "not-an-email"}`)
+		result := schema.ValidateJSON(data)
+
+		// Should pass because format is not asserted by default
+		assert.True(t, result.IsValid(), "invalid formats should pass with default settings")
+	})
+
+	t.Run("with AssertFormat - format is asserted", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.SetAssertFormat(true)
+
+		schema, err := compiler.Compile(schemaJSON)
+		require.NoError(t, err)
+
+		// Invalid formats should fail
+		data := []byte(`{"id": "not-a-uuid", "email": "not-an-email"}`)
+		result := schema.ValidateJSON(data)
+		assert.False(t, result.IsValid(), "invalid formats should fail with AssertFormat=true")
+
+		// Valid formats should pass
+		validData := []byte(`{"id": "550e8400-e29b-41d4-a716-446655440000", "email": "test@example.com"}`)
+		result = schema.ValidateJSON(validData)
+		assert.True(t, result.IsValid(), "valid formats should pass")
+	})
+}
