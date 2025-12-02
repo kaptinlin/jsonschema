@@ -591,7 +591,7 @@ func TestCustomFormatValidatorLogic(t *testing.T) {
 				return false
 			}
 			// Bug: returns true when string does NOT start with "valid-"
-			hasError := !(len(s) >= 6 && s[:6] == "valid-")
+			hasError := len(s) < 6 || s[:6] != "valid-"
 			return hasError // WRONG! Should be: return !hasError
 		}
 
