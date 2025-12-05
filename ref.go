@@ -118,7 +118,7 @@ func findSchemaInSegment(currentSchema *Schema, segment string, previousSegment 
 		if err == nil && currentSchema.PrefixItems != nil && index < len(currentSchema.PrefixItems) {
 			return currentSchema.PrefixItems[index], true
 		}
-	case "$defs":
+	case "$defs", "definitions": // Support both $defs (2020-12) and definitions (Draft-7) for backward compatibility
 		if defSchema, exists := currentSchema.Defs[segment]; exists {
 			return defSchema, true
 		}

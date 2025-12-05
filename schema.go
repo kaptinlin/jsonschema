@@ -707,11 +707,25 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	}
 	*s = Schema(alias)
 
-	// Special handling for the const field
+	// Special handling for backward compatibility and const field
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
+
+	// Handle backward compatibility: "definitions" (Draft-7) -> "$defs" (Draft 2020-12)
+	if defsData, ok := raw["definitions"]; ok {
+		// Only use "definitions" if "$defs" is not already set
+		if s.Defs == nil {
+			var defs map[string]*Schema
+			if err := json.Unmarshal(defsData, &defs); err != nil {
+				return err
+			}
+			s.Defs = defs
+		}
+	}
+
+	// Special handling for the const field
 	if constData, ok := raw["const"]; ok {
 		if s.Const == nil {
 			s.Const = &ConstValue{}
