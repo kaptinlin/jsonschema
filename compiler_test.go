@@ -20,10 +20,29 @@ func TestCompileWithID(t *testing.T) {
 	compiler := NewCompiler()
 	schemaJSON := createTestSchemaJSON("http://example.com/schema", map[string]string{"name": "string"}, []string{"name"})
 
-	schema, err := compiler.Compile([]byte(schemaJSON))
+	schema, err := compiler.Compile([]byte(schemaJSON), "http://example.com/schema")
 	require.NoError(t, err, "Failed to compile schema with $id")
 
 	assert.Equal(t, "http://example.com/schema", schema.ID, "Expected $id to be 'http://example.com/schema'")
+}
+
+func TestCompileWithIDAddsMissingID(t *testing.T) {
+	compiler := NewCompiler()
+	schemaJSON := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"}
+		}
+	}`
+
+	schema, err := compiler.Compile([]byte(schemaJSON), "http://example.com/schema")
+	require.NoError(t, err, "Failed to compile schema without $id using Compile")
+
+	assert.Equal(t, "http://example.com/schema", schema.ID, "Expected schema ID to be set from Compile")
+
+	cached, cacheErr := compiler.GetSchema("http://example.com/schema")
+	require.NoError(t, cacheErr, "Expected compiled schema to be retrievable by ID")
+	assert.Same(t, schema, cached, "Expected cached schema to match compiled schema")
 }
 
 func TestGetSchema(t *testing.T) {

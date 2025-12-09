@@ -27,14 +27,14 @@ if err != nil {
 
 ```go
 // Compile with specific ID for referencing
-schema, err := compiler.CompileWithID("user.json", []byte(`{
+schema, err := compiler.Compile([]byte(`{
     "$id": "user.json",
     "type": "object",
     "properties": {
         "name": {"type": "string"},
         "email": {"type": "string", "format": "email"}
     }
-}`))
+}`), "user.json")
 ```
 
 ---
@@ -143,7 +143,7 @@ schema, _ := compiler.Compile([]byte(`{
 
 ```go
 // First, register the referenced schema
-compiler.CompileWithID("address.json", []byte(`{
+compiler.Compile([]byte(`{
     "type": "object",
     "properties": {
         "street": {"type": "string"},
@@ -151,7 +151,7 @@ compiler.CompileWithID("address.json", []byte(`{
         "country": {"type": "string", "default": "US"}
     },
     "required": ["street", "city"]
-}`))
+}`), "address.json")
 
 // Then reference it in another schema
 mainSchema, _ := compiler.Compile([]byte(`{
@@ -281,24 +281,24 @@ Compile multiple related schemas:
 compiler := jsonschema.NewCompiler()
 
 // User schema
-compiler.CompileWithID("user.json", []byte(`{
+compiler.Compile([]byte(`{
     "type": "object",
     "properties": {
         "id": {"type": "string"},
         "name": {"type": "string"},
         "email": {"type": "string", "format": "email"}
     }
-}`))
+}`), "user.json")
 
 // Post schema referencing user
-compiler.CompileWithID("post.json", []byte(`{
+compiler.Compile([]byte(`{
     "type": "object",
     "properties": {
         "id": {"type": "string"},
         "title": {"type": "string"},
         "author": {"$ref": "user.json"}
     }
-}`))
+}`), "post.json")
 
 // Get compiled schemas
 userSchema, _ := compiler.GetSchema("user.json")

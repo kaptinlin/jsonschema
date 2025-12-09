@@ -12,20 +12,16 @@ Creates a new schema compiler with default settings.
 compiler := jsonschema.NewCompiler()
 ```
 
-### `(*Compiler) Compile(schema []byte) (*Schema, error)`
+### `(*Compiler) Compile(schema []byte, id ...string) (*Schema, error)`
 
-Compiles a JSON schema from bytes.
+Compiles a JSON schema from bytes. Optionally provide an ID for schema referencing.
 
 ```go
+// Compile schema without ID
 schema, err := compiler.Compile([]byte(`{"type": "string"}`))
-```
 
-### `(*Compiler) CompileWithID(id string, schema []byte) (*Schema, error)`
-
-Compiles a schema with a specific ID for referencing.
-
-```go
-schema, err := compiler.CompileWithID("user.json", schemaBytes)
+// Compile schema with specific ID for referencing
+schema, err := compiler.Compile([]byte(`{"type": "object", ...}`), "user.json")
 ```
 
 ### `(*Compiler) RegisterFormat(name string, fn FormatFunc) *Compiler`

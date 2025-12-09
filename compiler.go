@@ -5,11 +5,12 @@ import (
 	"encoding/base64"
 	"encoding/xml"
 	"fmt"
-	"github.com/go-json-experiment/json"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/go-json-experiment/json"
 
 	"github.com/goccy/go-yaml"
 )
@@ -91,10 +92,11 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 		return nil, err
 	}
 
-	uri := schema.ID
-	if uri == "" && len(uris) > 0 {
-		uri = uris[0]
+	if schema.ID == "" && len(uris) > 0 {
+		schema.ID = uris[0]
 	}
+
+	uri := schema.ID
 
 	if uri != "" && isValidURI(uri) {
 		schema.uri = uri
