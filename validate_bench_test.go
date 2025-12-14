@@ -33,7 +33,7 @@ func BenchmarkEvaluateObjectTypeSwitch(b *testing.B) {
 		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.ValidateMap(data)
 			if !result.IsValid() {
 				b.Fatal("validation failed")
@@ -50,7 +50,7 @@ func BenchmarkEvaluateObjectTypeSwitch(b *testing.B) {
 		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.Validate(data)
 			_ = result
 		}
@@ -64,7 +64,7 @@ func BenchmarkEvaluateObjectTypeSwitch(b *testing.B) {
 		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.Validate(data)
 			_ = result
 		}
@@ -78,7 +78,7 @@ func BenchmarkEvaluateObjectTypeSwitch(b *testing.B) {
 		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.Validate(data)
 			_ = result
 		}
@@ -92,7 +92,7 @@ func BenchmarkEvaluateObjectTypeSwitch(b *testing.B) {
 		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.Validate(data)
 			_ = result
 		}
@@ -107,7 +107,7 @@ func BenchmarkEvaluateObjectTypeSwitch(b *testing.B) {
 		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.Validate(data)
 			_ = result
 		}
@@ -127,7 +127,7 @@ func BenchmarkEvaluateObjectTypeSwitch(b *testing.B) {
 		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.ValidateStruct(data)
 			if !result.IsValid() {
 				b.Fatal("validation failed")
@@ -179,7 +179,7 @@ func BenchmarkComplexObjectValidation(b *testing.B) {
 		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.ValidateMap(data)
 			if !result.IsValid() {
 				b.Fatal("validation failed")
@@ -199,7 +199,7 @@ func BenchmarkComplexObjectValidation(b *testing.B) {
 		}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.Validate(data)
 			_ = result
 		}
@@ -220,7 +220,7 @@ func BenchmarkTypeDetection(b *testing.B) {
 		data := map[string]any{"x": 42}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.Validate(data)
 			if !result.IsValid() {
 				b.Fatal("validation failed")
@@ -232,7 +232,7 @@ func BenchmarkTypeDetection(b *testing.B) {
 		data := map[string]int{"x": 42}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.Validate(data)
 			if !result.IsValid() {
 				b.Fatal("validation failed")
@@ -244,7 +244,7 @@ func BenchmarkTypeDetection(b *testing.B) {
 		var data any = map[string]int{"x": 42}
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.Validate(data)
 			if !result.IsValid() {
 				b.Fatal("validation failed")

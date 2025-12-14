@@ -652,7 +652,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 	input := []byte(`{"id": 1}`)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var result User
 		_ = schema.Unmarshal(&result, input)
 	}

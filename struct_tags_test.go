@@ -1078,7 +1078,7 @@ func BenchmarkSchemaGeneration(b *testing.B) {
 			TagName:      "jsonschema",
 			CacheEnabled: false,
 		}
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			schema, err := FromStructWithOptions[BenchStruct](options)
 			if err != nil {
 				b.Fatal(err)
@@ -1092,7 +1092,7 @@ func BenchmarkSchemaGeneration(b *testing.B) {
 	// Benchmark with cache
 	b.Run("WithCache", func(b *testing.B) {
 		ClearSchemaCache() // Start fresh
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			schema, err := FromStruct[BenchStruct]()
 			if err != nil {
 				b.Fatal(err)

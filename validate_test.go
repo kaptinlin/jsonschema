@@ -358,7 +358,7 @@ func BenchmarkValidate(b *testing.B) {
 	mapData := map[string]any{"name": "John Doe", "age": 30, "email": "john@example.com"}
 
 	b.Run("ValidateJSON", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.ValidateJSON(jsonData)
 			if !result.IsValid() {
 				b.Errorf("Expected validation to pass")
@@ -367,7 +367,7 @@ func BenchmarkValidate(b *testing.B) {
 	})
 
 	b.Run("ValidateMap", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			result := schema.ValidateMap(mapData)
 			if !result.IsValid() {
 				b.Errorf("Expected validation to pass")

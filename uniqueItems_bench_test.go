@@ -67,7 +67,7 @@ func BenchmarkUniqueItemsSmallStringArray(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = evaluateUniqueItems(schema, smallStringArray)
 	}
 }
@@ -79,7 +79,7 @@ func BenchmarkUniqueItemsLargeStringArray(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = evaluateUniqueItems(schema, largeStringArray)
 	}
 }
@@ -91,7 +91,7 @@ func BenchmarkUniqueItemsSmallNumberArray(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = evaluateUniqueItems(schema, smallNumberArray)
 	}
 }
@@ -103,7 +103,7 @@ func BenchmarkUniqueItemsLargeNumberArray(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = evaluateUniqueItems(schema, largeNumberArray)
 	}
 }
@@ -115,7 +115,7 @@ func BenchmarkUniqueItemsSmallBoolArray(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = evaluateUniqueItems(schema, smallBoolArray)
 	}
 }
@@ -127,7 +127,7 @@ func BenchmarkUniqueItemsSmallMixedArray(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = evaluateUniqueItems(schema, smallMixedArray)
 	}
 }
@@ -139,7 +139,7 @@ func BenchmarkUniqueItemsSmallObjectArray(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = evaluateUniqueItems(schema, smallObjectArray)
 	}
 }
@@ -151,7 +151,7 @@ func BenchmarkUniqueItemsLargeObjectArray(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = evaluateUniqueItems(schema, largeObjectArray)
 	}
 }
@@ -163,7 +163,7 @@ func BenchmarkUniqueItemsNestedArrays(b *testing.B) {
 
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = evaluateUniqueItems(schema, nestedArrays)
 	}
 }
@@ -173,7 +173,7 @@ func BenchmarkNormalizeValueString(b *testing.B) {
 	value := "test string value"
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = normalizeValue(value)
 	}
 }
@@ -183,7 +183,7 @@ func BenchmarkNormalizeValueNumber(b *testing.B) {
 	value := 42.5
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = normalizeValue(value)
 	}
 }
@@ -193,7 +193,7 @@ func BenchmarkNormalizeValueBool(b *testing.B) {
 	value := true
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = normalizeValue(value)
 	}
 }
@@ -208,7 +208,7 @@ func BenchmarkNormalizeValueObject(b *testing.B) {
 	}
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = normalizeValue(value)
 	}
 }
@@ -218,7 +218,7 @@ func BenchmarkNormalizeValueArray(b *testing.B) {
 	value := []any{1.0, 2.0, 3.0, "test", true, nil}
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = normalizeValue(value)
 	}
 }
@@ -238,7 +238,7 @@ func BenchmarkNormalizeValueNested(b *testing.B) {
 	}
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = normalizeValue(value)
 	}
 }

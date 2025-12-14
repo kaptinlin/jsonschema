@@ -163,7 +163,7 @@ func BenchmarkFromStruct_EmbeddedStructs(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := FromStruct[UserProfile]()
 		if err != nil {
 			b.Fatal(err)
@@ -175,7 +175,7 @@ func BenchmarkFromStruct_ConflictResolution(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := FromStruct[ConflictingFields]()
 		if err != nil {
 			b.Fatal(err)
