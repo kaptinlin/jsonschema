@@ -1,9 +1,10 @@
 package jsonschema
 
 import (
-	"encoding/json"
 	"testing"
 
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -101,7 +102,7 @@ func TestFromStruct_EmbeddedStructs_JSONSchemaGeneration(t *testing.T) {
 	require.NotNil(t, schema, "schema should not be nil")
 
 	// Convert to JSON to verify it's valid
-	schemaBytes, err := json.MarshalIndent(schema, "", "  ")
+	schemaBytes, err := json.Marshal(schema, jsontext.WithIndent("  "))
 	require.NoError(t, err, "failed to marshal schema to JSON")
 	require.NotEmpty(t, schemaBytes, "schema bytes should not be empty")
 

@@ -1,12 +1,13 @@
 package jsonschema
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1315,7 +1316,7 @@ func TestMaxPropertiesArrayPlacement(t *testing.T) {
 		require.Fail(t, "Schema generation failed")
 	}
 
-	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
+	schemaJSON, err := json.Marshal(schema, jsontext.WithIndent("  "))
 	if err != nil {
 		t.Fatalf("Failed to marshal schema: %v", err)
 	}
@@ -1358,7 +1359,7 @@ func TestEnumSpaceSeparation(t *testing.T) {
 		require.Fail(t, "Schema generation failed")
 	}
 
-	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
+	schemaJSON, err := json.Marshal(schema, jsontext.WithIndent("  "))
 	if err != nil {
 		t.Fatalf("Failed to marshal schema: %v", err)
 	}
@@ -1399,7 +1400,7 @@ func TestPointerFieldTagRules(t *testing.T) {
 		require.Fail(t, "Schema generation failed")
 	}
 
-	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
+	schemaJSON, err := json.Marshal(schema, jsontext.WithIndent("  "))
 	if err != nil {
 		t.Fatalf("Failed to marshal schema: %v", err)
 	}
@@ -1453,7 +1454,7 @@ func TestStructReferenceDeduplication(t *testing.T) {
 		require.Fail(t, "Schema generation failed")
 	}
 
-	schemaJSON, err := json.MarshalIndent(schema, "", "  ")
+	schemaJSON, err := json.Marshal(schema, jsontext.WithIndent("  "))
 	if err != nil {
 		t.Fatalf("Failed to marshal schema: %v", err)
 	}
@@ -1743,7 +1744,7 @@ func TestFromStructDeterministicSerialization(t *testing.T) {
 	// Multiple serialization attempts should produce identical results
 	var results []string
 	for i := 0; i < 10; i++ {
-		data, err := json.MarshalIndent(schema, "", "    ")
+		data, err := json.Marshal(schema, jsontext.WithIndent("    "))
 		if err != nil {
 			t.Fatalf("Failed to marshal schema: %v", err)
 		}

@@ -423,7 +423,6 @@ var (
 	ErrFailedToWriteContent = ErrContentWrite
 
 	// ErrJSONUnmarshalError is deprecated: Use ErrJSONUnmarshal instead
-	// Deprecated: Use ErrJSONUnmarshal instead
 	ErrJSONUnmarshalError = ErrJSONUnmarshal
 
 	// ErrXMLUnmarshalError is deprecated: Use ErrXMLUnmarshal instead
@@ -447,8 +446,7 @@ var (
 	// ErrFailedToEncodeNestedValue is deprecated: Use ErrNestedValueEncode instead
 	ErrFailedToEncodeNestedValue = ErrNestedValueEncode
 
-	// ErrFailedToCompileSchema is deprecated: Use ErrSchemaCompile instead
-	// Deprecated: Use ErrSchemaCompilation instead
+	// ErrFailedToCompileSchema is deprecated: Use ErrSchemaCompilation instead
 	ErrFailedToCompileSchema = ErrSchemaCompilation
 
 	// ErrFailedToResolveReference is deprecated: Use ErrReferenceResolution instead
@@ -473,7 +471,6 @@ var (
 	ErrInvalidJSONSchemaType = ErrInvalidSchemaType
 
 	// ErrTimeTypeConversion is deprecated: Use ErrTimeConversion instead
-	// Deprecated: Use ErrTimeConversion instead
 	ErrTimeTypeConversion = ErrTimeConversion
 
 	// ErrTimeParseFailure is deprecated: Use ErrTimeParsing instead

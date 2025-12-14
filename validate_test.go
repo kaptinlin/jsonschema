@@ -1,9 +1,9 @@
 package jsonschema
 
 import (
-	"encoding/json"
 	"testing"
 
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -415,7 +415,7 @@ func TestOneOfErrorPaths(t *testing.T) {
 	assert.True(t, found, "Expected oneOf error at '/value/oneOf'")
 }
 
-// TestJSONRawMessageValidation tests json.RawMessage and other []byte type definitions
+// TestJSONRawMessageValidation tests jsontext.Value and other []byte type definitions
 func TestJSONRawMessageValidation(t *testing.T) {
 	compiler := NewCompiler()
 	schema, err := compiler.Compile([]byte(`{
@@ -434,18 +434,18 @@ func TestJSONRawMessageValidation(t *testing.T) {
 		expectValid bool
 	}{
 		{
-			name:        "valid json.RawMessage",
-			data:        json.RawMessage(`{"name": "John", "age": 30}`),
+			name:        "valid jsontext.Value",
+			data:        jsontext.Value(`{"name": "John", "age": 30}`),
 			expectValid: true,
 		},
 		{
-			name:        "invalid json.RawMessage - missing required",
-			data:        json.RawMessage(`{"age": 30}`),
+			name:        "invalid jsontext.Value - missing required",
+			data:        jsontext.Value(`{"age": 30}`),
 			expectValid: false,
 		},
 		{
-			name:        "invalid json.RawMessage - invalid JSON",
-			data:        json.RawMessage(`{"name": "John", "age"`),
+			name:        "invalid jsontext.Value - invalid JSON",
+			data:        jsontext.Value(`{"name": "John", "age"`),
 			expectValid: false,
 		},
 		{
@@ -487,8 +487,8 @@ func TestByteSliceHelperFunctions(t *testing.T) {
 		expectedOk     bool
 	}{
 		{
-			name:           "json.RawMessage",
-			data:           json.RawMessage(`{"test": "value"}`),
+			name:           "jsontext.Value",
+			data:           jsontext.Value(`{"test": "value"}`),
 			expectedIsByte: true,
 			expectedBytes:  []byte(`{"test": "value"}`),
 			expectedOk:     true,
