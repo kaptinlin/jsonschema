@@ -129,15 +129,24 @@ if err != nil {
 **Configuration Options:**
 ```go
 type StructTagOptions struct {
-    SchemaVersion       string  // $schema URI (empty = omit, default = Draft 2020-12)
-    TagName             string  // tag name to parse (default: "jsonschema")
-    AllowUntaggedFields bool    // include fields without tags (default: false)
-    DefaultRequired     bool    // fields required by default (default: false)
-    CacheEnabled        bool    // enable schema caching (default: true)
-    
-    // Schema-level properties - only set when explicitly provided
-    SchemaProperties map[string]any     // flexible configuration for any schema property
+    TagName             string              // tag name to parse (default: "jsonschema")
+    AllowUntaggedFields bool                // include fields without tags (default: false)
+    DefaultRequired     bool                // fields required by default (default: false)
+    FieldNameMapper     func(string) string // custom Go field name to JSON name mapper
+    CustomValidators    map[string]any      // custom validators for extensibility
+    CacheEnabled        bool                // enable schema caching (default: true)
+    SchemaVersion       string              // $schema URI (empty = omit, default = Draft 2020-12)
+    RequiredSort        RequiredSort        // controls required field ordering (default: alphabetical)
+    SchemaProperties    map[string]any      // flexible configuration for any schema property
 }
+
+// RequiredSort controls how required field names are ordered
+type RequiredSort string
+
+const (
+    RequiredSortAlphabetical RequiredSort = "alphabetical" // Sorts alphabetically (default)
+    RequiredSortNone         RequiredSort = "none"         // Preserves struct field order
+)
 ```
 
 ### Schema Property Configuration
@@ -170,6 +179,26 @@ if err != nil {
     panic(err)
 }
 // Only struct-derived properties, no additionalProperties
+```
+
+### Utility Functions
+
+```go
+// Get default configuration
+options := jsonschema.DefaultStructTagOptions()
+
+// Clear cached schemas (useful for testing or hot reload)
+jsonschema.ClearSchemaCache()
+
+// Get cache statistics
+stats := jsonschema.GetCacheStats()
+fmt.Printf("Cache hits: %d, misses: %d\n", stats["hits"], stats["misses"])
+
+// Register a global custom validator
+jsonschema.RegisterCustomValidator("myRule", func(t reflect.Type, params []string) []jsonschema.Keyword {
+    // Return keywords based on custom logic
+    return nil
+})
 ```
 
 ---
@@ -241,9 +270,6 @@ result := schema.ValidateStruct(user)  // ✅ Both tags respected
 | | `anyOf=schemas` | anyOf | `jsonschema:"anyOf=Email,Phone"` |
 | | `oneOf=schemas` | oneOf | `jsonschema:"oneOf=Individual,Company"` |
 | | `not=schema` | not | `jsonschema:"not=EmptyObject"` |
-| **Conditional** | `if=condition` | if | `jsonschema:"if=hasEmail"` |
-| | `then=schema` | then | `jsonschema:"then=RequireEmail"` |
-| | `else=schema` | else | `jsonschema:"else=RequirePhone"` |
 | **References** | `ref=uri` | $ref | `jsonschema:"ref=#/$defs/Address"` |
 | | `defs=names` | $defs | `jsonschema:"defs=Address,User"` |
 | | `anchor=name` | $anchor | `jsonschema:"anchor=main"` |
@@ -622,24 +648,6 @@ type Config struct {
 }
 ```
 
-### Conditional Logic
-
-**If-Then-Else validation:**
-```go
-type User struct {
-    Type        string `jsonschema:"required,enum=individual business"`
-    Email       string `jsonschema:"required,format=email"`
-    
-    // Individual users
-    FirstName   string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"individual\"}}},then={\"required\":[\"firstName\"]}"`
-    LastName    string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"individual\"}}},then={\"required\":[\"lastName\"]}"`
-    
-    // Business users
-    CompanyName string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"business\"}}},then={\"required\":[\"companyName\"]}"`
-    TaxID       string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"business\"}}},else={\"not\":{\"required\":[\"taxId\"]}}"`
-}
-```
-
 ### Content Validation
 
 **Content encoding and media type:**
@@ -773,6 +781,23 @@ if !result.IsValid() {
 
 You can customize error messages by implementing custom validators or using the built-in localization support.
 
+### StructTagError
+
+When struct tag parsing fails, a `StructTagError` is returned with detailed context:
+
+```go
+type StructTagError struct {
+    StructType string // The struct type being processed
+    FieldName  string // The field with the error
+    TagRule    string // The failing tag rule
+    Message    string // Human-readable message
+    Err        error  // Underlying error
+}
+
+// Example error output:
+// struct tag error (struct=User, field=Email, rule=pattern=invalid[): invalid regex pattern
+```
+
 ### Pattern Validation
 
 Regex patterns are validated at compile time to ensure Go compatibility. Use RE2 syntax with character classes and anchors:
@@ -865,11 +890,7 @@ type User struct {
     
     // Array length and uniqueness constraints
     Tags []string `jsonschema:"minItems=1,maxItems=10,uniqueItems=true"`
-    
-    // Conditional validation
-    Type        string `jsonschema:"required,enum=personal business"`
-    CompanyName string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"business\"}}},then={\"required\":[\"companyName\"]},minLength=2"`
-    
+
     // Metadata and default values
     Status   string `jsonschema:"default=active,enum=active inactive pending,title=Account Status"`
     CreateAt string `jsonschema:"format=date-time,readOnly=true,description=Account creation timestamp"`
