@@ -623,6 +623,43 @@ func TestFromStruct_NestedValidation(t *testing.T) {
 	})
 }
 
+func TestNestedStructValidation(t *testing.T) {
+
+	type Parameter struct {
+		Name     string `jsonschema:"required,minLength=1,maxLength=100,pattern=^[a-zA-Z_][a-zA-Z0-9_]*$" yaml:"name"`
+		Type     string `jsonschema:"required,enum=string number boolean" yaml:"type"`
+		Required bool   `jsonschema:"default=false" yaml:"required"`
+	}
+	type Profile struct {
+		Name   string      `jsonschema:"required,minLength=2,maxLength=50"`
+		Email  string      `jsonschema:"required,format=email"`
+		Age    int         `jsonschema:"minimum=18,maximum=120"`
+		Params []Parameter `jsonschema:"minItems=1" yaml:"params"`
+	}
+
+	// Generate schema from struct tags
+	schema, err := FromStruct[Profile]()
+	if err != nil {
+		panic(err)
+	}
+	userData := Profile{Name: "John Doe", Email: "john.doe@example.com", Age: 25,
+		Params: []Parameter{
+			{
+				Name:     "name",
+				Type:     "number1", // invalid enum value
+				Required: true,
+			},
+		},
+	}
+	result := schema.Validate(userData)
+	if len(result.Errors) == 0 {
+		t.Errorf("Expected validation errors, but it was empty")
+	}
+	if result.IsValid() {
+		t.Errorf("Expected validation to fail, but it passed")
+	}
+}
+
 func TestFromStruct_InvalidPatternReturnsError(t *testing.T) {
 	type InvalidPattern struct {
 		Value string `jsonschema:"pattern=^(?!x).*$"`

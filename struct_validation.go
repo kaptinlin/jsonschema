@@ -195,11 +195,28 @@ func extractValue(rv reflect.Value) any {
 		return t.Format(time.RFC3339)
 	}
 
+	// Convert slices and arrays to []any for proper array validation
+	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+		return convertSliceToAny(rv)
+	}
+
 	if rv.CanInterface() {
 		return rv.Interface()
 	}
 
 	return nil
+}
+
+// convertSliceToAny converts a reflect.Value slice/array to []any
+func convertSliceToAny(rv reflect.Value) []any {
+	length := rv.Len()
+	result := make([]any, length)
+	for i := 0; i < length; i++ {
+		elem := rv.Index(i)
+		// Recursively extract values to handle nested pointers and special types
+		result[i] = extractValue(elem)
+	}
+	return result
 }
 
 // evaluateObjectStruct handles validation for Go structs
