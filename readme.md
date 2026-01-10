@@ -295,13 +295,21 @@ schema := `{
 ### Internationalization
 
 ```go
-// Set custom error messages
-compiler.SetLocale("zh-CN")
+// Get i18n bundle with embedded locales
+i18nBundle, _ := jsonschema.GetI18n()
 
-// Or use custom translator
-compiler.SetTranslator(func(key string, args ...interface{}) string {
-    return customTranslate(key, args...)
-})
+// Create localizer for desired language
+// Supported: en, zh-Hans, zh-Hant, de-DE, es-ES, fr-FR, ja-JP, ko-KR, pt-BR
+localizer := i18nBundle.NewLocalizer("zh-Hans")
+
+// Validate and get localized errors
+result := schema.Validate(data)
+if !result.IsValid() {
+    localizedErrors := result.ToLocalizeList(localizer)
+    for field, message := range localizedErrors.Errors {
+        fmt.Printf("%s: %s\n", field, message)
+    }
+}
 ```
 
 ### Performance Optimization
