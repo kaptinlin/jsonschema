@@ -624,7 +624,6 @@ func TestFromStruct_NestedValidation(t *testing.T) {
 }
 
 func TestNestedStructValidation(t *testing.T) {
-
 	type Parameter struct {
 		Name     string `jsonschema:"required,minLength=1,maxLength=100,pattern=^[a-zA-Z_][a-zA-Z0-9_]*$" yaml:"name"`
 		Type     string `jsonschema:"required,enum=string number boolean" yaml:"type"`

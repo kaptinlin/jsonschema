@@ -196,7 +196,13 @@ func extractValue(rv reflect.Value) any {
 	}
 
 	// Convert slices and arrays to []any for proper array validation
-	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+	if rv.Kind() == reflect.Slice {
+		if rv.IsNil() {
+			return nil
+		}
+		return convertSliceToAny(rv)
+	}
+	if rv.Kind() == reflect.Array {
 		return convertSliceToAny(rv)
 	}
 
