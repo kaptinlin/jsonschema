@@ -1,5 +1,32 @@
 package jsonschema
 
+// Struct Validation Semantics
+//
+// This file implements JSON Schema validation for Go structs with special handling
+// for omitempty, omitzero, and required field semantics.
+//
+// Key Concepts:
+//
+// 1. isEmptyValue: Used for `omitempty` tag behavior
+//    - Determines if a field should be omitted from JSON serialization
+//    - Empty values: nil pointers, zero-length collections, zero numbers, false booleans, zero time.Time
+//    - Follows standard JSON encoding/json package semantics
+//
+// 2. isMissingValue: Used for `required` field validation
+//    - Determines if a required field is present with a meaningful value
+//    - Missing values: nil pointers, empty strings, zero-length collections, zero time.Time
+//    - Non-missing: All numeric values (including 0), false for booleans
+//    - Rationale: Required numeric/boolean fields can legitimately have zero/false values
+//
+// 3. isZeroValue: Used for `omitzero` tag behavior (Go 1.24+)
+//    - Uses IsZero() method when available (time.Time, custom types)
+//    - Falls back to reflect.Value.IsZero() for built-in types
+//
+// The distinction ensures that:
+// - `required` validation allows zero values for numbers/booleans (0, false are valid)
+// - `omitempty` follows JSON marshaling behavior
+// - `omitzero` provides strict zero-value checking
+
 import (
 	"reflect"
 	"regexp"
@@ -169,12 +196,10 @@ func isMissingValue(rv reflect.Value) bool {
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64, reflect.Uintptr, reflect.Complex64, reflect.Complex128,
 		reflect.Chan, reflect.Func, reflect.UnsafePointer:
-		// For required fields, any non-nil value is considered present
-		// This includes false for booleans, 0 for numbers, etc.
+		// Numeric types and special types: non-zero values are considered present
 		return false
 	default:
-		// For required fields, any non-nil value is considered present
-		// This includes false for booleans, 0 for numbers, etc.
+		// Fallback for any other types
 		return false
 	}
 }
