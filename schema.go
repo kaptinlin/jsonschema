@@ -1,8 +1,11 @@
 package jsonschema
 
 import (
-	"errors"
+	"maps"
+  "errors"
+	"reflect"
 	"regexp"
+	"strings"
 	"slices"
 	"strconv"
 
@@ -112,6 +115,9 @@ type Schema struct {
 	ReadOnly    *bool   `json:"readOnly,omitempty"`    // Indicates that the property is read-only.
 	WriteOnly   *bool   `json:"writeOnly,omitempty"`   // Indicates that the property is write-only.
 	Examples    []any   `json:"examples,omitempty"`    // Examples of the instance data that validates against this schema.
+
+	// Extra keywords not in specification
+	Extra map[string]any `json:"-"`
 }
 
 // newSchema parses JSON schema data and returns a Schema object.
@@ -660,6 +666,8 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		result["const"] = s.Const.Value
 	}
 
+  maps.Copy(result, s.Extra)
+  
 	// Use deterministic marshaling to ensure consistent key ordering
 	// Note: Required and DependentRequired arrays maintain their order from generation/parsing
 	return json.Marshal(result, json.Deterministic(true))
@@ -730,9 +738,38 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		if s.Const == nil {
 			s.Const = &ConstValue{}
 		}
-		return s.Const.UnmarshalJSON(constData)
+		err := s.Const.UnmarshalJSON(constData)
+		if err != nil {
+			return err
+		}
 	}
 
+	return s.collectExtraFields(data)
+}
+
+func (s *Schema) collectExtraFields(raw []byte) error {
+	extra := make(map[string]any)
+	err := json.Unmarshal(raw, &extra)
+	if err != nil {
+		return err
+	}
+
+	t := reflect.TypeOf(Schema{})
+	for i := range t.NumField() {
+		field := t.Field(i)
+		jsonTagValues := strings.Split(field.Tag.Get("json"), ",")
+		if len(jsonTagValues) == 0 {
+			continue
+		}
+		tagName := jsonTagValues[0]
+		if tagName == "" || tagName == "-" {
+			continue
+		}
+		delete(extra, tagName)
+	}
+	if len(extra) != 0 {
+		s.Extra = extra
+	}
 	return nil
 }
 
