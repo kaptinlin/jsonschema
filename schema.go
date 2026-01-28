@@ -1,11 +1,9 @@
 package jsonschema
 
 import (
+	"errors"
 	"maps"
-  "errors"
-	"reflect"
 	"regexp"
-	"strings"
 	"slices"
 	"strconv"
 
@@ -13,6 +11,79 @@ import (
 	"github.com/go-json-experiment/json/jsontext"
 	"github.com/kaptinlin/jsonpointer"
 )
+
+// knownSchemaFields contains all known JSON Schema keywords.
+// Used to filter out known fields when collecting extra/extension fields.
+var knownSchemaFields = map[string]struct{}{
+	// Core keywords
+	"$id":            {},
+	"$schema":        {},
+	"$ref":           {},
+	"$dynamicRef":    {},
+	"$anchor":        {},
+	"$dynamicAnchor": {},
+	"$defs":          {},
+	"definitions":    {}, // Draft-7 compatibility
+	"$comment":       {},
+
+	// Applicator keywords
+	"allOf":                 {},
+	"anyOf":                 {},
+	"oneOf":                 {},
+	"not":                   {},
+	"if":                    {},
+	"then":                  {},
+	"else":                  {},
+	"dependentSchemas":      {},
+	"prefixItems":           {},
+	"items":                 {},
+	"contains":              {},
+	"properties":            {},
+	"patternProperties":     {},
+	"additionalProperties":  {},
+	"propertyNames":         {},
+	"unevaluatedItems":      {},
+	"unevaluatedProperties": {},
+
+	// Validation keywords
+	"type":              {},
+	"enum":              {},
+	"const":             {},
+	"multipleOf":        {},
+	"maximum":           {},
+	"exclusiveMaximum":  {},
+	"minimum":           {},
+	"exclusiveMinimum":  {},
+	"maxLength":         {},
+	"minLength":         {},
+	"pattern":           {},
+	"maxItems":          {},
+	"minItems":          {},
+	"uniqueItems":       {},
+	"maxContains":       {},
+	"minContains":       {},
+	"maxProperties":     {},
+	"minProperties":     {},
+	"required":          {},
+	"dependentRequired": {},
+
+	// Format keyword
+	"format": {},
+
+	// Content keywords
+	"contentEncoding":  {},
+	"contentMediaType": {},
+	"contentSchema":    {},
+
+	// Meta-data keywords
+	"title":       {},
+	"description": {},
+	"default":     {},
+	"deprecated":  {},
+	"readOnly":    {},
+	"writeOnly":   {},
+	"examples":    {},
+}
 
 // Schema represents a JSON Schema as per the 2020-12 draft, containing all
 // necessary metadata and validation properties defined by the specification.
@@ -184,6 +255,12 @@ func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
 	// They should inherit through parent-child relationship via GetCompiler()
 	initializeNestedSchemas(s, compiler)
 	s.resolveReferences()
+
+	// Handle PreserveExtra option
+	// If false (default), clear any collected extra fields
+	if effectiveCompiler != nil && !effectiveCompiler.PreserveExtra {
+		s.Extra = nil
+	}
 }
 
 // initializeSchemaWithoutReferences sets up the schema structure without resolving references.
@@ -237,6 +314,12 @@ func (s *Schema) initializeSchemaWithoutReferences(compiler *Compiler, parent *S
 	// Initialize nested schemas but without resolving references
 	initializeNestedSchemasWithoutReferences(s, compiler)
 	// Note: We don't call s.resolveReferences() here - that's deferred
+
+	// Handle PreserveExtra option
+	// If false (default), clear any collected extra fields
+	if effectiveCompiler != nil && !effectiveCompiler.PreserveExtra {
+		s.Extra = nil
+	}
 }
 
 // initializeNestedSchemas initializes all nested or related schemas as defined in the structure.
@@ -666,8 +749,8 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		result["const"] = s.Const.Value
 	}
 
-  maps.Copy(result, s.Extra)
-  
+	maps.Copy(result, s.Extra)
+
 	// Use deterministic marshaling to ensure consistent key ordering
 	// Note: Required and DependentRequired arrays maintain their order from generation/parsing
 	return json.Marshal(result, json.Deterministic(true))
@@ -748,27 +831,18 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 }
 
 func (s *Schema) collectExtraFields(raw []byte) error {
-	extra := make(map[string]any)
-	err := json.Unmarshal(raw, &extra)
-	if err != nil {
+	var allFields map[string]any
+	if err := json.Unmarshal(raw, &allFields); err != nil {
 		return err
 	}
 
-	t := reflect.TypeOf(Schema{})
-	for i := range t.NumField() {
-		field := t.Field(i)
-		jsonTagValues := strings.Split(field.Tag.Get("json"), ",")
-		if len(jsonTagValues) == 0 {
-			continue
-		}
-		tagName := jsonTagValues[0]
-		if tagName == "" || tagName == "-" {
-			continue
-		}
-		delete(extra, tagName)
+	// Remove all known schema fields
+	for key := range knownSchemaFields {
+		delete(allFields, key)
 	}
-	if len(extra) != 0 {
-		s.Extra = extra
+
+	if len(allFields) > 0 {
+		s.Extra = allFields
 	}
 	return nil
 }
@@ -779,9 +853,7 @@ type SchemaMap map[string]*Schema
 // MarshalJSON ensures that SchemaMap serializes properly as a JSON object.
 func (sm SchemaMap) MarshalJSON() ([]byte, error) {
 	m := make(map[string]*Schema)
-	for k, v := range sm {
-		m[k] = v
-	}
+	maps.Copy(m, sm)
 	// Use deterministic marshaling to ensure consistent key ordering
 	return json.Marshal(m, json.Deterministic(true))
 }
@@ -795,9 +867,7 @@ func (sm *SchemaMap) MarshalJSONTo(enc *jsontext.Encoder, opts json.Options) err
 		return json.MarshalEncode(enc, nil, opts)
 	}
 	m := make(map[string]*Schema)
-	for k, v := range *sm {
-		m[k] = v
-	}
+	maps.Copy(m, *sm)
 	return json.MarshalEncode(enc, m, opts)
 }
 

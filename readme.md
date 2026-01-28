@@ -292,6 +292,32 @@ schema := `{
 }`
 ```
 
+### Extension Fields
+
+The library supports capturing and accessing unknown schema keywords (often used for metadata, UI hints, or code generation directives like `x-component`, `x-go-type`).
+
+```go
+schemaJSON := `{
+    "type": "string",
+    "x-component": "DatePicker",
+    "x-component-props": {
+        "format": "YYYY-MM-DD"
+    }
+}`
+
+compiler := jsonschema.NewCompiler()
+compiler.SetPreserveExtra(true) // Enable preservation of unknown keywords
+
+schema, _ := compiler.Compile([]byte(schemaJSON))
+
+// Access extension fields
+if component, ok := schema.Extra["x-component"]; ok {
+    fmt.Printf("Component: %v\n", component) // Component: DatePicker
+}
+```
+
+These fields are preserved during the compile -> marshal round-trip, making it useful for tools that need to modify schema metadata.
+
 ### Internationalization
 
 ```go

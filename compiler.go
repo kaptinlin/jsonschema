@@ -36,6 +36,9 @@ type Compiler struct {
 	Loaders        map[string]func(url string) (io.ReadCloser, error) // Functions to load schemas from URLs.
 	DefaultBaseURI string                                             // Base URI used to resolve relative references.
 	AssertFormat   bool                                               // Flag to enforce format validation.
+	// PreserveExtra indicates whether to preserve unknown keywords in the schema.
+	// If false (default), unknown keywords are stripped during compilation.
+	PreserveExtra bool
 
 	// JSON encoder/decoder configuration
 	jsonEncoder func(v any) ([]byte, error)
@@ -245,6 +248,12 @@ func (c *Compiler) SetDefaultBaseURI(baseURI string) *Compiler {
 // SetAssertFormat enables or disables format assertion.
 func (c *Compiler) SetAssertFormat(assert bool) *Compiler {
 	c.AssertFormat = assert
+	return c
+}
+
+// SetPreserveExtra sets whether to preserve unknown keywords in the schema.
+func (c *Compiler) SetPreserveExtra(preserve bool) *Compiler {
+	c.PreserveExtra = preserve
 	return c
 }
 
