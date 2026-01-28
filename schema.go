@@ -2,12 +2,16 @@ package jsonschema
 
 import (
 	"maps"
+  "errors"
 	"reflect"
 	"regexp"
 	"strings"
+	"slices"
+	"strconv"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
+	"github.com/kaptinlin/jsonpointer"
 )
 
 // Schema represents a JSON Schema as per the 2020-12 draft, containing all
@@ -376,6 +380,134 @@ func initializeNestedSchemasWithoutReferences(s *Schema, compiler *Compiler) {
 	}
 }
 
+// validateRegexSyntax validates that all regex patterns in the schema are valid Go RE2 syntax.
+// It recursively checks pattern and patternProperties in the schema and all nested schemas.
+func (s *Schema) validateRegexSyntax() error {
+	if s == nil {
+		return nil
+	}
+
+	visited := make(map[*Schema]bool)
+	errs := s.collectRegexErrors(nil, visited)
+	if len(errs) == 0 {
+		return nil
+	}
+
+	combined := append([]error{ErrRegexValidation}, errs...)
+	return errors.Join(combined...)
+}
+
+// collectRegexErrors recursively collects regex compilation errors from the schema tree.
+// It uses a token slice to track the JSON Pointer path, avoiding string parsing overhead.
+func (s *Schema) collectRegexErrors(pathTokens []string, visited map[*Schema]bool) []error {
+	if s == nil || visited[s] {
+		return nil
+	}
+	visited[s] = true
+
+	var errs []error
+
+	// Validate pattern field
+	if s.Pattern != nil {
+		if err := compilePattern(*s.Pattern); err != nil {
+			patternTokens := slices.Concat(pathTokens, []string{"pattern"})
+			errs = append(errs, &RegexPatternError{
+				Keyword:  "pattern",
+				Location: "#" + jsonpointer.Format(patternTokens...),
+				Pattern:  *s.Pattern,
+				Err:      err,
+			})
+		}
+	}
+
+	// Validate patternProperties keys and recurse into values
+	if s.PatternProperties != nil {
+		for pattern, schema := range *s.PatternProperties {
+			patternPropTokens := slices.Concat(pathTokens, []string{"patternProperties", pattern})
+			if err := compilePattern(pattern); err != nil {
+				errs = append(errs, &RegexPatternError{
+					Keyword:  "patternProperties",
+					Location: "#" + jsonpointer.Format(patternPropTokens...),
+					Pattern:  pattern,
+					Err:      err,
+				})
+				continue
+			}
+			errs = append(errs, schema.collectRegexErrors(patternPropTokens, visited)...)
+		}
+	}
+
+	// Helper to recurse into a single schema
+	addSchema := func(child *Schema, token string) {
+		childTokens := slices.Concat(pathTokens, []string{token})
+		errs = append(errs, child.collectRegexErrors(childTokens, visited)...)
+	}
+
+	// Helper to recurse into a map of schemas
+	addSchemaMap := func(m map[string]*Schema, prefix string) {
+		if len(m) == 0 {
+			return
+		}
+		for key, schema := range m {
+			mapTokens := slices.Concat(pathTokens, []string{prefix, key})
+			errs = append(errs, schema.collectRegexErrors(mapTokens, visited)...)
+		}
+	}
+
+	// Helper to recurse into a slice of schemas
+	addSchemaSlice := func(children []*Schema, prefix string) {
+		if len(children) == 0 {
+			return
+		}
+		for i, child := range children {
+			sliceTokens := slices.Concat(pathTokens, []string{prefix, strconv.Itoa(i)})
+			errs = append(errs, child.collectRegexErrors(sliceTokens, visited)...)
+		}
+	}
+
+	// Recurse into all nested schemas
+	if s.Properties != nil {
+		addSchemaMap(map[string]*Schema(*s.Properties), "properties")
+	}
+	if s.Defs != nil {
+		addSchemaMap(s.Defs, "$defs")
+	}
+	if s.DependentSchemas != nil {
+		addSchemaMap(s.DependentSchemas, "dependentSchemas")
+	}
+
+	addSchema(s.AdditionalProperties, "additionalProperties")
+	addSchema(s.UnevaluatedProperties, "unevaluatedProperties")
+	addSchema(s.UnevaluatedItems, "unevaluatedItems")
+	addSchema(s.PropertyNames, "propertyNames")
+	addSchema(s.ContentSchema, "contentSchema")
+	addSchema(s.Items, "items")
+	addSchema(s.Contains, "contains")
+	addSchema(s.Not, "not")
+	addSchema(s.If, "if")
+	addSchema(s.Then, "then")
+	addSchema(s.Else, "else")
+	addSchema(s.ResolvedRef, "$ref")
+	addSchema(s.ResolvedDynamicRef, "$dynamicRef")
+
+	addSchemaSlice(s.PrefixItems, "prefixItems")
+	addSchemaSlice(s.AllOf, "allOf")
+	addSchemaSlice(s.AnyOf, "anyOf")
+	addSchemaSlice(s.OneOf, "oneOf")
+
+	return errs
+}
+
+// compilePattern validates that a regex pattern is valid Go RE2 syntax.
+// Returns nil if the pattern is valid, or the regexp compilation error if invalid.
+func compilePattern(pattern string) error {
+	if pattern == "" {
+		return nil
+	}
+	_, err := regexp.Compile(pattern)
+	return err
+}
+
 // setAnchor creates or updates the anchor mapping for the current schema and propagates it to parent schemas.
 func (s *Schema) setAnchor(anchor string) {
 	if s.anchors == nil {
@@ -511,15 +643,15 @@ func (s *Schema) getParentBaseURI() string {
 // MarshalJSON implements json.Marshaler
 func (s *Schema) MarshalJSON() ([]byte, error) {
 	if s.Boolean != nil {
-		return json.Marshal(s.Boolean)
+		return json.Marshal(s.Boolean, json.Deterministic(true))
 	}
 
 	// Custom marshaling to handle the const field properly
 	type Alias Schema
 	alias := (*Alias)(s)
 
-	// Marshal to a map to handle const field manually
-	data, err := json.Marshal(alias)
+	// Marshal to a map to handle const field manually with deterministic ordering
+	data, err := json.Marshal(alias, json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}
@@ -534,9 +666,36 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		result["const"] = s.Const.Value
 	}
 
-	maps.Copy(result, s.Extra)
+  maps.Copy(result, s.Extra)
+  
+	// Use deterministic marshaling to ensure consistent key ordering
+	// Note: Required and DependentRequired arrays maintain their order from generation/parsing
+	return json.Marshal(result, json.Deterministic(true))
+}
 
-	return json.Marshal(result)
+// MarshalJSONTo implements json.MarshalerTo for JSON v2 with proper option support
+func (s *Schema) MarshalJSONTo(enc *jsontext.Encoder, opts json.Options) error {
+	// Ensure deterministic ordering is always enabled
+	opts = json.JoinOptions(opts, json.Deterministic(true))
+
+	if s.Boolean != nil {
+		return json.MarshalEncode(enc, s.Boolean, opts)
+	}
+
+	// Use the existing MarshalJSON method which already handles the const field properly
+	// and then ensure the result is marshaled with the provided options
+	data, err := s.MarshalJSON()
+	if err != nil {
+		return err
+	}
+
+	// Parse and re-marshal with deterministic options
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return err
+	}
+
+	return json.MarshalEncode(enc, result, opts)
 }
 
 // UnmarshalJSON handles unmarshaling JSON data into the Schema type.
@@ -556,11 +715,25 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	}
 	*s = Schema(alias)
 
-	// Special handling for the const field
+	// Special handling for backward compatibility and const field
 	var raw map[string]jsontext.Value
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
+
+	// Handle backward compatibility: "definitions" (Draft-7) -> "$defs" (Draft 2020-12)
+	if defsData, ok := raw["definitions"]; ok {
+		// Only use "definitions" if "$defs" is not already set
+		if s.Defs == nil {
+			var defs map[string]*Schema
+			if err := json.Unmarshal(defsData, &defs); err != nil {
+				return err
+			}
+			s.Defs = defs
+		}
+	}
+
+	// Special handling for the const field
 	if constData, ok := raw["const"]; ok {
 		if s.Const == nil {
 			s.Const = &ConstValue{}
@@ -609,7 +782,23 @@ func (sm SchemaMap) MarshalJSON() ([]byte, error) {
 	for k, v := range sm {
 		m[k] = v
 	}
-	return json.Marshal(m)
+	// Use deterministic marshaling to ensure consistent key ordering
+	return json.Marshal(m, json.Deterministic(true))
+}
+
+// MarshalJSONTo implements json.MarshalerTo for JSON v2 with proper option support
+func (sm *SchemaMap) MarshalJSONTo(enc *jsontext.Encoder, opts json.Options) error {
+	// Ensure deterministic ordering is always enabled
+	opts = json.JoinOptions(opts, json.Deterministic(true))
+
+	if sm == nil {
+		return json.MarshalEncode(enc, nil, opts)
+	}
+	m := make(map[string]*Schema)
+	for k, v := range *sm {
+		m[k] = v
+	}
+	return json.MarshalEncode(enc, m, opts)
 }
 
 // UnmarshalJSON ensures that JSON objects are correctly parsed into SchemaMap,

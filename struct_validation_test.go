@@ -836,7 +836,7 @@ func BenchmarkStructValidation(b *testing.B) {
 	}{Name: "John Doe", Age: 30, Email: "john@example.com"}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = schema.Validate(user)
 	}
 }
@@ -859,7 +859,7 @@ func BenchmarkMapValidation(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = schema.Validate(data)
 	}
 }

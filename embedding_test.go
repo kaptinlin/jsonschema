@@ -1,8 +1,12 @@
 package jsonschema
 
 import (
-	"encoding/json"
 	"testing"
+
+	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test types for integration testing
@@ -52,69 +56,40 @@ func TestFromStruct_EmbeddedStructs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var schema *Schema
+			var err error
+
 			switch tt.structType.(type) {
 			case UserProfile:
-				schema = FromStruct[UserProfile]()
+				schema, err = FromStruct[UserProfile]()
 			case ConflictingFields:
-				schema = FromStruct[ConflictingFields]()
+				schema, err = FromStruct[ConflictingFields]()
 			}
 
-			// Check that schema is generated
-			if schema == nil {
-				t.Fatal("Expected schema to be generated")
-			}
+			require.NoError(t, err, "failed to generate schema")
+			require.NotNil(t, schema, "schema should not be nil")
 
 			// Check that it's an object type
-			if len(schema.Type) == 0 || schema.Type[0] != "object" {
-				t.Errorf("Expected object type, got %v", schema.Type)
-			}
+			require.NotEmpty(t, schema.Type, "schema type should not be empty")
+			assert.Equal(t, "object", schema.Type[0], "schema type should be object")
 
 			// Check properties exist
-			if schema.Properties == nil {
-				t.Fatal("Expected properties to be defined")
-			}
+			require.NotNil(t, schema.Properties, "properties should be defined")
 
 			properties := *schema.Properties
+
+			// Verify all expected fields exist
 			for _, fieldName := range tt.expectedFields {
-				if _, exists := properties[fieldName]; !exists {
-					t.Errorf("Expected field %s to exist in properties", fieldName)
-				}
+				assert.Contains(t, properties, fieldName, "property %s should exist", fieldName)
 			}
 
 			// Check for unexpected fields
-			if len(properties) != len(tt.expectedFields) {
-				t.Errorf("Expected %d properties, got %d", len(tt.expectedFields), len(properties))
-				for propName := range properties {
-					found := false
-					for _, expectedField := range tt.expectedFields {
-						if propName == expectedField {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("Unexpected property: %s", propName)
-					}
-				}
-			}
+			assert.Len(t, properties, len(tt.expectedFields), "should have exact number of expected properties")
 
 			// Check required fields
 			if len(tt.requiredFields) > 0 {
-				if schema.Required == nil {
-					t.Fatal("Expected required fields to be defined")
-				}
-
+				require.NotNil(t, schema.Required, "required fields should be defined")
 				for _, requiredField := range tt.requiredFields {
-					found := false
-					for _, schemaRequired := range schema.Required {
-						if schemaRequired == requiredField {
-							found = true
-							break
-						}
-					}
-					if !found {
-						t.Errorf("Expected field %s to be required", requiredField)
-					}
+					assert.Contains(t, schema.Required, requiredField, "field %s should be required", requiredField)
 				}
 			}
 		})
@@ -122,112 +97,89 @@ func TestFromStruct_EmbeddedStructs(t *testing.T) {
 }
 
 func TestFromStruct_EmbeddedStructs_JSONSchemaGeneration(t *testing.T) {
-	schema := FromStruct[UserProfile]()
+	schema, err := FromStruct[UserProfile]()
+	require.NoError(t, err, "failed to generate schema")
+	require.NotNil(t, schema, "schema should not be nil")
 
 	// Convert to JSON to verify it's valid
-	schemaBytes, err := json.MarshalIndent(schema, "", "  ")
-	if err != nil {
-		t.Fatalf("Failed to marshal schema to JSON: %v", err)
-	}
+	schemaBytes, err := json.Marshal(schema, jsontext.WithIndent("  "))
+	require.NoError(t, err, "failed to marshal schema to JSON")
+	require.NotEmpty(t, schemaBytes, "schema bytes should not be empty")
 
 	// Basic validation of generated JSON schema
 	var parsed map[string]interface{}
 	err = json.Unmarshal(schemaBytes, &parsed)
-	if err != nil {
-		t.Fatalf("Generated schema is not valid JSON: %v", err)
-	}
+	require.NoError(t, err, "generated schema should be valid JSON")
 
 	// Check type
-	if schemaType, ok := parsed["type"]; !ok || schemaType != "object" {
-		t.Errorf("Expected type 'object', got %v", schemaType)
-	}
+	schemaType, ok := parsed["type"]
+	require.True(t, ok, "type field should exist")
+	assert.Equal(t, "object", schemaType, "schema type should be object")
 
 	// Check properties
 	properties, ok := parsed["properties"].(map[string]interface{})
-	if !ok {
-		t.Fatal("Expected properties to be an object")
-	}
+	require.True(t, ok, "properties should be an object")
 
 	expectedProperties := []string{"id", "name", "email", "phone", "department"}
 	for _, prop := range expectedProperties {
-		if _, exists := properties[prop]; !exists {
-			t.Errorf("Expected property %s to exist", prop)
-		}
+		assert.Contains(t, properties, prop, "property %s should exist", prop)
 	}
 
 	// Check required fields
 	required, ok := parsed["required"].([]interface{})
-	if !ok {
-		t.Fatal("Expected required to be an array")
-	}
+	require.True(t, ok, "required should be an array")
 
 	expectedRequired := []string{"id", "name", "department"}
 	for _, req := range expectedRequired {
-		found := false
-		for _, schemaReq := range required {
-			if schemaReq == req {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected %s to be required", req)
-		}
+		assert.Contains(t, required, req, "field %s should be in required array", req)
 	}
 
 	t.Logf("Generated schema:\n%s", string(schemaBytes))
 }
 
 func TestFromStruct_EmbeddedStructs_ValidationRules(t *testing.T) {
-	schema := FromStruct[UserProfile]()
-
-	if schema.Properties == nil {
-		t.Fatal("Expected properties to be defined")
-	}
+	schema, err := FromStruct[UserProfile]()
+	require.NoError(t, err, "failed to generate schema")
+	require.NotNil(t, schema, "schema should not be nil")
+	require.NotNil(t, schema.Properties, "properties should be defined")
 
 	properties := *schema.Properties
 
 	// Check email format validation
-	if emailProp, exists := properties["email"]; exists {
-		if emailProp.Format == nil || *emailProp.Format != "email" {
-			t.Error("Expected email field to have format validation")
-		}
-	} else {
-		t.Error("Expected email property to exist")
-	}
+	emailProp, exists := properties["email"]
+	require.True(t, exists, "email property should exist")
+	require.NotNil(t, emailProp.Format, "email format should be set")
+	assert.Equal(t, "email", *emailProp.Format, "email field should have email format validation")
 
 	// Check that all required fields are actually required
-	if schema.Required == nil {
-		t.Fatal("Expected required array to be defined")
-	}
+	require.NotNil(t, schema.Required, "required array should be defined")
 
-	requiredFields := schema.Required
 	expectedRequired := []string{"id", "name", "department"}
-
 	for _, expected := range expectedRequired {
-		found := false
-		for _, actual := range requiredFields {
-			if actual == expected {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected %s to be in required array", expected)
-		}
+		assert.Contains(t, schema.Required, expected, "field %s should be in required array", expected)
 	}
 }
 
 func BenchmarkFromStruct_EmbeddedStructs(b *testing.B) {
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = FromStruct[UserProfile]()
+
+	for b.Loop() {
+		_, err := FromStruct[UserProfile]()
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
 func BenchmarkFromStruct_ConflictResolution(b *testing.B) {
+	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = FromStruct[ConflictingFields]()
+
+	for b.Loop() {
+		_, err := FromStruct[ConflictingFields]()
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }

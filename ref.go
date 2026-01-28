@@ -4,6 +4,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/kaptinlin/jsonpointer"
 )
 
 // resolveRef resolves a reference to another schema, either locally or globally, supporting both $ref and $dynamicRef.
@@ -69,12 +71,16 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 		return s, nil
 	}
 
-	segments := strings.Split(strings.TrimPrefix(pointer, "/"), "/")
+	// Parse JSON Pointer using the jsonpointer library
+	// This handles ~ escaping (~ -> ~0, / -> ~1) automatically
+	segments := jsonpointer.Parse(pointer)
 	currentSchema := s
 	previousSegment := ""
 
 	for i, segment := range segments {
-		decodedSegment, err := url.PathUnescape(strings.ReplaceAll(strings.ReplaceAll(segment, "~1", "/"), "~0", "~"))
+		// jsonpointer.Parse handles ~0 and ~1 escaping, but not URL percent encoding
+		// We need to handle URL percent encoding separately for JSON Schema compatibility
+		decodedSegment, err := url.PathUnescape(segment)
 		if err != nil {
 			return nil, ErrJSONPointerSegmentDecode
 		}
@@ -82,16 +88,16 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 		nextSchema, found := findSchemaInSegment(currentSchema, decodedSegment, previousSegment)
 		if found {
 			currentSchema = nextSchema
-			previousSegment = decodedSegment // Update the context for the next iteration
+			previousSegment = decodedSegment
 			continue
 		}
 
 		if !found && i == len(segments)-1 {
 			// If no schema is found and it's the last segment, throw error
-			return nil, ErrSegmentNotFoundForJSONPointer
+			return nil, ErrJSONPointerSegmentNotFound
 		}
 
-		previousSegment = decodedSegment // Update the context for the next iteration
+		previousSegment = decodedSegment
 	}
 
 	return currentSchema, nil
@@ -112,7 +118,7 @@ func findSchemaInSegment(currentSchema *Schema, segment string, previousSegment 
 		if err == nil && currentSchema.PrefixItems != nil && index < len(currentSchema.PrefixItems) {
 			return currentSchema.PrefixItems[index], true
 		}
-	case "$defs":
+	case "$defs", "definitions": // Support both $defs (2020-12) and definitions (Draft-7) for backward compatibility
 		if defSchema, exists := currentSchema.Defs[segment]; exists {
 			return defSchema, true
 		}
@@ -189,13 +195,19 @@ func (s *Schema) ResolveUnresolvedReferences() {
 func (s *Schema) resolveReferences() {
 	// Resolve the root reference if this schema itself is a reference
 	if s.Ref != "" {
-		resolved, _ := s.resolveRef(s.Ref) // Resolve against root schema
-		s.ResolvedRef = resolved
+		resolved, err := s.resolveRef(s.Ref)
+		if err == nil {
+			s.ResolvedRef = resolved
+		}
+		// If resolution fails, leave ResolvedRef as nil and validation will handle this gracefully
 	}
 
 	if s.DynamicRef != "" {
-		resolved, _ := s.resolveRef(s.DynamicRef) // Resolve dynamic references against root schema
-		s.ResolvedDynamicRef = resolved
+		resolved, err := s.resolveRef(s.DynamicRef)
+		if err == nil {
+			s.ResolvedDynamicRef = resolved
+		}
+		// If resolution fails, leave ResolvedDynamicRef as nil and validation will handle this gracefully
 	}
 
 	// Recursively resolve references within definitions

@@ -3,13 +3,14 @@ package jsonschema
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/go-json-experiment/json"
 
 	"github.com/goccy/go-yaml"
 )
@@ -29,7 +30,6 @@ type FormatDef struct {
 type Compiler struct {
 	mu             sync.RWMutex                                       // Protects concurrent access to schemas map
 	schemas        map[string]*Schema                                 // Cache of compiled schemas.
-	allSchemas     []*Schema                                          // All compiled schemas, including those without IDs
 	unresolvedRefs map[string][]*Schema                               // Track schemas that have unresolved references by URI
 	Decoders       map[string]func(string) ([]byte, error)            // Decoders for various encoding formats.
 	MediaTypes     map[string]func([]byte) (any, error)               // Media type handlers for unmarshalling data.
@@ -56,7 +56,6 @@ type DefaultFunc func(args ...any) (any, error)
 func NewCompiler() *Compiler {
 	compiler := &Compiler{
 		schemas:        make(map[string]*Schema),
-		allSchemas:     make([]*Schema, 0),
 		unresolvedRefs: make(map[string][]*Schema),
 		Decoders:       make(map[string]func(string) ([]byte, error)),
 		MediaTypes:     make(map[string]func([]byte) (any, error)),
@@ -66,9 +65,9 @@ func NewCompiler() *Compiler {
 		defaultFuncs:   make(map[string]DefaultFunc),
 		customFormats:  make(map[string]*FormatDef),
 
-		// Default to standard library JSON implementation
-		jsonEncoder: json.Marshal,
-		jsonDecoder: json.Unmarshal,
+		// Default to go-json-experiment JSON implementation
+		jsonEncoder: func(v any) ([]byte, error) { return json.Marshal(v) },
+		jsonDecoder: func(data []byte, v any) error { return json.Unmarshal(data, v) },
 	}
 	compiler.initDefaults()
 	return compiler
@@ -93,10 +92,11 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 		return nil, err
 	}
 
-	uri := schema.ID
-	if uri == "" && len(uris) > 0 {
-		uri = uris[0]
+	if schema.ID == "" && len(uris) > 0 {
+		schema.ID = uris[0]
 	}
+
+	uri := schema.ID
 
 	if uri != "" && isValidURI(uri) {
 		schema.uri = uri
@@ -112,10 +112,11 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 
 	schema.initializeSchema(c, nil)
 
-	// Track all schemas, whether they have an ID or not
-	c.mu.Lock()
-	c.allSchemas = append(c.allSchemas, schema)
+	if err := schema.validateRegexSyntax(); err != nil {
+		return nil, err
+	}
 
+	c.mu.Lock()
 	if schema.uri != "" && isValidURI(schema.uri) {
 		c.schemas[schema.uri] = schema
 	}
@@ -378,7 +379,6 @@ func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, 
 		compiledSchemas[id] = schema
 
 		c.mu.Lock()
-		c.allSchemas = append(c.allSchemas, schema)
 		if schema.uri != "" && isValidURI(schema.uri) {
 			c.schemas[schema.uri] = schema
 		}

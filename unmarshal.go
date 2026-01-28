@@ -203,7 +203,28 @@ func (s *Schema) applyDefaults(data map[string]any, schema *Schema) error {
 
 // applyPropertyDefaults applies defaults for a single property
 func (s *Schema) applyPropertyDefaults(data map[string]any, propName string, propSchema *Schema) error {
-	// Set default value if property doesn't exist
+	// Check if we need to handle anyOf schema (common for pointer fields)
+	if len(propSchema.AnyOf) > 0 {
+		// Look for a default value in the anyOf schemas
+		// Typically for pointer fields: [{"type": "string", "default": "..."}, {"type": "null"}]
+		for _, subSchema := range propSchema.AnyOf {
+			if subSchema.Default != nil {
+				// Check if property doesn't exist or is null
+				propData, exists := data[propName]
+				if !exists || propData == nil {
+					// Apply the default from the subschema
+					defaultValue, err := s.evaluateDefaultValue(subSchema.Default)
+					if err != nil {
+						return fmt.Errorf("%w: property '%s': %w", ErrDefaultEvaluation, propName, err)
+					}
+					data[propName] = defaultValue
+					break // Use the first default found
+				}
+			}
+		}
+	}
+
+	// Set default value if property doesn't exist (for non-anyOf schemas)
 	if _, exists := data[propName]; !exists && propSchema.Default != nil {
 		// Try to evaluate dynamic default value
 		defaultValue, err := s.evaluateDefaultValue(propSchema.Default)
@@ -393,6 +414,11 @@ func (s *Schema) setFieldValue(fieldVal reflect.Value, value any) error {
 		return s.setTimeValue(fieldVal, value)
 	}
 
+	// Handle slices
+	if fieldType.Kind() == reflect.Slice {
+		return s.setSliceValue(fieldVal, value)
+	}
+
 	// Handle nested structs and maps
 	if fieldType.Kind() == reflect.Struct || fieldType.Kind() == reflect.Map {
 		return s.setComplexValue(fieldVal, value)
@@ -422,6 +448,43 @@ func (s *Schema) setPointerValue(fieldVal reflect.Value, valueVal reflect.Value,
 		fieldVal.Set(reflect.New(fieldType.Elem()))
 	}
 	return s.setFieldValue(fieldVal.Elem(), valueVal.Interface())
+}
+
+// setSliceValue handles slice field assignment
+func (s *Schema) setSliceValue(fieldVal reflect.Value, value any) error {
+	// Handle []any from JSON unmarshaling
+	if sliceVal, ok := value.([]any); ok {
+		// Create a new slice of the correct type
+		sliceType := fieldVal.Type()
+		newSlice := reflect.MakeSlice(sliceType, 0, len(sliceVal))
+
+		// Convert each element
+		elemType := sliceType.Elem()
+		for _, item := range sliceVal {
+			// Create a new element of the correct type
+			elemVal := reflect.New(elemType).Elem()
+
+			// Set the value for the element
+			if err := s.setFieldValue(elemVal, item); err != nil {
+				// If direct conversion fails, try JSON round-trip
+				jsonData, encErr := s.GetCompiler().jsonEncoder(item)
+				if encErr != nil {
+					return fmt.Errorf("%w: %w", ErrNestedValueEncode, encErr)
+				}
+				if decErr := s.GetCompiler().jsonDecoder(jsonData, elemVal.Addr().Interface()); decErr != nil {
+					return fmt.Errorf("%w: %w", ErrTypeConversion, decErr)
+				}
+			}
+
+			newSlice = reflect.Append(newSlice, elemVal)
+		}
+
+		fieldVal.Set(newSlice)
+		return nil
+	}
+
+	// Fallback to JSON round-trip for other cases
+	return s.setComplexValue(fieldVal, value)
 }
 
 // setComplexValue handles nested structs and maps

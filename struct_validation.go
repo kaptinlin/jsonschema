@@ -1,5 +1,32 @@
 package jsonschema
 
+// Struct Validation Semantics
+//
+// This file implements JSON Schema validation for Go structs with special handling
+// for omitempty, omitzero, and required field semantics.
+//
+// Key Concepts:
+//
+// 1. isEmptyValue: Used for `omitempty` tag behavior
+//    - Determines if a field should be omitted from JSON serialization
+//    - Empty values: nil pointers, zero-length collections, zero numbers, false booleans, zero time.Time
+//    - Follows standard JSON encoding/json package semantics
+//
+// 2. isMissingValue: Used for `required` field validation
+//    - Determines if a required field is present with a meaningful value
+//    - Missing values: nil pointers, empty strings, zero-length collections, zero time.Time
+//    - Non-missing: All numeric values (including 0), false for booleans
+//    - Rationale: Required numeric/boolean fields can legitimately have zero/false values
+//
+// 3. isZeroValue: Used for `omitzero` tag behavior (Go 1.24+)
+//    - Uses IsZero() method when available (time.Time, custom types)
+//    - Falls back to reflect.Value.IsZero() for built-in types
+//
+// The distinction ensures that:
+// - `required` validation allows zero values for numbers/booleans (0, false are valid)
+// - `omitempty` follows JSON marshaling behavior
+// - `omitzero` provides strict zero-value checking
+
 import (
 	"reflect"
 	"regexp"
@@ -25,6 +52,9 @@ type FieldInfo struct {
 
 // Global cache for struct field information
 var fieldCacheMap sync.Map
+
+// jsonTagIgnore is the special value used in JSON tags to skip a field
+const jsonTagIgnore = "-"
 
 // getFieldCache retrieves or creates cached field information for a struct type
 func getFieldCache(structType reflect.Type) *FieldCache {
@@ -52,7 +82,7 @@ func parseStructType(structType reflect.Type) *FieldCache {
 		}
 
 		jsonName, omitempty, omitzero := parseJSONTag(field.Tag.Get("json"), field.Name)
-		if jsonName == "-" {
+		if jsonName == jsonTagIgnore {
 			continue // Skip fields marked with json:"-"
 		}
 
@@ -132,10 +162,11 @@ func isEmptyValue(rv reflect.Value) bool {
 	case reflect.Interface, reflect.Ptr:
 		return rv.IsNil()
 	case reflect.Struct:
-		// Special handling for time.Time
-		if rv.Type() == reflect.TypeOf(time.Time{}) {
-			t := rv.Interface().(time.Time)
-			return t.IsZero()
+		// Use IsZero method if available (time.Time, custom types)
+		if rv.CanInterface() {
+			if zeroChecker, ok := rv.Interface().(interface{ IsZero() bool }); ok {
+				return zeroChecker.IsZero()
+			}
 		}
 		return rv.IsZero()
 	case reflect.Uintptr, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Func, reflect.UnsafePointer:
@@ -153,10 +184,11 @@ func isMissingValue(rv reflect.Value) bool {
 	case reflect.Interface, reflect.Ptr:
 		return rv.IsNil()
 	case reflect.Struct:
-		// Special handling for time.Time
-		if rv.Type() == reflect.TypeOf(time.Time{}) {
-			t := rv.Interface().(time.Time)
-			return t.IsZero()
+		// Use IsZero method if available (time.Time, custom types)
+		if rv.CanInterface() {
+			if zeroChecker, ok := rv.Interface().(interface{ IsZero() bool }); ok {
+				return zeroChecker.IsZero()
+			}
 		}
 		return rv.IsZero()
 	case reflect.String:
@@ -169,12 +201,10 @@ func isMissingValue(rv reflect.Value) bool {
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64, reflect.Uintptr, reflect.Complex64, reflect.Complex128,
 		reflect.Chan, reflect.Func, reflect.UnsafePointer:
-		// For required fields, any non-nil value is considered present
-		// This includes false for booleans, 0 for numbers, etc.
+		// Numeric types and special types: non-zero values are considered present
 		return false
 	default:
-		// For required fields, any non-nil value is considered present
-		// This includes false for booleans, 0 for numbers, etc.
+		// Fallback for any other types
 		return false
 	}
 }
@@ -195,11 +225,45 @@ func extractValue(rv reflect.Value) any {
 		return t.Format(time.RFC3339)
 	}
 
+	// Convert slices and arrays to []any for proper array validation
+	if rv.Kind() == reflect.Slice {
+		if rv.IsNil() {
+			return nil
+		}
+		return convertSliceToAny(rv)
+	}
+	if rv.Kind() == reflect.Array {
+		return convertSliceToAny(rv)
+	}
+
 	if rv.CanInterface() {
 		return rv.Interface()
 	}
 
 	return nil
+}
+
+// convertSliceToAny converts a reflect.Value slice/array to []any
+func convertSliceToAny(rv reflect.Value) []any {
+	length := rv.Len()
+	result := make([]any, length)
+	for i := 0; i < length; i++ {
+		elem := rv.Index(i)
+		// Recursively extract values to handle nested pointers and special types
+		result[i] = extractValue(elem)
+	}
+	return result
+}
+
+// appendValidationResult appends a validation result and tracks invalid properties
+func appendValidationResult(results *[]*EvaluationResult, invalidProps *[]string, propName string, result *EvaluationResult) {
+	if result == nil {
+		return
+	}
+	*results = append(*results, result)
+	if !result.IsValid() {
+		*invalidProps = append(*invalidProps, propName)
+	}
 }
 
 // evaluateObjectStruct handles validation for Go structs
@@ -220,9 +284,7 @@ func evaluateObjectStruct(schema *Schema, structValue reflect.Value, evaluatedPr
 	// Validate patternProperties
 	if schema.PatternProperties != nil {
 		patternResults, patternError := evaluatePatternPropertiesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope)
-		if patternResults != nil {
-			results = append(results, patternResults...)
-		}
+		results = append(results, patternResults...)
 		if patternError != nil {
 			errors = append(errors, patternError)
 		}
@@ -231,9 +293,7 @@ func evaluateObjectStruct(schema *Schema, structValue reflect.Value, evaluatedPr
 	// Validate additionalProperties
 	if schema.AdditionalProperties != nil {
 		additionalResults, additionalError := evaluateAdditionalPropertiesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope)
-		if additionalResults != nil {
-			results = append(results, additionalResults...)
-		}
+		results = append(results, additionalResults...)
 		if additionalError != nil {
 			errors = append(errors, additionalError)
 		}
@@ -242,9 +302,7 @@ func evaluateObjectStruct(schema *Schema, structValue reflect.Value, evaluatedPr
 	// Validate propertyNames
 	if schema.PropertyNames != nil {
 		propertyNamesResults, propertyNamesError := evaluatePropertyNamesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope)
-		if propertyNamesResults != nil {
-			results = append(results, propertyNamesResults...)
-		}
+		results = append(results, propertyNamesResults...)
 		if propertyNamesError != nil {
 			errors = append(errors, propertyNamesError)
 		}
@@ -305,12 +363,7 @@ func evaluatePropertiesStruct(schema *Schema, structValue reflect.Value, fieldCa
 			// Field doesn't exist in struct, only validate as nil if required and no default
 			if isRequired(schema, propName) && !defaultIsSpecified(propSchema) {
 				result, _, _ := propSchema.evaluate(nil, dynamicScope)
-				if result != nil {
-					results = append(results, result)
-					if !result.IsValid() {
-						invalidProperties = append(invalidProperties, propName)
-					}
-				}
+				appendValidationResult(&results, &invalidProperties, propName, result)
 			}
 			continue
 		}
@@ -327,12 +380,7 @@ func evaluatePropertiesStruct(schema *Schema, structValue reflect.Value, fieldCa
 		valueToValidate := extractValue(fieldValue)
 
 		result, _, _ := propSchema.evaluate(valueToValidate, dynamicScope)
-		if result != nil {
-			results = append(results, result)
-			if !result.IsValid() {
-				invalidProperties = append(invalidProperties, propName)
-			}
-		}
+		appendValidationResult(&results, &invalidProperties, propName, result)
 	}
 
 	// Handle errors for invalid properties
@@ -357,16 +405,8 @@ func evaluateRequiredStruct(schema *Schema, structValue reflect.Value, fieldCach
 		fieldValue := structValue.Field(fieldInfo.Index)
 
 		// Check if field is missing or empty
-		if !fieldValue.IsValid() {
+		if !fieldValue.IsValid() || isMissingValue(fieldValue) {
 			missingFields = append(missingFields, requiredField)
-		} else {
-			// For required fields, use the specific missing check
-			isMissing := isMissingValue(fieldValue)
-
-			// If the field is missing, it's required but missing
-			if isMissing {
-				missingFields = append(missingFields, requiredField)
-			}
 		}
 	}
 

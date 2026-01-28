@@ -1,3 +1,4 @@
+// Package main demonstrates dynamic default value generation with the jsonschema library.
 package main
 
 import (
@@ -16,7 +17,7 @@ func main() {
 
 	// Register built-in and custom functions
 	compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
-	compiler.RegisterDefaultFunc("uuid", func(args ...any) (any, error) {
+	compiler.RegisterDefaultFunc("uuid", func(_ ...any) (any, error) {
 		return uuid.New().String(), nil
 	})
 

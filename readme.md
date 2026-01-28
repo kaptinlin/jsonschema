@@ -1,6 +1,6 @@
 # JSON Schema Validator for Go
 
-[![Go Version](https://img.shields.io/badge/go-%3E%3D1.21.1-blue)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/go-%3E%3D1.25-blue)](https://golang.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Test Status](https://img.shields.io/badge/tests-passing-brightgreen)](https://github.com/json-schema-org/JSON-Schema-Test-Suite)
 
@@ -40,6 +40,10 @@ schema, err := compiler.Compile([]byte(`{
     },
     "required": ["name"]
 }`))
+if err != nil {
+    // Handle compilation errors (e.g., invalid regex patterns)
+    log.Fatal(err)
+}
 
 // Recommended workflow: validate first, then unmarshal
 data := []byte(`{"name": "John", "age": 25}`)
@@ -100,7 +104,10 @@ schemaJSON := `{
     "required": ["name"]
 }`
 
-schema, _ := compiler.Compile([]byte(schemaJSON))
+schema, err := compiler.Compile([]byte(schemaJSON))
+if err != nil {
+    log.Fatal(err)
+}
 
 // Validation + Unmarshal workflow
 data := []byte(`{"name": "John"}`)
@@ -183,7 +190,10 @@ type User struct {
 }
 
 // Generate schema from struct tags
-schema := jsonschema.FromStruct[User]()
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
 result := schema.Validate(userData)
 ```
 
@@ -245,17 +255,23 @@ result := schema.Validate(data)
 ### Custom Formats
 
 ```go
-compiler.RegisterFormat("uuid", func(value string) bool {
-    _, err := uuid.Parse(value)
-    return err == nil
-})
+compiler := jsonschema.NewCompiler()
+compiler.SetAssertFormat(true)  // Enable format validation
 
-// Use in schema
-schema := `{
-    "type": "string",
-    "format": "uuid"
-}`
+compiler.RegisterFormat("custom-id", func(v any) bool {
+    s, ok := v.(string)
+    if !ok { return false }
+    return strings.HasPrefix(s, "ID-")
+}, "string")
+
+schema, _ := compiler.Compile([]byte(`{"type": "string", "format": "custom-id"}`))
+schema.Validate("ID-123")   // valid=true
+schema.Validate("ABC-123")  // valid=false
 ```
+
+> **Note**: Per JSON Schema Draft 2020-12, format validation is disabled by default. Use `SetAssertFormat(true)` to enable it.
+
+**Full Documentation**: [docs/format-validation.md](docs/format-validation.md)
 
 ### Schema References
 
@@ -279,13 +295,21 @@ schema := `{
 ### Internationalization
 
 ```go
-// Set custom error messages
-compiler.SetLocale("zh-CN")
+// Get i18n bundle with embedded locales
+i18nBundle, _ := jsonschema.GetI18n()
 
-// Or use custom translator
-compiler.SetTranslator(func(key string, args ...interface{}) string {
-    return customTranslate(key, args...)
-})
+// Create localizer for desired language
+// Supported: en, zh-Hans, zh-Hant, de-DE, es-ES, fr-FR, ja-JP, ko-KR, pt-BR
+localizer := i18nBundle.NewLocalizer("zh-Hans")
+
+// Validate and get localized errors
+result := schema.Validate(data)
+if !result.IsValid() {
+    localizedErrors := result.ToLocalizeList(localizer)
+    for field, message := range localizedErrors.Errors {
+        fmt.Printf("%s: %s\n", field, message)
+    }
+}
 ```
 
 ### Performance Optimization
@@ -303,7 +327,32 @@ result := schema.ValidateMap(mapData)        // Fastest for maps
 
 ## Error Handling
 
-### Detailed Error Information
+### Compilation Errors
+
+Errors can occur during schema compilation, such as invalid regex patterns:
+
+```go
+schema, err := compiler.Compile(schemaJSON)
+if err != nil {
+    // Check for regex validation errors
+    if errors.Is(err, jsonschema.ErrRegexValidation) {
+        log.Printf("Invalid regex pattern: %v", err)
+    }
+}
+
+// FromStruct also validates patterns at compile time
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    var tagErr *jsonschema.StructTagError
+    if errors.As(err, &tagErr) {
+        log.Printf("Field %s has invalid tag: %s", tagErr.FieldName, tagErr.TagRule)
+    }
+}
+```
+
+**📖 Full Documentation**: [docs/error-handling.md](docs/error-handling.md#compilation-errors)
+
+### Validation Errors
 
 ```go
 result := schema.Validate(data)
@@ -315,7 +364,7 @@ if !result.IsValid() {
         fmt.Printf("Value: %v\n", err.Value)
         fmt.Printf("Schema: %v\n", err.Schema)
     }
-    
+
     // Or get as a list
     errors := result.ToList()
     for _, err := range errors {

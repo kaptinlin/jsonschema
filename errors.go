@@ -1,6 +1,10 @@
 package jsonschema
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 // === Network and IO Related Errors ===
 var (
@@ -90,7 +94,58 @@ var (
 
 	// ErrSchemaInternalsIsNil is returned when schema internals is nil.
 	ErrSchemaInternalsIsNil = errors.New("schema internals is nil")
+
+	// ErrRegexValidation is returned when regex pattern validation fails.
+	ErrRegexValidation = errors.New("regex validation failed")
 )
+
+// RegexPatternError provides structured context for invalid regular expressions discovered during schema compilation.
+type RegexPatternError struct {
+	// Keyword identifies the JSON Schema keyword containing the invalid pattern.
+	// Examples: "pattern", "patternProperties".
+	Keyword string
+
+	// Location is the JSON Pointer path to the keyword instance.
+	// Example: "#/properties/email/pattern".
+	Location string
+
+	// Pattern is the regex pattern that failed to compile.
+	Pattern string
+
+	// Err is the underlying regexp compilation error.
+	Err error
+}
+
+// Error returns a formatted error message with full context.
+func (e *RegexPatternError) Error() string {
+	var parts []string
+
+	if e.Keyword != "" {
+		parts = append(parts, fmt.Sprintf("keyword=%s", e.Keyword))
+	}
+	if e.Location != "" {
+		parts = append(parts, fmt.Sprintf("location=%s", e.Location))
+	}
+	if e.Pattern != "" {
+		parts = append(parts, fmt.Sprintf("pattern=%q", e.Pattern))
+	}
+
+	msg := "regex pattern error"
+	if len(parts) > 0 {
+		msg = fmt.Sprintf("%s (%s)", msg, strings.Join(parts, ", "))
+	}
+
+	if e.Err != nil {
+		msg = fmt.Sprintf("%s: %v", msg, e.Err)
+	}
+
+	return msg
+}
+
+// Unwrap returns the compilation error for compatibility with errors.Is/As.
+func (e *RegexPatternError) Unwrap() error {
+	return e.Err
+}
 
 // === Data Validation Related Errors ===
 var (
@@ -368,7 +423,6 @@ var (
 	ErrFailedToWriteContent = ErrContentWrite
 
 	// ErrJSONUnmarshalError is deprecated: Use ErrJSONUnmarshal instead
-	// Deprecated: Use ErrJSONUnmarshal instead
 	ErrJSONUnmarshalError = ErrJSONUnmarshal
 
 	// ErrXMLUnmarshalError is deprecated: Use ErrXMLUnmarshal instead
@@ -392,8 +446,7 @@ var (
 	// ErrFailedToEncodeNestedValue is deprecated: Use ErrNestedValueEncode instead
 	ErrFailedToEncodeNestedValue = ErrNestedValueEncode
 
-	// ErrFailedToCompileSchema is deprecated: Use ErrSchemaCompile instead
-	// Deprecated: Use ErrSchemaCompilation instead
+	// ErrFailedToCompileSchema is deprecated: Use ErrSchemaCompilation instead
 	ErrFailedToCompileSchema = ErrSchemaCompilation
 
 	// ErrFailedToResolveReference is deprecated: Use ErrReferenceResolution instead
@@ -418,7 +471,6 @@ var (
 	ErrInvalidJSONSchemaType = ErrInvalidSchemaType
 
 	// ErrTimeTypeConversion is deprecated: Use ErrTimeConversion instead
-	// Deprecated: Use ErrTimeConversion instead
 	ErrTimeTypeConversion = ErrTimeConversion
 
 	// ErrTimeParseFailure is deprecated: Use ErrTimeParsing instead

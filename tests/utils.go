@@ -45,7 +45,7 @@ func startTestServer() *http.Server {
 
 // stopTestServer stops the given HTTP server.
 func stopTestServer(server *http.Server) {
-	if err := server.Shutdown(context.TODO()); err != nil {
+	if err := server.Shutdown(context.Background()); err != nil {
 		log.Fatalf("Failed to shutdown server: %v", err)
 	}
 }

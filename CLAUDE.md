@@ -79,15 +79,15 @@ Individual files implement JSON Schema validation keywords (e.g., `properties.go
 
 ## Configuration Files
 
-- `go.mod` - Go module definition (requires Go 1.23.0+)
+- `go.mod` - Go module definition (requires Go 1.25)
 - `Makefile` - Build automation and development commands
 - `.golangci.version` - Required golangci-lint version for consistent linting
 - `locales/*.json` - Translation files for error messages
 
 ## Dependencies
 
-- `github.com/goccy/go-json` - High-performance JSON library
-- `github.com/kaptinlin/go-i18n` - Internationalization support  
+- `github.com/go-json-experiment/json` - Experimental JSON library for Go
+- `github.com/kaptinlin/go-i18n` - Internationalization support
 - `github.com/stretchr/testify` - Testing utilities
 - `github.com/goccy/go-yaml` - YAML support
 

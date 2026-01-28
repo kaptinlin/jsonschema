@@ -27,14 +27,14 @@ if err != nil {
 
 ```go
 // Compile with specific ID for referencing
-schema, err := compiler.CompileWithID("user.json", []byte(`{
+schema, err := compiler.Compile([]byte(`{
     "$id": "user.json",
     "type": "object",
     "properties": {
         "name": {"type": "string"},
         "email": {"type": "string", "format": "email"}
     }
-}`))
+}`), "user.json")
 ```
 
 ---
@@ -143,7 +143,7 @@ schema, _ := compiler.Compile([]byte(`{
 
 ```go
 // First, register the referenced schema
-compiler.CompileWithID("address.json", []byte(`{
+compiler.Compile([]byte(`{
     "type": "object",
     "properties": {
         "street": {"type": "string"},
@@ -151,7 +151,7 @@ compiler.CompileWithID("address.json", []byte(`{
         "country": {"type": "string", "default": "US"}
     },
     "required": ["street", "city"]
-}`))
+}`), "address.json")
 
 // Then reference it in another schema
 mainSchema, _ := compiler.Compile([]byte(`{
@@ -281,24 +281,24 @@ Compile multiple related schemas:
 compiler := jsonschema.NewCompiler()
 
 // User schema
-compiler.CompileWithID("user.json", []byte(`{
+compiler.Compile([]byte(`{
     "type": "object",
     "properties": {
         "id": {"type": "string"},
         "name": {"type": "string"},
         "email": {"type": "string", "format": "email"}
     }
-}`))
+}`), "user.json")
 
 // Post schema referencing user
-compiler.CompileWithID("post.json", []byte(`{
+compiler.Compile([]byte(`{
     "type": "object",
     "properties": {
         "id": {"type": "string"},
         "title": {"type": "string"},
         "author": {"$ref": "user.json"}
     }
-}`))
+}`), "post.json")
 
 // Get compiled schemas
 userSchema, _ := compiler.GetSchema("user.json")
@@ -311,15 +311,21 @@ postSchema, _ := compiler.GetSchema("post.json")
 
 ### Compilation Errors
 
+Use standard Go error inspection with `errors.Is()`:
+
 ```go
-schema, err := compiler.Compile(invalidSchemaBytes)
+import "errors"
+
+schema, err := compiler.Compile(schemaBytes)
 if err != nil {
-    switch {
-    case strings.Contains(err.Error(), "invalid JSON"):
+    // Check for specific error types
+    if errors.Is(err, jsonschema.ErrJSONUnmarshal) {
         log.Printf("Schema JSON syntax error: %v", err)
-    case strings.Contains(err.Error(), "unresolved reference"):
+    } else if errors.Is(err, jsonschema.ErrReferenceResolution) {
         log.Printf("Schema reference error: %v", err)
-    default:
+    } else if errors.Is(err, jsonschema.ErrRegexValidation) {
+        log.Printf("Invalid regex pattern: %v", err)
+    } else {
         log.Printf("Schema compilation error: %v", err)
     }
 }
@@ -336,7 +342,9 @@ schema, err := compiler.Compile([]byte(`{
 }`))
 
 if err != nil {
-    log.Printf("Failed to resolve schema reference: %v", err)
+    if errors.Is(err, jsonschema.ErrReferenceResolution) {
+        log.Printf("Failed to resolve schema reference: %v", err)
+    }
 }
 ```
 

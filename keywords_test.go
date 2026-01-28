@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kaptinlin/jsonschema"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStringKeywords(t *testing.T) {
@@ -65,15 +66,11 @@ func TestStringKeywords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test valid data
 			result := tt.schema.Validate(tt.valid)
-			if !result.IsValid() {
-				t.Errorf("Expected valid data to pass validation, got errors: %v", result.Errors)
-			}
+			assert.True(t, result.IsValid(), "Expected valid data to pass validation, got errors: %v", result.Errors)
 
 			// Test invalid data
 			result = tt.schema.Validate(tt.invalid)
-			if result.IsValid() {
-				t.Errorf("Expected invalid data to fail validation")
-			}
+			assert.False(t, result.IsValid(), "Expected invalid data to fail validation")
 		})
 	}
 }
@@ -161,15 +158,11 @@ func TestNumberKeywords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test valid data
 			result := tt.schema.Validate(tt.valid)
-			if !result.IsValid() {
-				t.Errorf("Expected valid data to pass validation, got errors: %v", result.Errors)
-			}
+			assert.True(t, result.IsValid(), "Expected valid data to pass validation, got errors: %v", result.Errors)
 
 			// Test invalid data
 			result = tt.schema.Validate(tt.invalid)
-			if result.IsValid() {
-				t.Errorf("Expected invalid data to fail validation")
-			}
+			assert.False(t, result.IsValid(), "Expected invalid data to fail validation")
 		})
 	}
 }
@@ -246,15 +239,11 @@ func TestArrayKeywords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test valid data
 			result := tt.schema.Validate(tt.valid)
-			if !result.IsValid() {
-				t.Errorf("Expected valid data to pass validation, got errors: %v", result.Errors)
-			}
+			assert.True(t, result.IsValid(), "Expected valid data to pass validation, got errors: %v", result.Errors)
 
 			// Test invalid data
 			result = tt.schema.Validate(tt.invalid)
-			if result.IsValid() {
-				t.Errorf("Expected invalid data to fail validation")
-			}
+			assert.False(t, result.IsValid(), "Expected invalid data to fail validation")
 		})
 	}
 }
@@ -341,15 +330,11 @@ func TestObjectKeywords(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test valid data
 			result := tt.schema.Validate(tt.valid)
-			if !result.IsValid() {
-				t.Errorf("Expected valid data to pass validation, got errors: %v", result.Errors)
-			}
+			assert.True(t, result.IsValid(), "Expected valid data to pass validation, got errors: %v", result.Errors)
 
 			// Test invalid data
 			result = tt.schema.Validate(tt.invalid)
-			if result.IsValid() {
-				t.Errorf("Expected invalid data to fail validation")
-			}
+			assert.False(t, result.IsValid(), "Expected invalid data to fail validation")
 		})
 	}
 }
@@ -391,15 +376,11 @@ func TestBasicConvenienceFunctions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test valid data
 			result := tt.schema.Validate(tt.valid)
-			if !result.IsValid() {
-				t.Errorf("Expected valid data to pass validation, got errors: %v", result.Errors)
-			}
+			assert.True(t, result.IsValid(), "Expected valid data to pass validation, got errors: %v", result.Errors)
 
 			// Test invalid data
 			result = tt.schema.Validate(tt.invalid)
-			if result.IsValid() {
-				t.Errorf("Expected invalid data to fail validation")
-			}
+			assert.False(t, result.IsValid(), "Expected invalid data to fail validation")
 		})
 	}
 }
@@ -415,14 +396,10 @@ func TestAnnotationKeywords(t *testing.T) {
 	)
 
 	result := schema.Validate("Alice")
-	if !result.IsValid() {
-		t.Errorf("Expected valid string to pass validation, got errors: %v", result.Errors)
-	}
+	assert.True(t, result.IsValid(), "Expected valid string to pass validation, got errors: %v", result.Errors)
 
 	result = schema.Validate("")
-	if result.IsValid() {
-		t.Errorf("Expected empty string to fail validation due to minLength")
-	}
+	assert.False(t, result.IsValid(), "Expected empty string to fail validation due to minLength")
 }
 
 func TestKeywordCombinations(t *testing.T) {
@@ -458,9 +435,7 @@ func TestKeywordCombinations(t *testing.T) {
 	}
 
 	result := schema.Validate(validData)
-	if !result.IsValid() {
-		t.Errorf("Expected valid data to pass validation, got errors: %v", result.Errors)
-	}
+	assert.True(t, result.IsValid(), "Expected valid data to pass validation, got errors: %v", result.Errors)
 
 	invalidData := map[string]any{
 		"username": "jo", // Too short
@@ -469,7 +444,5 @@ func TestKeywordCombinations(t *testing.T) {
 	}
 
 	result = schema.Validate(invalidData)
-	if result.IsValid() {
-		t.Errorf("Expected invalid data to fail validation")
-	}
+	assert.False(t, result.IsValid(), "Expected invalid data to fail validation")
 }

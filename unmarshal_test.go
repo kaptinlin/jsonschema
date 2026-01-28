@@ -652,7 +652,7 @@ func BenchmarkUnmarshal(b *testing.B) {
 	input := []byte(`{"id": 1}`)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var result User
 		_ = schema.Unmarshal(&result, input)
 	}
@@ -665,4 +665,277 @@ func parseTime(timeStr string) time.Time {
 		panic(err)
 	}
 	return t
+}
+
+// TestUnmarshalSliceOfStructs tests unmarshaling arrays of structured data
+func TestUnmarshalSliceOfStructs(t *testing.T) {
+	type InnerStruct struct {
+		Key1 string `json:"key1"`
+		Key2 bool   `json:"key2"`
+	}
+
+	type OuterStruct struct {
+		Inner []InnerStruct `json:"inner"`
+	}
+
+	tests := []struct {
+		name     string
+		input    string
+		expected OuterStruct
+		wantErr  bool
+	}{
+		{
+			name: "slice with multiple structs",
+			input: `{
+				"inner": [
+					{"key1": "value1", "key2": true},
+					{"key1": "value2", "key2": false}
+				]
+			}`,
+			expected: OuterStruct{
+				Inner: []InnerStruct{
+					{Key1: "value1", Key2: true},
+					{Key1: "value2", Key2: false},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:     "empty slice",
+			input:    `{"inner": []}`,
+			expected: OuterStruct{Inner: []InnerStruct{}},
+			wantErr:  false,
+		},
+		{
+			name:     "null slice",
+			input:    `{"inner": null}`,
+			expected: OuterStruct{Inner: nil},
+			wantErr:  false,
+		},
+		{
+			name:     "missing field",
+			input:    `{}`,
+			expected: OuterStruct{Inner: nil},
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create schema from struct
+			opts := DefaultStructTagOptions()
+			schema, err := FromStructWithOptions[OuterStruct](opts)
+			require.NoError(t, err)
+
+			// Unmarshal
+			var result OuterStruct
+			err = schema.Unmarshal(&result, []byte(tt.input))
+
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestUnmarshalNestedSliceOfStructs tests deeply nested slice structures
+func TestUnmarshalNestedSliceOfStructs(t *testing.T) {
+	type DeepStruct struct {
+		Value string `json:"value"`
+	}
+
+	type MiddleStruct struct {
+		Items []DeepStruct `json:"items"`
+		Name  string       `json:"name"`
+	}
+
+	type TopStruct struct {
+		Middle []MiddleStruct `json:"middle"`
+	}
+
+	input := `{
+		"middle": [
+			{
+				"name": "first",
+				"items": [
+					{"value": "a"},
+					{"value": "b"}
+				]
+			},
+			{
+				"name": "second",
+				"items": [
+					{"value": "c"}
+				]
+			}
+		]
+	}`
+
+	// Create schema from struct
+	opts := DefaultStructTagOptions()
+	schema, err := FromStructWithOptions[TopStruct](opts)
+	require.NoError(t, err)
+
+	// Unmarshal
+	var result TopStruct
+	err = schema.Unmarshal(&result, []byte(input))
+	require.NoError(t, err)
+
+	// Verify results
+	assert.Len(t, result.Middle, 2)
+	assert.Equal(t, "first", result.Middle[0].Name)
+	assert.Len(t, result.Middle[0].Items, 2)
+	assert.Equal(t, "a", result.Middle[0].Items[0].Value)
+	assert.Equal(t, "b", result.Middle[0].Items[1].Value)
+	assert.Equal(t, "second", result.Middle[1].Name)
+	assert.Len(t, result.Middle[1].Items, 1)
+	assert.Equal(t, "c", result.Middle[1].Items[0].Value)
+}
+
+// TestUnmarshalSliceOfPointers tests slices containing pointer types
+func TestUnmarshalSliceOfPointers(t *testing.T) {
+	type Item struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+
+	type Container struct {
+		Items []*Item `json:"items"`
+	}
+
+	input := `{
+		"items": [
+			{"id": 1, "name": "first"},
+			{"id": 2, "name": "second"}
+		]
+	}`
+
+	// Create schema from struct
+	opts := DefaultStructTagOptions()
+	schema, err := FromStructWithOptions[Container](opts)
+	require.NoError(t, err)
+
+	// Unmarshal
+	var result Container
+	err = schema.Unmarshal(&result, []byte(input))
+	require.NoError(t, err)
+
+	// Verify results
+	assert.Len(t, result.Items, 2)
+	assert.NotNil(t, result.Items[0])
+	assert.Equal(t, 1, result.Items[0].ID)
+	assert.Equal(t, "first", result.Items[0].Name)
+	assert.NotNil(t, result.Items[1])
+	assert.Equal(t, 2, result.Items[1].ID)
+	assert.Equal(t, "second", result.Items[1].Name)
+}
+
+// TestUnmarshalMixedSliceTypes tests various slice element types
+func TestUnmarshalMixedSliceTypes(t *testing.T) {
+	type MixedStruct struct {
+		Strings []string         `json:"strings"`
+		Ints    []int            `json:"ints"`
+		Bools   []bool           `json:"bools"`
+		Maps    []map[string]any `json:"maps"`
+		Any     []any            `json:"any"`
+	}
+
+	input := `{
+		"strings": ["a", "b", "c"],
+		"ints": [1, 2, 3],
+		"bools": [true, false, true],
+		"maps": [{"key": "value"}, {"foo": "bar"}],
+		"any": [1, "two", true, {"nested": "object"}]
+	}`
+
+	// Create schema from struct
+	opts := DefaultStructTagOptions()
+	schema, err := FromStructWithOptions[MixedStruct](opts)
+	require.NoError(t, err)
+
+	// Unmarshal
+	var result MixedStruct
+	err = schema.Unmarshal(&result, []byte(input))
+	require.NoError(t, err)
+
+	// Verify results
+	assert.Equal(t, []string{"a", "b", "c"}, result.Strings)
+	assert.Equal(t, []int{1, 2, 3}, result.Ints)
+	assert.Equal(t, []bool{true, false, true}, result.Bools)
+	assert.Len(t, result.Maps, 2)
+	assert.Equal(t, "value", result.Maps[0]["key"])
+	assert.Equal(t, "bar", result.Maps[1]["foo"])
+	assert.Len(t, result.Any, 4)
+}
+
+// TestPointerFieldsWithDefaults tests that pointer fields with defaults are properly applied
+func TestPointerFieldsWithDefaults(t *testing.T) {
+	type Config struct {
+		Key1 string   `json:"key1" jsonschema:"default=key1 default value"`
+		Key2 *string  `json:"key2" jsonschema:"default=key2 default value"`
+		Key3 *int     `json:"key3" jsonschema:"default=42"`
+		Key4 *bool    `json:"key4" jsonschema:"default=true"`
+		Key5 *float64 `json:"key5" jsonschema:"default=3.14"`
+	}
+
+	tests := []struct {
+		name     string
+		manifest string
+		wantKey2 string
+		wantKey3 int
+		wantKey4 bool
+		wantKey5 float64
+	}{
+		{
+			name:     "empty object should apply defaults",
+			manifest: `{}`,
+			wantKey2: "key2 default value",
+			wantKey3: 42,
+			wantKey4: true,
+			wantKey5: 3.14,
+		},
+		{
+			name:     "null values should apply defaults",
+			manifest: `{"key2": null, "key3": null, "key4": null, "key5": null}`,
+			wantKey2: "key2 default value",
+			wantKey3: 42,
+			wantKey4: true,
+			wantKey5: 3.14,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &Config{}
+
+			opts := DefaultStructTagOptions()
+			schema, err := FromStructWithOptions[Config](opts)
+			require.NoError(t, err)
+
+			err = schema.Unmarshal(config, []byte(tt.manifest))
+			require.NoError(t, err)
+
+			// Check Key1 (non-pointer string)
+			assert.Equal(t, "key1 default value", config.Key1, "Key1 should have default value")
+
+			// Check Key2 (pointer to string)
+			require.NotNil(t, config.Key2, "Key2 should not be nil")
+			assert.Equal(t, tt.wantKey2, *config.Key2, "Key2 should have default value")
+
+			// Check Key3 (pointer to int)
+			require.NotNil(t, config.Key3, "Key3 should not be nil")
+			assert.Equal(t, tt.wantKey3, *config.Key3, "Key3 should have default value")
+
+			// Check Key4 (pointer to bool)
+			require.NotNil(t, config.Key4, "Key4 should not be nil")
+			assert.Equal(t, tt.wantKey4, *config.Key4, "Key4 should have default value")
+
+			// Check Key5 (pointer to float64)
+			require.NotNil(t, config.Key5, "Key5 should not be nil")
+			assert.Equal(t, tt.wantKey5, *config.Key5, "Key5 should have default value")
+		})
+	}
 }

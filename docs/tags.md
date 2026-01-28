@@ -2,7 +2,7 @@
 
 Generate JSON Schemas directly from Go struct definitions using familiar tag syntax with powerful validation and code generation capabilities.
 
-## 🚀 Quick Start
+## Quick Start
 
 ```go
 package main
@@ -20,7 +20,10 @@ type User struct {
 
 func main() {
     // Generate schema from struct tags
-    schema := jsonschema.FromStruct[User]()
+    schema, err := jsonschema.FromStruct[User]()
+    if err != nil {
+        panic(err)
+    }
     
     // Validate data
     user := map[string]interface{}{
@@ -38,13 +41,13 @@ func main() {
 }
 ```
 
-## 📦 Installation
+## Installation
 
 ```bash
 go get github.com/kaptinlin/jsonschema
 ```
 
-## 🏷️ Tag Syntax
+## Tag Syntax
 
 ### Core Rules
 
@@ -65,22 +68,25 @@ type Example struct {
 ### Field Processing
 
 ```go
-// JSON field name mapping with Go 1.24+ omitzero support
+// JSON field name mapping with Go 1.25 omitzero support
 type User struct {
     FullName string `json:"full_name" jsonschema:"required,minLength=2"`
     Email    string `json:"email" jsonschema:"required,format=email"`
-    Bio      string `json:"bio,omitzero"`      // Omit if zero value (Go 1.24+)
+    Bio      string `json:"bio,omitzero"`      // Omit if zero value (Go 1.25)
     Age      int    `json:"age,omitempty"`     // Omit if empty
 }
 
 // Schema automatically uses JSON field names for validation paths
 // omitzero and omitempty tags are respected in struct validation
-schema := jsonschema.FromStruct[User]()
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
 ```
 
 ---
 
-## 🎛️ Schema Configuration Options
+## Schema Configuration Options
 
 ### Schema Version Control
 
@@ -88,21 +94,30 @@ Control the `$schema` property in generated JSON Schemas using `StructTagOptions
 
 ```go
 // Default behavior: includes JSON Schema Draft 2020-12
-schema := jsonschema.FromStruct[User]()
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
 // Result: {"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", ...}
 
 // Custom schema version
 options := &jsonschema.StructTagOptions{
     SchemaVersion: "https://json-schema.org/draft/2019-09/schema",
 }
-schema := jsonschema.FromStructWithOptions[User](options)
+schema, err := jsonschema.FromStructWithOptions[User](options)
+if err != nil {
+    panic(err)
+}
 // Result: {"$schema": "https://json-schema.org/draft/2019-09/schema", "type": "object", ...}
 
 // Omit $schema property (for backward compatibility)
 options := &jsonschema.StructTagOptions{
     SchemaVersion: "", // Empty string omits $schema
 }
-schema := jsonschema.FromStructWithOptions[User](options)
+schema, err := jsonschema.FromStructWithOptions[User](options)
+if err != nil {
+    panic(err)
+}
 // Result: {"type": "object", ...} (no $schema property)
 ```
 
@@ -114,15 +129,24 @@ schema := jsonschema.FromStructWithOptions[User](options)
 **Configuration Options:**
 ```go
 type StructTagOptions struct {
-    SchemaVersion       string  // $schema URI (empty = omit, default = Draft 2020-12)
-    TagName             string  // tag name to parse (default: "jsonschema")
-    AllowUntaggedFields bool    // include fields without tags (default: false)
-    DefaultRequired     bool    // fields required by default (default: false)
-    CacheEnabled        bool    // enable schema caching (default: true)
-    
-    // Schema-level properties - only set when explicitly provided
-    SchemaProperties map[string]any     // flexible configuration for any schema property
+    TagName             string              // tag name to parse (default: "jsonschema")
+    AllowUntaggedFields bool                // include fields without tags (default: false)
+    DefaultRequired     bool                // fields required by default (default: false)
+    FieldNameMapper     func(string) string // custom Go field name to JSON name mapper
+    CustomValidators    map[string]any      // custom validators for extensibility
+    CacheEnabled        bool                // enable schema caching (default: true)
+    SchemaVersion       string              // $schema URI (empty = omit, default = Draft 2020-12)
+    RequiredSort        RequiredSort        // controls required field ordering (default: alphabetical)
+    SchemaProperties    map[string]any      // flexible configuration for any schema property
 }
+
+// RequiredSort controls how required field names are ordered
+type RequiredSort string
+
+const (
+    RequiredSortAlphabetical RequiredSort = "alphabetical" // Sorts alphabetically (default)
+    RequiredSortNone         RequiredSort = "none"         // Preserves struct field order
+)
 ```
 
 ### Schema Property Configuration
@@ -134,7 +158,10 @@ options := &jsonschema.StructTagOptions{
         "additionalProperties": false, // Explicit: forbid additional properties
     },
 }
-schema := jsonschema.FromStructWithOptions[APIRequest](options)
+schema, err := jsonschema.FromStructWithOptions[APIRequest](options)
+if err != nil {
+    panic(err)
+}
 
 // Rich schema with metadata
 options := &jsonschema.StructTagOptions{
@@ -147,12 +174,36 @@ options := &jsonschema.StructTagOptions{
 }
 
 // Default behavior - clean schema (no extra properties)
-schema := jsonschema.FromStruct[User]() // Only struct-derived properties, no additionalProperties
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
+// Only struct-derived properties, no additionalProperties
+```
+
+### Utility Functions
+
+```go
+// Get default configuration
+options := jsonschema.DefaultStructTagOptions()
+
+// Clear cached schemas (useful for testing or hot reload)
+jsonschema.ClearSchemaCache()
+
+// Get cache statistics
+stats := jsonschema.GetCacheStats()
+fmt.Printf("Cache hits: %d, misses: %d\n", stats["hits"], stats["misses"])
+
+// Register a global custom validator
+jsonschema.RegisterCustomValidator("myRule", func(t reflect.Type, params []string) []jsonschema.Keyword {
+    // Return keywords based on custom logic
+    return nil
+})
 ```
 
 ---
 
-## 🏷️ JSON Field Tags (omitempty/omitzero)
+## JSON Field Tags (omitempty/omitzero)
 
 JSON field tags are fully supported in struct validation:
 
@@ -160,18 +211,21 @@ JSON field tags are fully supported in struct validation:
 type User struct {
     Name     string    `json:"name" jsonschema:"required"`
     Email    string    `json:"email,omitempty" jsonschema:"format=email"`
-    Bio      string    `json:"bio,omitzero"`      // Go 1.24+ - omits zero values  
+    Bio      string    `json:"bio,omitzero"`      // Go 1.25 - omits zero values  
     Created  time.Time `json:"created,omitzero"`  // Omits time.Time{} 
     Tags     []string  `json:"tags,omitempty"`    // Omits nil/empty slices
 }
 
-schema := jsonschema.FromStruct[User]()
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
 result := schema.ValidateStruct(user)  // ✅ Both tags respected
 ```
 
 **omitempty vs omitzero:**
 - **`omitempty`**: Omits nil pointers, empty slices/maps, `""`, `0`, `false`
-- **`omitzero`**: Omits any zero value (Go 1.24+), includes `time.Time{}`
+- **`omitzero`**: Omits any zero value (Go 1.25), includes `time.Time{}`
 
 ---
 
@@ -216,9 +270,6 @@ result := schema.ValidateStruct(user)  // ✅ Both tags respected
 | | `anyOf=schemas` | anyOf | `jsonschema:"anyOf=Email,Phone"` |
 | | `oneOf=schemas` | oneOf | `jsonschema:"oneOf=Individual,Company"` |
 | | `not=schema` | not | `jsonschema:"not=EmptyObject"` |
-| **Conditional** | `if=condition` | if | `jsonschema:"if=hasEmail"` |
-| | `then=schema` | then | `jsonschema:"then=RequireEmail"` |
-| | `else=schema` | else | `jsonschema:"else=RequirePhone"` |
 | **References** | `ref=uri` | $ref | `jsonschema:"ref=#/$defs/Address"` |
 | | `defs=names` | $defs | `jsonschema:"defs=Address,User"` |
 | | `anchor=name` | $anchor | `jsonschema:"anchor=main"` |
@@ -238,7 +289,7 @@ result := schema.ValidateStruct(user)  // ✅ Both tags respected
 
 ---
 
-## 🛠️ Practical Examples
+## Practical Examples
 
 ### Basic User Validation
 
@@ -251,7 +302,10 @@ type User struct {
     Bio      string `jsonschema:"maxLength=500"`                         // Optional
 }
 
-schema := jsonschema.FromStruct[User]()
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
 
 // Valid user data
 user := map[string]interface{}{
@@ -278,16 +332,22 @@ type CreatePostRequest struct {
 
 func createPostHandler(w http.ResponseWriter, r *http.Request) {
     var req CreatePostRequest
-    json.NewDecoder(r.Body).Decode(&req)
-    
-    schema := jsonschema.FromStruct[CreatePostRequest]()
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    schema, err := jsonschema.FromStruct[CreatePostRequest]()
+    if err != nil {
+        panic(err)
+    }
     result := schema.Validate(req)
     if !result.IsValid() {
         // Handle validation errors
         writeErrorResponse(w, result.Errors)
         return
     }
-    
+
     // Use validated request
     createPost(req)
 }
@@ -325,7 +385,10 @@ func LoadConfig(path string) (*AppConfig, error) {
         return nil, err
     }
     
-    schema := jsonschema.FromStruct[AppConfig]()
+    schema, err := jsonschema.FromStruct[AppConfig]()
+if err != nil {
+    panic(err)
+}
     result := schema.Validate(config)
     if !result.IsValid() {
         return nil, fmt.Errorf("validation failed: %v", result.Errors)
@@ -399,7 +462,10 @@ type UserProfile struct {
     Age     int     `jsonschema:"required,minimum=18"`
 }
 
-schema := jsonschema.FromStruct[UserProfile]()
+schema, err := jsonschema.FromStruct[UserProfile]()
+if err != nil {
+    panic(err)
+}
 
 profile := map[string]interface{}{
     "name":  "Bob Smith",
@@ -426,7 +492,10 @@ type User struct {
 }
 
 // JSON Schema automatically detects and handles circular references using $refs
-schema := jsonschema.FromStruct[User]()
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
 
 alice := map[string]interface{}{
     "name":  "Alice",
@@ -456,7 +525,10 @@ type Team struct {
     Scores  []int    `jsonschema:"minItems=1"`                         // Must have scores
 }
 
-schema := jsonschema.FromStruct[Team]()
+schema, err := jsonschema.FromStruct[Team]()
+if err != nil {
+    panic(err)
+}
 
 team := map[string]interface{}{
     "name":    "Backend Team",
@@ -504,7 +576,10 @@ type User struct {
 // After running: go generate
 // Generated Schema() method in user_schema.go provides optimized validation
 func main() {
-    schema := jsonschema.FromStruct[User]()  // Uses generated code automatically
+    schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}  // Uses generated code automatically
     
     user := User{Name: "Alice", Email: "alice@example.com", Age: 25}
     result := schema.Validate(user)   // Optimized performance
@@ -570,24 +645,6 @@ type Payment struct {
 ```go
 type Config struct {
     Settings interface{} `jsonschema:"not=EmptyObject"`
-}
-```
-
-### Conditional Logic
-
-**If-Then-Else validation:**
-```go
-type User struct {
-    Type        string `jsonschema:"required,enum=individual business"`
-    Email       string `jsonschema:"required,format=email"`
-    
-    // Individual users
-    FirstName   string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"individual\"}}},then={\"required\":[\"firstName\"]}"`
-    LastName    string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"individual\"}}},then={\"required\":[\"lastName\"]}"`
-    
-    // Business users
-    CompanyName string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"business\"}}},then={\"required\":[\"companyName\"]}"`
-    TaxID       string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"business\"}}},else={\"not\":{\"required\":[\"taxId\"]}}"`
 }
 ```
 
@@ -683,7 +740,7 @@ type APIResponse struct {
 
 ---
 
-## 🛠️ Error Handling
+## Error Handling
 
 ### Structured Error Information
 
@@ -694,7 +751,10 @@ type User struct {
     Age   int    `jsonschema:"required,minimum=18,maximum=120"`
 }
 
-schema := jsonschema.FromStruct[User]()
+schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
 
 invalidUser := map[string]interface{}{
     "name":  "A",                    // Too short
@@ -721,9 +781,41 @@ if !result.IsValid() {
 
 You can customize error messages by implementing custom validators or using the built-in localization support.
 
+### StructTagError
+
+When struct tag parsing fails, a `StructTagError` is returned with detailed context:
+
+```go
+type StructTagError struct {
+    StructType string // The struct type being processed
+    FieldName  string // The field with the error
+    TagRule    string // The failing tag rule
+    Message    string // Human-readable message
+    Err        error  // Underlying error
+}
+
+// Example error output:
+// struct tag error (struct=User, field=Email, rule=pattern=invalid[): invalid regex pattern
+```
+
+### Pattern Validation
+
+Regex patterns are validated at compile time to ensure Go compatibility. Use RE2 syntax with character classes and anchors:
+
+```go
+type User struct {
+    // Common pattern examples
+    Username string `jsonschema:"pattern=^[a-zA-Z0-9_]+$"`              // Alphanumeric + underscore
+    Status   string `jsonschema:"pattern=^(active|inactive|pending)$"`  // Enum-like values
+    Email    string `jsonschema:"format=email"`                         // Use built-in formats when available
+}
+```
+
+Invalid patterns (e.g., lookaheads/lookbehinds) will cause `FromStruct()` to return an error. See [Error Handling Guide](./error-handling.md#compilation-errors) for details.
+
 ---
 
-## 🏢 Real-World Integration Examples
+## Real-World Integration Examples
 
 ### Gin Web Framework
 
@@ -736,7 +828,10 @@ func setupValidatedRoutes(r *gin.Engine) {
             return
         }
         
-        schema := jsonschema.FromStruct[User]()
+        schema, err := jsonschema.FromStruct[User]()
+if err != nil {
+    panic(err)
+}
         if result := schema.Validate(user); !result.IsValid() {
             c.JSON(422, gin.H{"validation_errors": result.Errors})
         } else {
@@ -767,7 +862,10 @@ func LoadValidatedConfig(path string) (*Config, error) {
         return nil, err
     }
     
-    schema := jsonschema.FromStruct[Config]()
+    schema, err := jsonschema.FromStruct[Config]()
+if err != nil {
+    panic(err)
+}
     if result := schema.Validate(config); !result.IsValid() {
         return nil, fmt.Errorf("configuration validation failed: %v", result.Errors)
     }
@@ -778,7 +876,7 @@ func LoadValidatedConfig(path string) (*Config, error) {
 
 ---
 
-## 🔧 Rule Combination Examples
+## Rule Combination Examples
 
 ### Complex Validation Combinations
 
@@ -792,11 +890,7 @@ type User struct {
     
     // Array length and uniqueness constraints
     Tags []string `jsonschema:"minItems=1,maxItems=10,uniqueItems=true"`
-    
-    // Conditional validation
-    Type        string `jsonschema:"required,enum=personal business"`
-    CompanyName string `jsonschema:"if={\"properties\":{\"type\":{\"const\":\"business\"}}},then={\"required\":[\"companyName\"]},minLength=2"`
-    
+
     // Metadata and default values
     Status   string `jsonschema:"default=active,enum=active inactive pending,title=Account Status"`
     CreateAt string `jsonschema:"format=date-time,readOnly=true,description=Account creation timestamp"`
