@@ -524,7 +524,7 @@ func evaluateObject(schema *Schema, data any, evaluatedProps map[string]bool, ev
 		rv = rv.Elem()
 	}
 
-	//nolint:exhaustive // Only handling Struct and Map kinds - other types use default fallback
+	//nolint:exhaustive,nolintlint // Only handling Struct and Map kinds - other types use default fallback
 	switch rv.Kind() {
 	case reflect.Struct:
 		return evaluateObjectStruct(schema, rv, evaluatedProps, evaluatedItems, dynamicScope)

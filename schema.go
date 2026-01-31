@@ -1,6 +1,7 @@
 package jsonschema
 
 import (
+	"bytes"
 	"errors"
 	"maps"
 	"regexp"
@@ -790,13 +791,45 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// If not a boolean, parse as a normal struct
+	// Use a temporary struct to intercept "items" and "additionalItems"
 	type Alias Schema
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
+	aux := &struct {
+		Items           jsontext.Value `json:"items,omitempty"`
+		AdditionalItems *Schema        `json:"additionalItems,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	*s = Schema(alias)
+
+	// Smart handling for "items" polymorphism (Draft 07 vs 2020-12)
+	if len(aux.Items) > 0 {
+		// Simple check for array start token '['
+		trimmed := bytes.TrimSpace(aux.Items)
+		if len(trimmed) > 0 && trimmed[0] == '[' {
+			// Case 1: items is an array (Draft 07 Tuple Validation)
+			// Map JSON "items" -> Go "PrefixItems"
+			if err := json.Unmarshal(aux.Items, &s.PrefixItems); err != nil {
+				return err
+			}
+
+			// In Draft 07, "additionalItems" validates the rest.
+			// Map JSON "additionalItems" -> Go "Items"
+			// (Note: In 2020-12, "items" handles what "additionalItems" used to do when prefixItems is present)
+			if aux.AdditionalItems != nil {
+				s.Items = aux.AdditionalItems
+			}
+		} else {
+			// Case 2: items is a schema object (Draft 2020-12 List Validation)
+			// Map JSON "items" -> Go "Items"
+			if err := json.Unmarshal(aux.Items, &s.Items); err != nil {
+				return err
+			}
+		}
+	}
 
 	// Special handling for backward compatibility and const field
 	var raw map[string]jsontext.Value

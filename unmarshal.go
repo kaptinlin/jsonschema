@@ -312,7 +312,7 @@ func (s *Schema) applyArrayDefaults(arrayData []any, itemSchema *Schema, propNam
 func (s *Schema) unmarshalToDestination(dst any, data map[string]any) error {
 	dstVal := reflect.ValueOf(dst).Elem()
 
-	//nolint:exhaustive // Only handling Map, Struct, and Ptr kinds - other types use default fallback
+	//nolint:exhaustive,nolintlint // Only handling Map, Struct, and Ptr kinds - other types use default fallback
 	switch dstVal.Kind() {
 	case reflect.Map:
 		return s.unmarshalToMap(dstVal, data)
