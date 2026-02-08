@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateMaxProperties checks if the number of properties in the object does not exceed the specified maximum.
+// evaluateMaxProperties checks if the number of properties in the object does not exceed the specified maximum.
 // According to the JSON Schema Draft 2020-12:
 //   - The "maxProperties" keyword must be a non-negative integer.
 //   - An object instance is valid against "maxProperties" if its number of properties is less than, or equal to, the value of this keyword.

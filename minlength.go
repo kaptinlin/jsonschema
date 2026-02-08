@@ -4,7 +4,7 @@ import (
 	"unicode/utf8"
 )
 
-// EvaluateMinLength checks if the length of a string instance meets or exceeds the minLength specified in the schema.
+// evaluateMinLength checks if the length of a string instance meets or exceeds the minLength specified in the schema.
 // According to the JSON Schema Draft 2020-12:
 //   - The "minLength" keyword must be a non-negative integer.
 //   - A string instance is valid against this keyword if its length is greater than or equal to the value of this keyword.

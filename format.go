@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateFormat checks if the data conforms to the format specified in the schema.
+// evaluateFormat checks if the data conforms to the format specified in the schema.
 // According to the JSON Schema Draft 2020-12:
 //   - The "format" keyword defines the data format expected for a value.
 //   - The format must be a string that names a specific format which the value should conform to.

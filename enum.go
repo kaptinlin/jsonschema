@@ -78,7 +78,7 @@ func toFloat64(value any) (float64, bool) {
 	}
 }
 
-// EvaluateEnum checks if the data's value matches one of the enumerated values specified in the schema.
+// evaluateEnum checks if the data's value matches one of the enumerated values specified in the schema.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of the "enum" keyword must be an array.
 //   - This array should have at least one element, and all elements should be unique.

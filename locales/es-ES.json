@@ -56,7 +56,7 @@
   "unevaluated_properties_mismatch": "Las propiedades {properties} no coinciden con el esquema unevaluatedProperties",
   "item_serialization_error": "Error al serializar el elemento en el índice {index}",
   "unique_items_mismatch": "Se encontraron duplicados en los siguientes grupos de índices: {duplicates}",
-  "invalid_numberic": "El valor es {received} pero debería ser numérico",
+  "invalid_numeric": "El valor es {received} pero debería ser numérico",
   "ref_mismatch": "El valor no coincide con el esquema de referencia",
   "dynamic_ref_mismatch": "El valor no coincide con el esquema de referencia dinámica",
   "false_schema_mismatch": "No se permiten valores porque el esquema está establecido en 'false'"

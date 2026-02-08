@@ -23,32 +23,36 @@ type StructTagError struct {
 
 // Error returns a formatted error message with full context.
 func (e *StructTagError) Error() string {
-	var parts []string
+	var sb strings.Builder
+	sb.WriteString("struct tag error")
 
+	var parts []string
 	if e.StructType != "" {
-		parts = append(parts, fmt.Sprintf("struct=%s", e.StructType))
+		parts = append(parts, "struct="+e.StructType)
 	}
 	if e.FieldName != "" {
-		parts = append(parts, fmt.Sprintf("field=%s", e.FieldName))
+		parts = append(parts, "field="+e.FieldName)
 	}
 	if e.TagRule != "" {
-		parts = append(parts, fmt.Sprintf("rule=%s", e.TagRule))
+		parts = append(parts, "rule="+e.TagRule)
 	}
-
-	msg := "struct tag error"
 	if len(parts) > 0 {
-		msg = fmt.Sprintf("%s (%s)", msg, strings.Join(parts, ", "))
+		sb.WriteString(" (")
+		sb.WriteString(strings.Join(parts, ", "))
+		sb.WriteByte(')')
 	}
 
 	if e.Message != "" {
-		msg = fmt.Sprintf("%s: %s", msg, e.Message)
+		sb.WriteString(": ")
+		sb.WriteString(e.Message)
 	}
 
 	if e.Err != nil {
-		msg = fmt.Sprintf("%s: %v", msg, e.Err)
+		sb.WriteString(": ")
+		sb.WriteString(e.Err.Error())
 	}
 
-	return msg
+	return sb.String()
 }
 
 // Unwrap returns the underlying error, allowing error chain inspection with errors.Is/As.

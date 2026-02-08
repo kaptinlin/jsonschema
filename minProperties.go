@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateMinProperties checks if the number of properties in the object meets or exceeds the specified minimum.
+// evaluateMinProperties checks if the number of properties in the object meets or exceeds the specified minimum.
 // According to the JSON Schema Draft 2020-12:
 //   - The "minProperties" keyword must be a non-negative integer.
 //   - An object instance is valid against "minProperties" if its number of properties is greater than or equal to the value of this keyword.

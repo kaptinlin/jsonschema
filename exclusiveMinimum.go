@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateExclusiveMinimum checks if a numeric instance is strictly greater than the value specified by exclusiveMinimum.
+// evaluateExclusiveMinimum checks if a numeric instance is strictly greater than the value specified by exclusiveMinimum.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of the "exclusiveMinimum" keyword must be a number.
 //   - The instance is valid only if it is strictly greater than (not equal to) the value specified by "exclusiveMinimum".

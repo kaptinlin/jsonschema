@@ -1,17 +1,20 @@
 package jsonschema
 
-// EvaluateConditional evaluates the data against conditional subschemas defined by 'if', 'then', and 'else'.
+// evaluateConditional evaluates the data against conditional subschemas defined by 'if', 'then', and 'else'.
 // According to the JSON Schema Draft 2020-12:
 //   - The "if" keyword specifies a subschema to conditionally validate data.
 //   - If data validates against the "if" subschema, "then" subschema must also validate the data if "then" is present.
 //   - If data does not validate against the "if" subschema, "else" subschema must validate the data if "else" is present.
-//   - This function ensures data conformity based on the provided conditional subschemaschema.
+//   - This function ensures data conformity based on the provided conditional subschema.
 //   - The function ignores "then" and "else" if "if" is not present.
 //
 // This function serves as a central feature for conditional logic application in JSON Schema validation.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-if
-func evaluateConditional(schema *Schema, instance any, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateConditional(
+	schema *Schema, instance any, evaluatedProps map[string]bool,
+	evaluatedItems map[int]bool, dynamicScope *DynamicScope,
+) ([]*EvaluationResult, *EvaluationError) {
 	if schema.If == nil {
 		// If there's no 'if' condition defined, nothing to validate conditionally.
 		return nil, nil
@@ -20,7 +23,7 @@ func evaluateConditional(schema *Schema, instance any, evaluatedProps map[string
 	// Evaluate the 'if' condition
 	ifResult, ifEvaluatedProps, ifEvaluatedItems := schema.If.evaluate(instance, dynamicScope)
 
-	results := []*EvaluationResult{}
+	var results []*EvaluationResult
 
 	if ifResult != nil {
 		//nolint:errcheck

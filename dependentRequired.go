@@ -4,7 +4,7 @@ import (
 	"github.com/go-json-experiment/json"
 )
 
-// EvaluateDependentRequired checks that if a specified property is present, all its dependent properties are also present.
+// evaluateDependentRequired checks that if a specified property is present, all its dependent properties are also present.
 // According to the JSON Schema Draft 2020-12:
 //   - The "dependentRequired" keyword specifies properties that are required if a specific other property is present.
 //   - This keyword's value must be an object where each property is an array of strings, indicating properties required when the key property is present.
@@ -38,9 +38,11 @@ func evaluateDependentRequired(schema *Schema, object map[string]any) *Evaluatio
 
 	if len(dependentMissingProps) > 0 {
 		missingPropsJSON, _ := json.Marshal(dependentMissingProps)
-		return NewEvaluationError("dependentRequired", "dependent_property_required", "Some required property dependencies are missing: {missing_properties}", map[string]any{
-			"missing_properties": string(missingPropsJSON),
-		})
+		return NewEvaluationError(
+			"dependentRequired", "dependent_property_required",
+			"Some required property dependencies are missing: {missing_properties}",
+			map[string]any{"missing_properties": string(missingPropsJSON)},
+		)
 	}
 
 	return nil

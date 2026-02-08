@@ -56,7 +56,7 @@
   "unevaluated_properties_mismatch": "プロパティ {properties} が unevaluatedProperties スキーマに一致しません",
   "item_serialization_error":        "インデックス {index} のアイテムのシリアル化エラー",
   "unique_items_mismatch":           "以下のインデックスグループで重複が見つかりました：{duplicates}",
-  "invalid_numberic":                "値は {received} ですが、数値であるべきです",
+  "invalid_numeric":                "値は {received} ですが、数値であるべきです",
   "ref_mismatch":                    "値が参照スキーマに一致しません",
   "dynamic_ref_mismatch":            "値が動的参照スキーマに一致しません",
   "false_schema_mismatch":           "値は許可されません。スキーマが 'false' に設定されているため"

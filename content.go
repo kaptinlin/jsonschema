@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateContent checks if the given data conforms to the encoding, media type, and content schema specified in the schema.
+// evaluateContent checks if the given data conforms to the encoding, media type, and content schema specified in the schema.
 // According to the JSON Schema Draft 2020-12:
 //   - The "contentEncoding" property defines how a string should be decoded from encoded binary data.
 //   - The "contentMediaType" describes the media type that the decoded data should conform to.

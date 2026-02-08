@@ -2,7 +2,7 @@ package jsonschema
 
 import "regexp"
 
-// EvaluatePattern checks if the string data matches the regular expression specified in the "pattern" schema attribute.
+// evaluatePattern checks if the string data matches the regular expression specified in the "pattern" schema attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of "pattern" must be a string that should be a valid regular expression, according to the ECMA-262 regular expression dialect.
 //   - A string instance is considered valid if the regular expression matches the instance successfully.

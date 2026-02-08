@@ -4,7 +4,7 @@ import (
 	"reflect"
 )
 
-// EvaluateConst checks if the data matches exactly the value specified in the schema's 'const' keyword.
+// evaluateConst checks if the data matches exactly the value specified in the schema's 'const' keyword.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of the "const" keyword may be of any type, including null.
 //   - An instance validates successfully against this keyword if its value is equal to the value of the keyword.

@@ -56,7 +56,7 @@
   "unevaluated_properties_mismatch": "Les propriétés {properties} ne correspondent pas au schéma unevaluatedProperties",
   "item_serialization_error": "Erreur de sérialisation de l'élément à l'index {index}",
   "unique_items_mismatch": "Des doublons ont été trouvés dans les groupes d'index suivants : {duplicates}",
-  "invalid_numberic": "La valeur est {received} mais devrait être numérique",
+  "invalid_numeric": "La valeur est {received} mais devrait être numérique",
   "ref_mismatch": "La valeur ne correspond pas au schéma de référence",
   "dynamic_ref_mismatch": "La valeur ne correspond pas au schéma de référence dynamique",
   "false_schema_mismatch": "Aucune valeur n'est autorisée car le schéma est défini sur 'false'"

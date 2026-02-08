@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-// EvaluateType checks if the data's type matches the type specified in the schema.
+// evaluateType checks if the data's type matches the type specified in the schema.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of the "type" keyword must be either a string or an array of unique strings.
 //   - Valid string values are the six primitive types ("null", "boolean", "object", "array", "number", "string")

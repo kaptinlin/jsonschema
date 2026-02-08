@@ -56,7 +56,7 @@
   "unevaluated_properties_mismatch": "Properties {properties} do not match the unevaluatedProperties schema",
   "item_serialization_error":        "Error serializing item at index {index}",
   "unique_items_mismatch":           "Found duplicates at the following index groups: {duplicates}",
-  "invalid_numberic":                "Value is {received} but should be numeric",
+  "invalid_numeric":                "Value is {received} but should be numeric",
   "ref_mismatch":                    "Value does not match the reference schema",
   "dynamic_ref_mismatch":            "Value does not match the dynamic reference schema",
   "false_schema_mismatch":           "No values are allowed because the schema is set to 'false'"

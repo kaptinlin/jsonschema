@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateExclusiveMaximum checks if a numeric instance is strictly less than the value specified by exclusiveMaximum.
+// evaluateExclusiveMaximum checks if a numeric instance is strictly less than the value specified by exclusiveMaximum.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of the "exclusiveMaximum" keyword must be a number.
 //   - The instance is valid if it is strictly less than (not equal to) the value specified by "exclusiveMaximum".

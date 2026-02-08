@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// EvaluateUnevaluatedProperties checks if the unevaluated properties of the data object conform to the unevaluatedProperties schema specified in the schema.
+// evaluateUnevaluatedProperties checks if the unevaluated properties of the data object conform to the unevaluatedProperties schema specified in the schema.
 // This is in accordance with the JSON Schema Draft 2020-12 specification which dictates that:
 // - The value of "unevaluatedProperties" must be a valid JSON Schema.
 // - This keyword's behavior is contingent on the annotations from "properties", "patternProperties", and "additionalProperties".
@@ -14,13 +14,16 @@ import (
 // - The annotations influence the evaluation order, meaning all related properties and applicators must be processed first.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-unevaluatedproperties
-func evaluateUnevaluatedProperties(schema *Schema, data any, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateUnevaluatedProperties(
+	schema *Schema, data any, evaluatedProps map[string]bool,
+	_ map[int]bool, dynamicScope *DynamicScope,
+) ([]*EvaluationResult, *EvaluationError) {
 	if schema.UnevaluatedProperties == nil {
 		return nil, nil // If "unevaluatedProperties" is not defined, all properties are considered evaluated.
 	}
 
-	invalidProperties := []string{}
-	results := []*EvaluationResult{}
+	var invalidProperties []string
+	var results []*EvaluationResult
 
 	object, ok := data.(map[string]any)
 	if !ok {
@@ -52,7 +55,8 @@ func evaluateUnevaluatedProperties(schema *Schema, data any, evaluatedProps map[
 		return results, NewEvaluationError("properties", "unevaluated_property_mismatch", "Property {property} does not match the unevaluatedProperties schema", map[string]any{
 			"property": fmt.Sprintf("'%s'", invalidProperties[0]),
 		})
-	} else if len(invalidProperties) > 1 {
+	}
+	if len(invalidProperties) > 1 {
 		quotedProperties := make([]string, len(invalidProperties))
 		for i, prop := range invalidProperties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)

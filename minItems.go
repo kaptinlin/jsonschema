@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateMinItems checks if the array data contains at least the minimum number of items specified in the "minItems" schema attribute.
+// evaluateMinItems checks if the array data contains at least the minimum number of items specified in the "minItems" schema attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of "minItems" must be a non-negative integer.
 //   - An array instance is valid against "minItems" if its size is greater than, or equal to, the value of this keyword.

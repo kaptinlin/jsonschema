@@ -207,6 +207,19 @@ func newSchema(jsonSchema []byte) (*Schema, error) {
 // initializeSchema sets up the schema structure, resolves URIs, and initializes nested schemas.
 // It populates schema properties from the compiler settings and the parent schema context.
 func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
+	s.initializeSchemaCore(compiler, parent, true)
+}
+
+// initializeSchemaWithoutReferences sets up the schema structure without resolving references.
+// This is used by CompileBatch to defer reference resolution until all schemas are compiled.
+func (s *Schema) initializeSchemaWithoutReferences(compiler *Compiler, parent *Schema) {
+	s.initializeSchemaCore(compiler, parent, false)
+}
+
+// initializeSchemaCore contains the shared initialization logic.
+// When resolveRefs is true, references are resolved immediately after nested schema initialization.
+// When resolveRefs is false, reference resolution is deferred (used by CompileBatch).
+func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolveRefs bool) {
 	// Only set compiler if it's not nil (for constructor usage)
 	if compiler != nil {
 		s.compiler = compiler
@@ -254,8 +267,10 @@ func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
 
 	// For constructor usage (compiler=nil), don't pass compiler to children
 	// They should inherit through parent-child relationship via GetCompiler()
-	initializeNestedSchemas(s, compiler)
-	s.resolveReferences()
+	initializeNestedSchemasCore(s, compiler, resolveRefs)
+	if resolveRefs {
+		s.resolveReferences()
+	}
 
 	// Handle PreserveExtra option
 	// If false (default), clear any collected extra fields
@@ -264,203 +279,91 @@ func (s *Schema) initializeSchema(compiler *Compiler, parent *Schema) {
 	}
 }
 
-// initializeSchemaWithoutReferences sets up the schema structure without resolving references.
-// This is used by CompileBatch to defer reference resolution until all schemas are compiled.
-func (s *Schema) initializeSchemaWithoutReferences(compiler *Compiler, parent *Schema) {
-	// Only set compiler if it's not nil (for constructor usage)
-	if compiler != nil {
-		s.compiler = compiler
-	}
-	s.parent = parent
-
-	// Get effective compiler for initialization
-	effectiveCompiler := s.GetCompiler()
-
-	parentBaseURI := s.getParentBaseURI()
-	if parentBaseURI == "" {
-		parentBaseURI = effectiveCompiler.DefaultBaseURI
-	}
-	if s.ID != "" {
-		if isValidURI(s.ID) {
-			s.uri = s.ID
-			s.baseURI = getBaseURI(s.ID)
-		} else {
-			resolvedURL := resolveRelativeURI(parentBaseURI, s.ID)
-			s.uri = resolvedURL
-			s.baseURI = getBaseURI(resolvedURL)
-		}
-	} else {
-		s.baseURI = parentBaseURI
+// initializeNestedSchemasCore initializes all nested or related schemas as defined in the structure.
+// When resolveRefs is true, schemas are initialized with full reference resolution.
+// When resolveRefs is false, reference resolution is deferred (used by CompileBatch).
+func initializeNestedSchemasCore(s *Schema, compiler *Compiler, resolveRefs bool) {
+	initChild := func(child *Schema) {
+		child.initializeSchemaCore(compiler, s, resolveRefs)
 	}
 
-	if s.baseURI == "" {
-		if s.uri != "" && isValidURI(s.uri) {
-			s.baseURI = getBaseURI(s.uri)
-		}
-	}
-
-	if s.Anchor != "" {
-		s.setAnchor(s.Anchor)
-	}
-
-	if s.DynamicAnchor != "" {
-		s.setDynamicAnchor(s.DynamicAnchor)
-	}
-
-	if s.uri != "" && isValidURI(s.uri) {
-		root := s.getRootSchema()
-		root.setSchema(s.uri, s)
-	}
-
-	// Initialize nested schemas but without resolving references
-	initializeNestedSchemasWithoutReferences(s, compiler)
-	// Note: We don't call s.resolveReferences() here - that's deferred
-
-	// Handle PreserveExtra option
-	// If false (default), clear any collected extra fields
-	if effectiveCompiler != nil && !effectiveCompiler.PreserveExtra {
-		s.Extra = nil
-	}
-}
-
-// initializeNestedSchemas initializes all nested or related schemas as defined in the structure.
-func initializeNestedSchemas(s *Schema, compiler *Compiler) {
 	if s.Defs != nil {
 		for _, def := range s.Defs {
-			def.initializeSchema(compiler, s)
+			initChild(def)
 		}
 	}
 	// Initialize logical schema groupings
-	initializeSchemas(s.AllOf, compiler, s)
-	initializeSchemas(s.AnyOf, compiler, s)
-	initializeSchemas(s.OneOf, compiler, s)
+	for _, schema := range s.AllOf {
+		if schema != nil {
+			initChild(schema)
+		}
+	}
+	for _, schema := range s.AnyOf {
+		if schema != nil {
+			initChild(schema)
+		}
+	}
+	for _, schema := range s.OneOf {
+		if schema != nil {
+			initChild(schema)
+		}
+	}
 
 	// Initialize conditional schemas
 	if s.Not != nil {
-		s.Not.initializeSchema(compiler, s)
+		initChild(s.Not)
 	}
 	if s.If != nil {
-		s.If.initializeSchema(compiler, s)
+		initChild(s.If)
 	}
 	if s.Then != nil {
-		s.Then.initializeSchema(compiler, s)
+		initChild(s.Then)
 	}
 	if s.Else != nil {
-		s.Else.initializeSchema(compiler, s)
+		initChild(s.Else)
 	}
 	if s.DependentSchemas != nil {
 		for _, depSchema := range s.DependentSchemas {
-			depSchema.initializeSchema(compiler, s)
+			initChild(depSchema)
 		}
 	}
 
 	// Initialize array and object schemas
 	if s.PrefixItems != nil {
 		for _, item := range s.PrefixItems {
-			item.initializeSchema(compiler, s)
+			initChild(item)
 		}
 	}
 	if s.Items != nil {
-		s.Items.initializeSchema(compiler, s)
+		initChild(s.Items)
 	}
 	if s.Contains != nil {
-		s.Contains.initializeSchema(compiler, s)
+		initChild(s.Contains)
 	}
 	if s.AdditionalProperties != nil {
-		s.AdditionalProperties.initializeSchema(compiler, s)
+		initChild(s.AdditionalProperties)
 	}
 	if s.Properties != nil {
 		for _, prop := range *s.Properties {
-			prop.initializeSchema(compiler, s)
+			initChild(prop)
 		}
 	}
 	if s.PatternProperties != nil {
 		for _, prop := range *s.PatternProperties {
-			prop.initializeSchema(compiler, s)
+			initChild(prop)
 		}
 	}
 	if s.UnevaluatedProperties != nil {
-		s.UnevaluatedProperties.initializeSchema(compiler, s)
+		initChild(s.UnevaluatedProperties)
 	}
 	if s.UnevaluatedItems != nil {
-		s.UnevaluatedItems.initializeSchema(compiler, s)
+		initChild(s.UnevaluatedItems)
 	}
 	if s.ContentSchema != nil {
-		s.ContentSchema.initializeSchema(compiler, s)
+		initChild(s.ContentSchema)
 	}
 	if s.PropertyNames != nil {
-		s.PropertyNames.initializeSchema(compiler, s)
-	}
-}
-
-// initializeNestedSchemasWithoutReferences initializes all nested or related schemas
-// without resolving references. Used by CompileBatch.
-func initializeNestedSchemasWithoutReferences(s *Schema, compiler *Compiler) {
-	if s.Defs != nil {
-		for _, def := range s.Defs {
-			def.initializeSchemaWithoutReferences(compiler, s)
-		}
-	}
-	// Initialize logical schema groupings
-	initializeSchemasWithoutReferences(s.AllOf, compiler, s)
-	initializeSchemasWithoutReferences(s.AnyOf, compiler, s)
-	initializeSchemasWithoutReferences(s.OneOf, compiler, s)
-
-	// Initialize conditional schemas
-	if s.Not != nil {
-		s.Not.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.If != nil {
-		s.If.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.Then != nil {
-		s.Then.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.Else != nil {
-		s.Else.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.DependentSchemas != nil {
-		for _, depSchema := range s.DependentSchemas {
-			depSchema.initializeSchemaWithoutReferences(compiler, s)
-		}
-	}
-
-	// Initialize array and object schemas
-	if s.PrefixItems != nil {
-		for _, item := range s.PrefixItems {
-			item.initializeSchemaWithoutReferences(compiler, s)
-		}
-	}
-	if s.Items != nil {
-		s.Items.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.Contains != nil {
-		s.Contains.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.AdditionalProperties != nil {
-		s.AdditionalProperties.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.Properties != nil {
-		for _, prop := range *s.Properties {
-			prop.initializeSchemaWithoutReferences(compiler, s)
-		}
-	}
-	if s.PatternProperties != nil {
-		for _, prop := range *s.PatternProperties {
-			prop.initializeSchemaWithoutReferences(compiler, s)
-		}
-	}
-	if s.UnevaluatedProperties != nil {
-		s.UnevaluatedProperties.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.UnevaluatedItems != nil {
-		s.UnevaluatedItems.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.ContentSchema != nil {
-		s.ContentSchema.initializeSchemaWithoutReferences(compiler, s)
-	}
-	if s.PropertyNames != nil {
-		s.PropertyNames.initializeSchemaWithoutReferences(compiler, s)
+		initChild(s.PropertyNames)
 	}
 }
 
@@ -655,25 +558,6 @@ func (s *Schema) getSchema(ref string) (*Schema, error) {
 	return nil, ErrReferenceResolution
 }
 
-// initializeSchemas iteratively initializes a list of nested schemas.
-func initializeSchemas(schemas []*Schema, compiler *Compiler, parent *Schema) {
-	for _, schema := range schemas {
-		if schema != nil {
-			schema.initializeSchema(compiler, parent)
-		}
-	}
-}
-
-// initializeSchemasWithoutReferences iteratively initializes a list of nested schemas
-// without resolving references. Used by CompileBatch.
-func initializeSchemasWithoutReferences(schemas []*Schema, compiler *Compiler, parent *Schema) {
-	for _, schema := range schemas {
-		if schema != nil {
-			schema.initializeSchemaWithoutReferences(compiler, parent)
-		}
-	}
-}
-
 // GetSchemaURI returns the resolved URI for the schema, or an empty string if no URI is defined.
 func (s *Schema) GetSchemaURI() string {
 	if s.uri != "" {
@@ -706,7 +590,8 @@ func (s *Schema) getRootSchema() *Schema {
 func (s *Schema) getScopeSchema() *Schema {
 	if s.ID != "" {
 		return s
-	} else if s.parent != nil {
+	}
+	if s.parent != nil {
 		return s.parent.getScopeSchema()
 	}
 
@@ -919,24 +804,24 @@ func (sm *SchemaMap) UnmarshalJSON(data []byte) error {
 type SchemaType []string
 
 // MarshalJSON customizes the JSON serialization of SchemaType.
-func (r SchemaType) MarshalJSON() ([]byte, error) {
-	if len(r) == 1 {
-		return json.Marshal(r[0])
+func (st SchemaType) MarshalJSON() ([]byte, error) {
+	if len(st) == 1 {
+		return json.Marshal(st[0])
 	}
-	return json.Marshal([]string(r))
+	return json.Marshal([]string(st))
 }
 
 // UnmarshalJSON customizes the JSON deserialization into SchemaType.
-func (r *SchemaType) UnmarshalJSON(data []byte) error {
+func (st *SchemaType) UnmarshalJSON(data []byte) error {
 	var singleType string
 	if err := json.Unmarshal(data, &singleType); err == nil {
-		*r = SchemaType{singleType}
+		*st = SchemaType{singleType}
 		return nil
 	}
 
 	var multiType []string
 	if err := json.Unmarshal(data, &multiType); err == nil {
-		*r = SchemaType(multiType)
+		*st = SchemaType(multiType)
 		return nil
 	}
 

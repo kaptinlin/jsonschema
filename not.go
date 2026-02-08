@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateNot checks if the data fails to conform to the schema or boolean specified in the not attribute.
+// evaluateNot checks if the data fails to conform to the schema or boolean specified in the not attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - The "not" keyword's value must be either a boolean or a valid JSON Schema.
 //   - If "not" is a schema, an instance is valid against this keyword if it fails to validate successfully against the schema.

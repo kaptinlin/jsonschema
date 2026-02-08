@@ -221,7 +221,10 @@ func extractValue(rv reflect.Value) any {
 
 	// Special handling for time.Time - convert to string for JSON schema validation
 	if rv.Type() == reflect.TypeOf(time.Time{}) {
-		t := rv.Interface().(time.Time)
+		t, ok := rv.Interface().(time.Time)
+		if !ok {
+			return nil
+		}
 		return t.Format(time.RFC3339)
 	}
 
@@ -268,8 +271,8 @@ func appendValidationResult(results *[]*EvaluationResult, invalidProps *[]string
 
 // evaluateObjectStruct handles validation for Go structs
 func evaluateObjectStruct(schema *Schema, structValue reflect.Value, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
-	results := []*EvaluationResult{}
-	errors := []*EvaluationError{}
+	var results []*EvaluationResult
+	var errors []*EvaluationError
 
 	structType := structValue.Type()
 	fieldCache := getFieldCache(structType)
@@ -351,9 +354,9 @@ func evaluateObjectReflectMap(schema *Schema, mapValue reflect.Value, evaluatedP
 
 // evaluatePropertiesStruct validates struct properties against schema properties
 func evaluatePropertiesStruct(schema *Schema, structValue reflect.Value, fieldCache *FieldCache, evaluatedProps map[string]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
-	results := []*EvaluationResult{}
-	errors := []*EvaluationError{}
-	invalidProperties := []string{}
+	var results []*EvaluationResult
+	var errors []*EvaluationError
+	var invalidProperties []string
 
 	for propName, propSchema := range *schema.Properties {
 		evaluatedProps[propName] = true
@@ -393,7 +396,7 @@ func evaluatePropertiesStruct(schema *Schema, structValue reflect.Value, fieldCa
 
 // evaluateRequiredStruct validates required fields for structs
 func evaluateRequiredStruct(schema *Schema, structValue reflect.Value, fieldCache *FieldCache) *EvaluationError {
-	missingFields := []string{}
+	var missingFields []string
 
 	for _, requiredField := range schema.Required {
 		fieldInfo, exists := fieldCache.FieldsByName[requiredField]
@@ -443,7 +446,7 @@ func evaluatePropertyCountStruct(schema *Schema, structValue reflect.Value, fiel
 
 // evaluatePatternPropertiesStruct validates struct properties against pattern properties
 func evaluatePatternPropertiesStruct(schema *Schema, structValue reflect.Value, fieldCache *FieldCache, evaluatedProps map[string]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
-	results := []*EvaluationResult{}
+	var results []*EvaluationResult
 
 	for jsonName, fieldInfo := range fieldCache.FieldsByName {
 		if evaluatedProps[jsonName] {
@@ -475,8 +478,8 @@ func evaluatePatternPropertiesStruct(schema *Schema, structValue reflect.Value, 
 
 // evaluateAdditionalPropertiesStruct validates struct properties against additional properties
 func evaluateAdditionalPropertiesStruct(schema *Schema, structValue reflect.Value, fieldCache *FieldCache, evaluatedProps map[string]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
-	results := []*EvaluationResult{}
-	invalidProperties := []string{}
+	var results []*EvaluationResult
+	var invalidProperties []string
 
 	// Check for unevaluated properties
 	for jsonName, fieldInfo := range fieldCache.FieldsByName {
@@ -524,8 +527,8 @@ func evaluatePropertyNamesStruct(schema *Schema, structValue reflect.Value, fiel
 		return nil, nil
 	}
 
-	results := []*EvaluationResult{}
-	invalidProperties := []string{}
+	var results []*EvaluationResult
+	var invalidProperties []string
 
 	for jsonName, fieldInfo := range fieldCache.FieldsByName {
 		fieldValue := structValue.Field(fieldInfo.Index)
@@ -601,7 +604,8 @@ func createValidationError(errorType, keyword string, singleTemplate, multiTempl
 		return NewEvaluationError(keyword, errorType, singleTemplate, map[string]any{
 			"property": invalidItems[0],
 		})
-	} else if len(invalidItems) > 1 {
+	}
+	if len(invalidItems) > 1 {
 		return NewEvaluationError(keyword, errorType, multiTemplate, map[string]any{
 			"properties": strings.Join(invalidItems, ", "),
 		})

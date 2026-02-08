@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// EvaluateAnyOf checks if the data conforms to at least one of the schemas specified in the anyOf attribute.
+// evaluateAnyOf checks if the data conforms to at least one of the schemas specified in the anyOf attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - The "anyOf" keyword's value must be a non-empty array, where each item is either a valid JSON Schema or a boolean.
 //   - An instance validates successfully against this keyword if it validates successfully against at least one schema or is true for any boolean in this array.
@@ -13,13 +13,16 @@ import (
 // If the instance fails to conform to all conditions in the array, it returns a EvaluationError detailing the specific failures.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-anyof
-func evaluateAnyOf(schema *Schema, data any, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateAnyOf(
+	schema *Schema, data any, evaluatedProps map[string]bool,
+	evaluatedItems map[int]bool, dynamicScope *DynamicScope,
+) ([]*EvaluationResult, *EvaluationError) {
 	if len(schema.AnyOf) == 0 {
 		return nil, nil // No anyOf constraints to validate against.
 	}
 
 	var valid bool
-	results := []*EvaluationResult{}
+	var results []*EvaluationResult
 
 	for i, subSchema := range schema.AnyOf {
 		if subSchema != nil {

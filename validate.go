@@ -394,7 +394,7 @@ func (s *Schema) processUnevaluatedValidation(instance any, dynamicScope *Dynami
 	}
 }
 
-// Helper methods for checking if schema has specific validation types
+// Helper methods for checking if schema has specific validation types.
 func (s *Schema) hasArrayValidation() bool {
 	return len(s.PrefixItems) > 0 || s.Items != nil || s.Contains != nil ||
 		s.MaxContains != nil || s.MinContains != nil || s.MaxItems != nil ||
@@ -416,7 +416,7 @@ func (s *Schema) hasObjectValidation() bool {
 		len(s.Required) > 0 || len(s.DependentRequired) > 0
 }
 
-// Helper methods for adding results and errors
+// Helper methods for adding results and errors.
 func (s *Schema) addResultsAndError(result *EvaluationResult, results []*EvaluationResult, err *EvaluationError) {
 	for _, res := range results {
 		//nolint:errcheck
@@ -590,7 +590,7 @@ func evaluateObjectMap(schema *Schema, object map[string]any, evaluatedProps map
 	return results, errors
 }
 
-// validateObjectConstraints validates object-specific constraints
+// validateObjectConstraints validates object-specific constraints.
 func validateObjectConstraints(schema *Schema, object map[string]any) []*EvaluationError {
 	var errors []*EvaluationError
 
@@ -621,7 +621,7 @@ func validateObjectConstraints(schema *Schema, object map[string]any) []*Evaluat
 	return errors
 }
 
-// validateNumeric groups the validation of all numeric-specific keywords.
+// evaluateNumeric groups the validation of all numeric-specific keywords.
 func evaluateNumeric(schema *Schema, data any) []*EvaluationError {
 	dataType := getDataType(data)
 	if dataType != "number" && dataType != "integer" {
@@ -631,7 +631,7 @@ func evaluateNumeric(schema *Schema, data any) []*EvaluationError {
 	value := NewRat(data)
 	if value == nil {
 		return []*EvaluationError{
-			NewEvaluationError("type", "invalid_numberic", "Value is {received} but should be numeric", map[string]any{
+			NewEvaluationError("type", "invalid_numeric", "Value is {received} but should be numeric", map[string]any{
 				"actual_type": dataType,
 			}),
 		}
@@ -673,7 +673,7 @@ func evaluateNumeric(schema *Schema, data any) []*EvaluationError {
 	return errors
 }
 
-// validateString groups the validation of all string-specific keywords.
+// evaluateString groups the validation of all string-specific keywords.
 func evaluateString(schema *Schema, data any) []*EvaluationError {
 	value, ok := data.(string)
 	if !ok {
@@ -704,7 +704,7 @@ func evaluateString(schema *Schema, data any) []*EvaluationError {
 	return errors
 }
 
-// validateArray groups the validation of all array-specific keywords.
+// evaluateArray groups the validation of all array-specific keywords.
 func evaluateArray(schema *Schema, data any, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
 	items, ok := data.([]any)
 	if !ok {
@@ -738,7 +738,7 @@ func evaluateArray(schema *Schema, data any, evaluatedProps map[string]bool, eva
 	return results, errors
 }
 
-// validateArrayConstraints validates array-specific constraints
+// validateArrayConstraints validates array-specific constraints.
 func validateArrayConstraints(schema *Schema, items []any) []*EvaluationError {
 	var errors []*EvaluationError
 
@@ -763,22 +763,22 @@ func validateArrayConstraints(schema *Schema, items []any) []*EvaluationError {
 	return errors
 }
 
-// DynamicScope struct defines a stack specifically for handling Schema types
+// DynamicScope struct defines a stack specifically for handling Schema types.
 type DynamicScope struct {
 	schemas []*Schema // Slice storing pointers to Schema
 }
 
-// NewDynamicScope creates and returns a new empty DynamicScope
+// NewDynamicScope creates and returns a new empty DynamicScope.
 func NewDynamicScope() *DynamicScope {
 	return &DynamicScope{schemas: make([]*Schema, 0)}
 }
 
-// Push adds a Schema to the dynamic scope
+// Push adds a Schema to the dynamic scope.
 func (ds *DynamicScope) Push(schema *Schema) {
 	ds.schemas = append(ds.schemas, schema)
 }
 
-// Pop removes and returns the top Schema from the dynamic scope
+// Pop removes and returns the top Schema from the dynamic scope.
 func (ds *DynamicScope) Pop() *Schema {
 	if len(ds.schemas) == 0 {
 		return nil
@@ -789,7 +789,7 @@ func (ds *DynamicScope) Pop() *Schema {
 	return schema
 }
 
-// Peek returns the top Schema without removing it
+// Peek returns the top Schema without removing it.
 func (ds *DynamicScope) Peek() *Schema {
 	if len(ds.schemas) == 0 {
 		return nil
@@ -797,22 +797,20 @@ func (ds *DynamicScope) Peek() *Schema {
 	return ds.schemas[len(ds.schemas)-1]
 }
 
-// IsEmpty checks if the dynamic scope is empty
+// IsEmpty checks if the dynamic scope is empty.
 func (ds *DynamicScope) IsEmpty() bool {
 	return len(ds.schemas) == 0
 }
 
-// Size returns the number of Schemas in the dynamic scope
+// Size returns the number of Schemas in the dynamic scope.
 func (ds *DynamicScope) Size() int {
 	return len(ds.schemas)
 }
 
-// LookupDynamicAnchor searches for a dynamic anchor in the dynamic scope
+// LookupDynamicAnchor searches for a dynamic anchor in the dynamic scope.
 func (ds *DynamicScope) LookupDynamicAnchor(anchor string) *Schema {
 	// use the first schema dynamic anchor matching the anchor
-	for i := 0; i < len(ds.schemas); i++ {
-		schema := ds.schemas[i]
-
+	for _, schema := range ds.schemas {
 		if schema.dynamicAnchors != nil && schema.dynamicAnchors[anchor] != nil {
 			return schema.dynamicAnchors[anchor]
 		}
@@ -821,7 +819,7 @@ func (ds *DynamicScope) LookupDynamicAnchor(anchor string) *Schema {
 	return nil
 }
 
-// Contains checks if a schema is already in the dynamic scope (circular reference detection)
+// Contains checks if a schema is already in the dynamic scope (circular reference detection).
 func (ds *DynamicScope) Contains(schema *Schema) bool {
 	for _, s := range ds.schemas {
 		if s == schema {

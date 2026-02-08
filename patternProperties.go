@@ -23,7 +23,7 @@ func (s *Schema) compilePatterns() {
 	}
 }
 
-// EvaluatePatternProperties checks if properties in the data object that match regex patterns conform to the schemas specified in the schema's patternProperties attribute.
+// evaluatePatternProperties checks if properties in the data object that match regex patterns conform to the schemas specified in the schema's patternProperties attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - Each property name in "patternProperties" must be a valid regex and each property value must be a valid JSON Schema.
 //   - Validation succeeds for each instance name that matches any regular expressions, and the child instance for that name validates against the corresponding schema.
@@ -31,14 +31,17 @@ func (s *Schema) compilePatterns() {
 // This function ensures that properties which match the patterns validate accordingly and aids the behavior of "additionalProperties" and "unevaluatedProperties".
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-patternproperties
-func evaluatePatternProperties(schema *Schema, object map[string]any, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluatePatternProperties(
+	schema *Schema, object map[string]any, evaluatedProps map[string]bool,
+	_ map[int]bool, dynamicScope *DynamicScope,
+) ([]*EvaluationResult, *EvaluationError) {
 	if schema.PatternProperties == nil {
 		return nil, nil // No patternProperties defined, nothing to do.
 	}
 
-	invalidPatterns := []string{}
-	invalidProperties := []string{}
-	results := []*EvaluationResult{}
+	var invalidPatterns []string
+	var invalidProperties []string
+	var results []*EvaluationResult
 
 	// Loop over each pattern in the PatternProperties map.
 	for patternKey, patternSchema := range *schema.PatternProperties {
@@ -84,23 +87,30 @@ func evaluatePatternProperties(schema *Schema, object map[string]any, evaluatedP
 		for i, pattern := range invalidPatterns {
 			quoted[i] = fmt.Sprintf("'%s'", pattern)
 		}
-		return results, NewEvaluationError("patternProperties", "invalid_pattern", "Invalid regular expression pattern {pattern}", map[string]any{
-			"pattern": strings.Join(quoted, ", "),
-		})
+		return results, NewEvaluationError(
+			"patternProperties", "invalid_pattern",
+			"Invalid regular expression pattern {pattern}",
+			map[string]any{"pattern": strings.Join(quoted, ", ")},
+		)
 	}
 
 	if len(invalidProperties) == 1 {
-		return results, NewEvaluationError("properties", "pattern_property_mismatch", "Property {property} does not match the pattern schema", map[string]any{
-			"property": fmt.Sprintf("'%s'", invalidProperties[0]),
-		})
-	} else if len(invalidProperties) > 1 {
+		return results, NewEvaluationError(
+			"properties", "pattern_property_mismatch",
+			"Property {property} does not match the pattern schema",
+			map[string]any{"property": fmt.Sprintf("'%s'", invalidProperties[0])},
+		)
+	}
+	if len(invalidProperties) > 1 {
 		quotedProperties := make([]string, len(invalidProperties))
 		for i, prop := range invalidProperties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
-		return results, NewEvaluationError("properties", "pattern_properties_mismatch", "Properties {properties} do not match their pattern schemas", map[string]any{
-			"properties": strings.Join(quotedProperties, ", "),
-		})
+		return results, NewEvaluationError(
+			"properties", "pattern_properties_mismatch",
+			"Properties {properties} do not match their pattern schemas",
+			map[string]any{"properties": strings.Join(quotedProperties, ", ")},
+		)
 	}
 
 	return results, nil

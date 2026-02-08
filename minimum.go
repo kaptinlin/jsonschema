@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateMinimum checks if the numeric data's value meets or exceeds the minimum value specified in the schema.
+// evaluateMinimum checks if the numeric data's value meets or exceeds the minimum value specified in the schema.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of the "minimum" keyword must be a number, representing an inclusive lower limit for a numeric instance.
 //   - This keyword validates only if the instance is greater than or exactly equal to "minimum".

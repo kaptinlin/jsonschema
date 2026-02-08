@@ -5,7 +5,7 @@ import (
 	"unicode/utf8"
 )
 
-// EvaluateMaxLength checks if the length of a string instance does not exceed the maxLength specified in the schema.
+// evaluateMaxLength checks if the length of a string instance does not exceed the maxLength specified in the schema.
 // According to the JSON Schema Draft 2020-12:
 //   - The "maxLength" keyword must be a non-negative integer.
 //   - A string instance is valid against this keyword if its length is less than or equal to the value of this keyword.

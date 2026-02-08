@@ -1,6 +1,6 @@
 package jsonschema
 
-// EvaluateMaximum checks if the numeric data's value does not exceed the maximum value specified in the schema.
+// evaluateMaximum checks if the numeric data's value does not exceed the maximum value specified in the schema.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of the "maximum" keyword must be a number, representing an inclusive upper limit for a numeric instance.
 //   - This keyword validates only if the instance is less than or exactly equal to "maximum".

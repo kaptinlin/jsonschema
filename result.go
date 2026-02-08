@@ -27,11 +27,12 @@ func NewEvaluationError(keyword string, code string, message string, params ...m
 	}
 }
 
+// Error returns a string representation of the evaluation error.
 func (e *EvaluationError) Error() string {
 	return replace(e.Message, e.Params)
 }
 
-// Localize returns a localized error message using the provided localizer
+// Localize returns a localized error message using the provided localizer.
 func (e *EvaluationError) Localize(localizer *i18n.Localizer) string {
 	if localizer != nil {
 		return localizer.Get(e.Code, i18n.Vars(e.Params))
@@ -86,6 +87,7 @@ func (e *EvaluationResult) SetEvaluationPath(evaluationPath string) *EvaluationR
 	return e
 }
 
+// Error returns a string representation of the evaluation failure.
 func (e *EvaluationResult) Error() string {
 	return "evaluation failed"
 }
@@ -200,7 +202,7 @@ func (e *EvaluationResult) ToList(includeHierarchy ...bool) *List {
 	return e.ToLocalizeList(nil, hierarchyIncluded)
 }
 
-// ToLocalizeList converts the evaluation results into a list format with optional hierarchy with localization
+// ToLocalizeList converts the evaluation results into a list format with optional hierarchy with localization.
 // includeHierarchy is variadic; if not provided, it defaults to true
 func (e *EvaluationResult) ToLocalizeList(localizer *i18n.Localizer, includeHierarchy ...bool) *List {
 	// Set default value for includeHierarchy to true

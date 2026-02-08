@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// EvaluateAllOf checks if the data conforms to all schemas specified in the allOf attribute.
+// evaluateAllOf checks if the data conforms to all schemas specified in the allOf attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - The "allOf" keyword's value must be a non-empty array, where each item is a valid JSON Schema or a boolean.
 //   - An instance validates successfully against this keyword if it validates successfully against all schemas or booleans in this array.
@@ -15,13 +15,16 @@ import (
 // If the instance fails to conform to any schema or boolean in the array, it returns a EvaluationError detailing the specific failure.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-allof
-func evaluateAllOf(schema *Schema, instance any, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateAllOf(
+	schema *Schema, instance any, evaluatedProps map[string]bool,
+	evaluatedItems map[int]bool, dynamicScope *DynamicScope,
+) ([]*EvaluationResult, *EvaluationError) {
 	if len(schema.AllOf) == 0 {
 		return nil, nil // No allOf constraints to validate against.
 	}
 
-	invalidIndexes := []string{}
-	results := []*EvaluationResult{}
+	var invalidIndexes []string
+	var results []*EvaluationResult
 
 	for i, subSchema := range schema.AllOf {
 		if subSchema != nil {

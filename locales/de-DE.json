@@ -56,7 +56,7 @@
   "unevaluated_properties_mismatch": "Eigenschaften {properties} entsprechen nicht dem unevaluatedProperties-Schema",
   "item_serialization_error": "Fehler bei der Serialisierung des Elements am Index {index}",
   "unique_items_mismatch": "Duplikate in den folgenden Indexgruppen gefunden: {duplicates}",
-  "invalid_numberic": "Wert ist {received}, sollte aber numerisch sein",
+  "invalid_numeric": "Wert ist {received}, sollte aber numerisch sein",
   "ref_mismatch": "Wert entspricht nicht dem Referenzschema",
   "dynamic_ref_mismatch": "Wert entspricht nicht dem dynamischen Referenzschema",
   "false_schema_mismatch": "Keine Werte sind erlaubt, da das Schema auf 'false' gesetzt ist"

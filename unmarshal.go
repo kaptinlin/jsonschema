@@ -16,6 +16,7 @@ type UnmarshalError struct {
 	Err    error
 }
 
+// Error returns a string representation of the unmarshal error.
 func (e *UnmarshalError) Error() string {
 	if e.Field != "" {
 		return fmt.Sprintf("unmarshal error at field '%s': %s", e.Field, e.Reason)
@@ -23,6 +24,7 @@ func (e *UnmarshalError) Error() string {
 	return fmt.Sprintf("unmarshal error: %s", e.Reason)
 }
 
+// Unwrap returns the underlying error.
 func (e *UnmarshalError) Unwrap() error {
 	return e.Err
 }

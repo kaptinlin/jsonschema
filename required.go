@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// EvaluateRequired checks if all the required properties specified in the schema are present in the data object.
+// evaluateRequired checks if all the required properties specified in the schema are present in the data object.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of the "required" keyword must be an array of strings, where each string is a unique property name.
 //   - An object instance is valid against this keyword if every item in the array is the name of a property in the instance.

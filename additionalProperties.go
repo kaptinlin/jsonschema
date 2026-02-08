@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// EvaluateAdditionalProperties checks if properties not explicitly defined or matched by patternProperties conform to the schema specified in additionalProperties.
+// evaluateAdditionalProperties checks if properties not explicitly defined or matched by patternProperties conform to the schema specified in additionalProperties.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of "additionalProperties" must be a valid JSON Schema.
 //   - This keyword validates child values of instance names that do not appear in the annotation results of either "properties" or "patternProperties".
@@ -15,9 +15,12 @@ import (
 // This function ensures that all properties not explicitly mentioned or matched are validated according to a default schema or constraints.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-additionalproperties
-func evaluateAdditionalProperties(schema *Schema, object map[string]any, evaluatedProps map[string]bool, _ map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
-	results := []*EvaluationResult{}
-	invalidProperties := []string{}
+func evaluateAdditionalProperties(
+	schema *Schema, object map[string]any, evaluatedProps map[string]bool,
+	_ map[int]bool, dynamicScope *DynamicScope,
+) ([]*EvaluationResult, *EvaluationError) {
+	var results []*EvaluationResult
+	var invalidProperties []string
 
 	properties := make(map[string]bool)
 	if schema.Properties != nil {
@@ -59,17 +62,22 @@ func evaluateAdditionalProperties(schema *Schema, object map[string]any, evaluat
 	}
 
 	if len(invalidProperties) == 1 {
-		return results, NewEvaluationError("additionalProperties", "additional_property_mismatch", "Additional property {property} does not match the schema", map[string]any{
-			"property": fmt.Sprintf("'%s'", invalidProperties[0]),
-		})
-	} else if len(invalidProperties) > 1 {
+		return results, NewEvaluationError(
+			"additionalProperties", "additional_property_mismatch",
+			"Additional property {property} does not match the schema",
+			map[string]any{"property": fmt.Sprintf("'%s'", invalidProperties[0])},
+		)
+	}
+	if len(invalidProperties) > 1 {
 		quotedProperties := make([]string, len(invalidProperties))
 		for i, prop := range invalidProperties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
 		}
-		return results, NewEvaluationError("additionalProperties", "additional_properties_mismatch", "Additional properties {properties} do not match the schema", map[string]any{
-			"properties": strings.Join(quotedProperties, ", "),
-		})
+		return results, NewEvaluationError(
+			"additionalProperties", "additional_properties_mismatch",
+			"Additional properties {properties} do not match the schema",
+			map[string]any{"properties": strings.Join(quotedProperties, ", ")},
+		)
 	}
 
 	return results, nil

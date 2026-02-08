@@ -56,7 +56,7 @@
   "unevaluated_properties_mismatch": "속성 {properties}이(가) unevaluatedProperties 스키마와 일치하지 않습니다",
   "item_serialization_error":        "인덱스 {index}의 항목 직렬화 오류",
   "unique_items_mismatch":           "다음 인덱스 그룹에서 중복 발견: {duplicates}",
-  "invalid_numberic":                "값은 {received}이지만 숫자여야 합니다",
+  "invalid_numeric":                "값은 {received}이지만 숫자여야 합니다",
   "ref_mismatch":                    "값이 참조 스키마와 일치하지 않습니다",
   "dynamic_ref_mismatch":            "값이 동적 참조 스키마와 일치하지 않습니다",
   "false_schema_mismatch":           "값은 허용되지 않습니다; 스키마가 'false'로 설정되었기 때문입니다"

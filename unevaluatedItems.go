@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// EvaluateUnevaluatedItems checks if the data's array items that have not been evaluated by 'items', 'prefixItems', or 'contains'
+// evaluateUnevaluatedItems checks if the data's array items that have not been evaluated by 'items', 'prefixItems', or 'contains'
 // conform to the subschema specified in the 'unevaluatedItems' attribute of the schema.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of "unevaluatedItems" MUST be a valid JSON Schema.
@@ -19,7 +19,10 @@ import (
 // If an unevaluated array element does not conform, it returns a EvaluationError detailing the issue.
 //
 // Reference: https://json-schema.org/draft/2020-12/json-schema-core#name-unevaluateditems
-func evaluateUnevaluatedItems(schema *Schema, data any, _ map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, *EvaluationError) {
+func evaluateUnevaluatedItems(
+	schema *Schema, data any, _ map[string]bool,
+	evaluatedItems map[int]bool, dynamicScope *DynamicScope,
+) ([]*EvaluationResult, *EvaluationError) {
 	items, ok := data.([]any)
 	if !ok {
 		return nil, nil // If data is not an array, then skip the array-specific validations.
@@ -54,8 +57,8 @@ func evaluateUnevaluatedItems(schema *Schema, data any, _ map[string]bool, evalu
 		return nil, nil
 	}
 
-	results := []*EvaluationResult{}
-	invalidIndexes := []string{}
+	var results []*EvaluationResult
+	var invalidIndexes []string
 
 	// Evaluate unevaluated items
 	for i, item := range items {
@@ -85,7 +88,8 @@ func evaluateUnevaluatedItems(schema *Schema, data any, _ map[string]bool, evalu
 		return results, NewEvaluationError("unevaluatedItems", "unevaluated_item_mismatch", "Item at index {index} does not match the unevaluatedItems schema", map[string]any{
 			"index": invalidIndexes[0],
 		})
-	} else if len(invalidIndexes) > 1 {
+	}
+	if len(invalidIndexes) > 1 {
 		return results, NewEvaluationError("unevaluatedItems", "unevaluated_items_mismatch", "Items at indexes {indexes} do not match the unevaluatedItems schema", map[string]any{
 			"indexes": strings.Join(invalidIndexes, ", "),
 		})

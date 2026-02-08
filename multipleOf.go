@@ -2,7 +2,7 @@ package jsonschema
 
 import "math/big"
 
-// EvaluateMultipleOf checks if the numeric data is a multiple of the value specified in the "multipleOf" schema attribute.
+// evaluateMultipleOf checks if the numeric data is a multiple of the value specified in the "multipleOf" schema attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of "multipleOf" must be a number, strictly greater than 0.
 //   - A numeric instance is valid only if division by this keyword's value results in an integer.

@@ -118,28 +118,31 @@ type RegexPatternError struct {
 
 // Error returns a formatted error message with full context.
 func (e *RegexPatternError) Error() string {
-	var parts []string
+	var sb strings.Builder
+	sb.WriteString("regex pattern error")
 
+	var parts []string
 	if e.Keyword != "" {
-		parts = append(parts, fmt.Sprintf("keyword=%s", e.Keyword))
+		parts = append(parts, "keyword="+e.Keyword)
 	}
 	if e.Location != "" {
-		parts = append(parts, fmt.Sprintf("location=%s", e.Location))
+		parts = append(parts, "location="+e.Location)
 	}
 	if e.Pattern != "" {
 		parts = append(parts, fmt.Sprintf("pattern=%q", e.Pattern))
 	}
-
-	msg := "regex pattern error"
 	if len(parts) > 0 {
-		msg = fmt.Sprintf("%s (%s)", msg, strings.Join(parts, ", "))
+		sb.WriteString(" (")
+		sb.WriteString(strings.Join(parts, ", "))
+		sb.WriteByte(')')
 	}
 
 	if e.Err != nil {
-		msg = fmt.Sprintf("%s: %v", msg, e.Err)
+		sb.WriteString(": ")
+		sb.WriteString(e.Err.Error())
 	}
 
-	return msg
+	return sb.String()
 }
 
 // Unwrap returns the compilation error for compatibility with errors.Is/As.

@@ -954,20 +954,16 @@ func (g *CodeGenerator) generateFieldSchema(field tagparser.FieldInfo) (string, 
 }
 
 // generateArraySchema generates schema for array/slice types with proper Items support
-func (g *CodeGenerator) generateArraySchema(typeName string, field tagparser.FieldInfo) (string, error) {
+func (g *CodeGenerator) generateArraySchema(_ string, _ tagparser.FieldInfo) (string, error) {
 	// For arrays, always return jsonschema.Array
 	// The items constraint will be handled by the items validator in the validator rules
-	_ = typeName // Unused in current implementation
-	_ = field    // Unused in current implementation
 	return "jsonschema.Array", nil
 }
 
 // generateMapSchema generates schema for map types with proper AdditionalProperties support
-func (g *CodeGenerator) generateMapSchema(typeName string, field tagparser.FieldInfo) (string, error) {
+func (g *CodeGenerator) generateMapSchema(_ string, _ tagparser.FieldInfo) (string, error) {
 	// For maps, always return jsonschema.Object
 	// The additionalProperties constraint will be handled by the additionalProperties validator
-	_ = typeName // Unused in current implementation
-	_ = field    // Unused in current implementation
 	return "jsonschema.Object", nil
 }
 

@@ -56,7 +56,7 @@
   "unevaluated_properties_mismatch": "屬性 {properties} 不符合 unevaluatedProperties 模式",
   "item_serialization_error":        "索引 {index} 處的項序列化錯誤",
   "unique_items_mismatch":           "在以下索引組中發現重複項：{duplicates}",
-  "invalid_numberic":                "值是 {received} 但應為數字",
+  "invalid_numeric":                "值是 {received} 但應為數字",
   "ref_mismatch":                    "值不符合參考模式",
   "dynamic_ref_mismatch":            "值不符合動態參考模式",
   "false_schema_mismatch":           "不允許任何值，因為模式設置為 'false'"

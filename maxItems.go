@@ -2,7 +2,7 @@ package jsonschema
 
 import "fmt"
 
-// EvaluateMaxItems checks if the array data contains no more items than the maximum specified in the "maxItems" schema attribute.
+// evaluateMaxItems checks if the array data contains no more items than the maximum specified in the "maxItems" schema attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of "maxItems" must be a non-negative integer.
 //   - An array instance is valid against "maxItems" if its size is less than, or equal to, the value of this keyword.

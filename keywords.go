@@ -345,28 +345,47 @@ func Defs(defs map[string]*Schema) Keyword {
 // Format constants
 // ===============================
 
-// Format validation constants
+// Format validation constants define the standard format names
+// from JSON Schema Draft 2020-12.
 const (
-	// FormatEmail represents the email format validation
-	FormatEmail               = "email"
-	FormatDateTime            = "date-time"
-	FormatDate                = "date"
-	FormatTime                = "time"
-	FormatURI                 = "uri"
-	FormatURIRef              = "uri-reference"
-	FormatUUID                = "uuid"
-	FormatHostname            = "hostname"
-	FormatIPv4                = "ipv4"
-	FormatIPv6                = "ipv6"
-	FormatRegex               = "regex"
-	FormatIdnEmail            = "idn-email"
-	FormatIdnHostname         = "idn-hostname"
-	FormatIRI                 = "iri"
-	FormatIRIRef              = "iri-reference"
-	FormatURITemplate         = "uri-template"
-	FormatJSONPointer         = "json-pointer"
+	// FormatEmail represents the email format validation.
+	FormatEmail = "email"
+	// FormatDateTime represents the date-time format (RFC 3339).
+	FormatDateTime = "date-time"
+	// FormatDate represents the date format (RFC 3339 full-date).
+	FormatDate = "date"
+	// FormatTime represents the time format (RFC 3339 full-time).
+	FormatTime = "time"
+	// FormatURI represents the URI format (RFC 3986).
+	FormatURI = "uri"
+	// FormatURIRef represents the URI-reference format (RFC 3986).
+	FormatURIRef = "uri-reference"
+	// FormatUUID represents the UUID format (RFC 4122).
+	FormatUUID = "uuid"
+	// FormatHostname represents the hostname format (RFC 1123).
+	FormatHostname = "hostname"
+	// FormatIPv4 represents the IPv4 address format (RFC 2673).
+	FormatIPv4 = "ipv4"
+	// FormatIPv6 represents the IPv6 address format (RFC 4291).
+	FormatIPv6 = "ipv6"
+	// FormatRegex represents the ECMA-262 regular expression format.
+	FormatRegex = "regex"
+	// FormatIdnEmail represents the internationalized email format (RFC 6531).
+	FormatIdnEmail = "idn-email"
+	// FormatIdnHostname represents the internationalized hostname format (RFC 5890).
+	FormatIdnHostname = "idn-hostname"
+	// FormatIRI represents the IRI format (RFC 3987).
+	FormatIRI = "iri"
+	// FormatIRIRef represents the IRI-reference format (RFC 3987).
+	FormatIRIRef = "iri-reference"
+	// FormatURITemplate represents the URI template format (RFC 6570).
+	FormatURITemplate = "uri-template"
+	// FormatJSONPointer represents the JSON Pointer format (RFC 6901).
+	FormatJSONPointer = "json-pointer"
+	// FormatRelativeJSONPointer represents the relative JSON Pointer format.
 	FormatRelativeJSONPointer = "relative-json-pointer"
-	FormatDuration            = "duration"
+	// FormatDuration represents the duration format (RFC 3339 appendix A / ISO 8601).
+	FormatDuration = "duration"
 )
 
 // ===============================

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// EvaluatePropertyNames checks if every property name in the object conforms to the schema specified by the propertyNames attribute.
+// evaluatePropertyNames checks if every property name in the object conforms to the schema specified by the propertyNames attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - The "propertyNames" keyword must be a valid JSON Schema.
 //   - If the instance is an object, this keyword validates if every property name in the instance validates against the provided schema.
@@ -22,8 +22,8 @@ func evaluatePropertyNames(schema *Schema, object map[string]any, _ map[string]b
 		return nil, nil
 	}
 
-	invalidProperties := []string{}
-	results := []*EvaluationResult{}
+	var invalidProperties []string
+	var results []*EvaluationResult
 
 	if schema.PropertyNames != nil {
 		for propName := range object {
@@ -48,7 +48,8 @@ func evaluatePropertyNames(schema *Schema, object map[string]any, _ map[string]b
 		return results, NewEvaluationError("propertyNames", "property_name_mismatch", "Property name {property} does not match the schema", map[string]any{
 			"property": fmt.Sprintf("'%s'", invalidProperties[0]),
 		})
-	} else if len(invalidProperties) > 1 {
+	}
+	if len(invalidProperties) > 1 {
 		quotedProperties := make([]string, len(invalidProperties))
 		for i, prop := range invalidProperties {
 			quotedProperties[i] = fmt.Sprintf("'%s'", prop)

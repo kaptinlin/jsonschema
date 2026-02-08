@@ -1,5 +1,3 @@
-// Package jsonschema provides format validators for JSON Schema.
-// Credit to https://github.com/santhosh-tekuri/jsonschema
 package jsonschema
 
 import (
@@ -409,10 +407,10 @@ func urlParse(s string) (*url.URL, error) {
 	hostname := u.Hostname()
 	if strings.IndexByte(hostname, ':') != -1 {
 		if strings.IndexByte(u.Host, '[') == -1 || strings.IndexByte(u.Host, ']') == -1 {
-			return nil, ErrIPv6AddressNotEnclosed
+			return nil, ErrIPv6AddressFormat
 		}
 		if !IsIPV6(hostname) {
-			return nil, ErrInvalidIPv6Address
+			return nil, ErrInvalidIPv6
 		}
 	}
 	return u, nil

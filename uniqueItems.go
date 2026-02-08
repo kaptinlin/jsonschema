@@ -10,7 +10,7 @@ import (
 	"github.com/go-json-experiment/json"
 )
 
-// EvaluateUniqueItems checks if all elements in the array are unique when the "uniqueItems" property is set to true.
+// evaluateUniqueItems checks if all elements in the array are unique when the "uniqueItems" property is set to true.
 // According to the JSON Schema Draft 2020-12:
 //   - If "uniqueItems" is false, the data always validates successfully.
 //   - If "uniqueItems" is true, the data validates successfully only if all elements in the array are unique.
