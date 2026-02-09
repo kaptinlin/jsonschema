@@ -36,7 +36,7 @@ func evaluateProperties(
 			if result != nil {
 				//nolint:errcheck
 				result.SetEvaluationPath(fmt.Sprintf("/properties/%s", propName)).
-					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/properties/%s", propName))).
+					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/properties/%s", propName))).
 					SetInstanceLocation(fmt.Sprintf("/%s", propName))
 
 				results = append(results, result)
@@ -52,7 +52,7 @@ func evaluateProperties(
 			if result != nil {
 				//nolint:errcheck
 				result.SetEvaluationPath(fmt.Sprintf("/properties/%s", propName)).
-					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/properties/%s", propName))).
+					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/properties/%s", propName))).
 					SetInstanceLocation(fmt.Sprintf("/%s", propName))
 
 				results = append(results, result)

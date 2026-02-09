@@ -48,9 +48,9 @@ func main() {
 	}
 
 	// Example 2: Detailed errors (Recommended)
-	// Shows the new GetDetailedErrors method for better user experience
+	// Shows the new DetailedErrors method for better user experience
 	fmt.Println("\n2. Detailed errors (Recommended):")
-	detailedErrors := result.GetDetailedErrors()
+	detailedErrors := result.DetailedErrors()
 	if len(detailedErrors) > 0 {
 		for path, message := range detailedErrors {
 			fmt.Printf("   - %s: %s\n", path, message)

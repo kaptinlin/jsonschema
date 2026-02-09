@@ -717,7 +717,7 @@ func TestCachePerformance(t *testing.T) {
 	t.Logf("Second generation (cached): %v", duration2)
 
 	// Verify cache is working
-	stats := GetCacheStats()
+	stats := CacheStats()
 	if stats["cached_schemas"] == 0 {
 		assert.Fail(t, "Expected cached schemas to be > 0")
 	}
@@ -725,7 +725,7 @@ func TestCachePerformance(t *testing.T) {
 
 	// Clear cache and verify it's empty
 	ClearSchemaCache()
-	stats = GetCacheStats()
+	stats = CacheStats()
 	if stats["cached_schemas"] != 0 {
 		assert.Fail(t, "Expected cache to be cleared")
 	}
@@ -1649,7 +1649,7 @@ func TestFromStruct_SchemaVersionCaching(t *testing.T) {
 	}
 
 	// Verify cache stats show multiple cached schemas
-	stats := GetCacheStats()
+	stats := CacheStats()
 	if stats["cached_schemas"] < 3 {
 		assert.Fail(t, fmt.Sprintf("Expected at least 3 cached schemas, got %d", stats["cached_schemas"]))
 	}

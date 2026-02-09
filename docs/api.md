@@ -172,12 +172,12 @@ schema := jsonschema.Object(
 // Child schemas automatically inherit parent's compiler
 ```
 
-#### `(*Schema) GetCompiler() *Compiler`
+#### `(*Schema) Compiler() *Compiler`
 
 Returns the effective compiler for the schema with smart inheritance.
 
 ```go
-compiler := schema.GetCompiler()
+compiler := schema.Compiler()
 
 // Inheritance order:
 // 1. Current schema's compiler
@@ -237,12 +237,12 @@ for field, message := range list.Errors {
 Converts result with localized error messages.
 
 ```go
-i18nBundle, _ := jsonschema.GetI18n()
+i18nBundle, _ := jsonschema.I18n()
 localizer := i18nBundle.NewLocalizer("zh-Hans")
 list := result.ToLocalizeList(localizer)
 ```
 
-#### `(*EvaluationResult) GetDetailedErrors(localizer ...*i18n.Localizer) map[string]string`
+#### `(*EvaluationResult) DetailedErrors(localizer ...*i18n.Localizer) map[string]string`
 
 ⭐ **Recommended for most users** - Collects all detailed validation errors from the nested Details hierarchy. Returns a flattened map where keys are field paths and values are specific error messages. This method helps access validation failures that might be buried in nested structures.
 
@@ -253,7 +253,7 @@ list := result.ToLocalizeList(localizer)
 ```go
 result := schema.Validate(data)
 if !result.IsValid() {
-    detailedErrors := result.GetDetailedErrors() // No parameters = English
+    detailedErrors := result.DetailedErrors() // No parameters = English
     for path, message := range detailedErrors {
         fmt.Printf("Field '%s': %s\n", path, message)
     }
@@ -262,17 +262,17 @@ if !result.IsValid() {
 
 **Localized errors:**
 ```go
-i18nBundle, _ := jsonschema.GetI18n()
+i18nBundle, _ := jsonschema.I18n()
 localizer := i18nBundle.NewLocalizer("zh-Hans")
-detailedErrors := result.GetDetailedErrors(localizer) // Pass localizer
+detailedErrors := result.DetailedErrors(localizer) // Pass localizer
 for path, message := range detailedErrors {
     fmt.Printf("字段 '%s': %s\n", path, message) // Chinese messages
 }
 ```
 
-**Why use GetDetailedErrors instead of result.Errors?**
+**Why use DetailedErrors instead of result.Errors?**
 - `result.Errors`: Generic messages like "Property 'jobs' does not match the schema" ❌
-- `GetDetailedErrors()`: Specific messages like "Required property 'runs-on' is missing" ✅
+- `DetailedErrors()`: Specific messages like "Required property 'runs-on' is missing" ✅
 
 
 ## Error Types
@@ -319,12 +319,12 @@ if errors.As(err, &unmarshalErr) {
 
 ## Internationalization
 
-### `GetI18n() (*i18n.I18n, error)`
+### `I18n() (*i18n.I18n, error)`
 
 Returns the i18n bundle with supported locales.
 
 ```go
-i18nBundle, err := jsonschema.GetI18n()
+i18nBundle, err := jsonschema.I18n()
 if err != nil {
     log.Fatal(err)
 }
@@ -402,7 +402,7 @@ func ValidateWithLocale(schema *jsonschema.Schema, data interface{}, locale stri
         return nil
     }
     
-    i18nBundle, _ := jsonschema.GetI18n()
+    i18nBundle, _ := jsonschema.I18n()
     localizer := i18nBundle.NewLocalizer(locale)
     localizedList := result.ToLocalizeList(localizer)
     

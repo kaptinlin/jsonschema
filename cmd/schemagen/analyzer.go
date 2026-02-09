@@ -333,9 +333,9 @@ func (a *StructAnalyzer) NeedsGeneration(info *GenerationInfo) bool {
 	return info.HasGenerate
 }
 
-// GetDependencyGraph returns the built dependency graph
-func (a *StructAnalyzer) GetDependencyGraph() *DependencyGraph {
-	return a.referenceAnalyzer.GetDependencyGraph()
+// DependencyGraph returns the built dependency graph
+func (a *StructAnalyzer) DependencyGraph() *DependencyGraph {
+	return a.referenceAnalyzer.DependencyGraph()
 }
 
 // HasCircularDependencies returns whether circular dependencies were detected
@@ -343,9 +343,9 @@ func (a *StructAnalyzer) HasCircularDependencies() bool {
 	return a.referenceAnalyzer.HasCycles()
 }
 
-// GetCircularDependencies returns all detected circular dependencies
-func (a *StructAnalyzer) GetCircularDependencies() [][]string {
-	return a.referenceAnalyzer.GetCycles()
+// CircularDependencies returns all detected circular dependencies
+func (a *StructAnalyzer) CircularDependencies() [][]string {
+	return a.referenceAnalyzer.Cycles()
 }
 
 // NeedsRefGeneration determines if a struct needs $ref generation due to cycles
@@ -353,7 +353,7 @@ func (a *StructAnalyzer) NeedsRefGeneration(structName string) bool {
 	return a.referenceAnalyzer.NeedsRefGeneration(structName)
 }
 
-// GetReferencedStructs returns all structs that should be included in $defs
-func (a *StructAnalyzer) GetReferencedStructs(rootStruct string) []string {
-	return a.referenceAnalyzer.GetReferencedStructs(rootStruct)
+// ReferencedStructs returns all structs that should be included in $defs
+func (a *StructAnalyzer) ReferencedStructs(rootStruct string) []string {
+	return a.referenceAnalyzer.ReferencedStructs(rootStruct)
 }

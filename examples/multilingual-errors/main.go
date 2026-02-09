@@ -50,18 +50,18 @@ func main() {
 		return
 	}
 
-	fmt.Println("=== GetDetailedErrors Multilingual Support Demo ===")
+	fmt.Println("=== DetailedErrors Multilingual Support Demo ===")
 	fmt.Println()
 
 	// 1. Default English errors
 	fmt.Println("1. English (Default):")
-	englishErrors := result.GetDetailedErrors()
+	englishErrors := result.DetailedErrors()
 	for path, msg := range englishErrors {
 		fmt.Printf("   %s: %s\n", path, msg)
 	}
 
 	// 2. Initialize i18n system
-	i18n, err := jsonschema.GetI18n()
+	i18n, err := jsonschema.I18n()
 	if err != nil {
 		log.Printf("Failed to initialize i18n: %v", err)
 		return
@@ -70,7 +70,7 @@ func main() {
 	// 3. Chinese Simplified errors
 	fmt.Println("\n2. 简体中文:")
 	zhLocalizer := i18n.NewLocalizer("zh-Hans")
-	chineseErrors := result.GetDetailedErrors(zhLocalizer)
+	chineseErrors := result.DetailedErrors(zhLocalizer)
 	for path, msg := range chineseErrors {
 		fmt.Printf("   %s: %s\n", path, msg)
 	}
@@ -78,7 +78,7 @@ func main() {
 	// 4. Japanese errors
 	fmt.Println("\n3. 日本語:")
 	jaLocalizer := i18n.NewLocalizer("ja-JP")
-	japaneseErrors := result.GetDetailedErrors(jaLocalizer)
+	japaneseErrors := result.DetailedErrors(jaLocalizer)
 	for path, msg := range japaneseErrors {
 		fmt.Printf("   %s: %s\n", path, msg)
 	}
@@ -86,7 +86,7 @@ func main() {
 	// 5. French errors
 	fmt.Println("\n4. Français:")
 	frLocalizer := i18n.NewLocalizer("fr-FR")
-	frenchErrors := result.GetDetailedErrors(frLocalizer)
+	frenchErrors := result.DetailedErrors(frLocalizer)
 	for path, msg := range frenchErrors {
 		fmt.Printf("   %s: %s\n", path, msg)
 	}
@@ -94,7 +94,7 @@ func main() {
 	// 6. German errors
 	fmt.Println("\n5. Deutsch:")
 	deLocalizer := i18n.NewLocalizer("de-DE")
-	germanErrors := result.GetDetailedErrors(deLocalizer)
+	germanErrors := result.DetailedErrors(deLocalizer)
 	for path, msg := range germanErrors {
 		fmt.Printf("   %s: %s\n", path, msg)
 	}

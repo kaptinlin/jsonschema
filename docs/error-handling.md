@@ -189,14 +189,14 @@ if err != nil {
 
 The library provides several methods to access validation errors at different levels of detail:
 
-#### `GetDetailedErrors()`
+#### `DetailedErrors()`
 
 Collects all detailed validation errors from the nested Details hierarchy. This is useful when you need access to specific validation failures that might be buried in nested structures.
 
 ```go
 result := schema.Validate(data)
 if !result.IsValid() {
-    detailedErrors := result.GetDetailedErrors()
+    detailedErrors := result.DetailedErrors()
     for path, message := range detailedErrors {
         fmt.Printf("Field '%s': %s\n", path, message)
     }
@@ -209,7 +209,7 @@ if !result.IsValid() {
 The method supports localization:
 
 ```go
-i18n, _ := jsonschema.GetI18n()
+i18n, _ := jsonschema.I18n()
 localizer := i18n.NewLocalizer("zh-Hans")
 
 result := schema.Validate(data)
@@ -225,7 +225,7 @@ if !result.IsValid() {
 |--------|----------|---------|
 | `result.Errors` | Quick access to top-level errors | Map of field paths to error details |
 | `result.ToList()` | Complete validation tree | Hierarchical error structure |
-| `result.GetDetailedErrors()` | Flat, detailed error messages | Map of JSON paths to messages |
+| `result.DetailedErrors()` | Flat, detailed error messages | Map of JSON paths to messages |
 
 ```go
 // Basic error access
@@ -234,8 +234,8 @@ for path, err := range result.Errors {
 }
 
 // Detailed errors with localization support
-detailedErrors := result.GetDetailedErrors()
-// Or with localizer: result.GetDetailedErrors(localizer)
+detailedErrors := result.DetailedErrors()
+// Or with localizer: result.DetailedErrors(localizer)
 ```
 
 ### Complete Usage Examples
@@ -246,7 +246,7 @@ func validateData(schema *jsonschema.Schema, data []byte) error {
     result := schema.ValidateJSON(data)
     if !result.IsValid() {
         // Get all detailed errors in one line
-        detailedErrors := result.GetDetailedErrors()
+        detailedErrors := result.DetailedErrors()
         
         var messages []string
         for path, msg := range detailedErrors {
@@ -273,7 +273,7 @@ func analyzeValidationErrors(result *jsonschema.EvaluationResult) {
     
     // For detailed analysis - get all specific errors
     fmt.Println("\nDetailed errors:")
-    detailedErrors := result.GetDetailedErrors()
+    detailedErrors := result.DetailedErrors()
     
     // Group by error type
     requiredErrors := []string{}
@@ -328,7 +328,7 @@ func analyzeValidationErrors(result *jsonschema.EvaluationResult) {
 
 | Method | Use When | Code Complexity | Information Level |
 |--------|----------|-----------------|-------------------|
-| `result.GetDetailedErrors()` | **Daily development** | 1 line | ⭐ Complete & specific |
+| `result.DetailedErrors()` | **Daily development** | 1 line | ⭐ Complete & specific |
 | `result.Errors` | Quick validity check | 1 line | ❌ Generic messages |
 | `result.ToList()` | Advanced analysis tools | 20-30 lines | ✅ JSON Schema compliant |
 | `result.ToList(false)` | Custom error processors | 5-10 lines | ✅ Flattened structure |
@@ -411,7 +411,7 @@ flat := result.ToList(false)
 
 ```go
 // Get localizer for Chinese
-i18n, _ := jsonschema.GetI18n()
+i18n, _ := jsonschema.I18n()
 localizer := i18n.NewLocalizer("zh-Hans")
 
 // Get localized errors

@@ -401,7 +401,7 @@ func TestOneOfErrorPaths(t *testing.T) {
 	result := schema.ValidateMap(data)
 	assert.False(t, result.IsValid())
 
-	errors := result.GetDetailedErrors()
+	errors := result.DetailedErrors()
 
 	// Check that oneOf error has proper path
 	found := false
@@ -469,7 +469,7 @@ func TestJSONRawMessageValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := schema.Validate(tt.data)
 			if tt.expectValid {
-				assert.True(t, result.IsValid(), "Expected validation to pass but got errors: %v", result.GetDetailedErrors())
+				assert.True(t, result.IsValid(), "Expected validation to pass but got errors: %v", result.DetailedErrors())
 			} else {
 				assert.False(t, result.IsValid(), "Expected validation to fail but it passed")
 			}

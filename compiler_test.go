@@ -40,7 +40,7 @@ func TestCompileWithIDAddsMissingID(t *testing.T) {
 
 	assert.Equal(t, "http://example.com/schema", schema.ID, "Expected schema ID to be set from Compile")
 
-	cached, cacheErr := compiler.GetSchema("http://example.com/schema")
+	cached, cacheErr := compiler.Schema("http://example.com/schema")
 	require.NoError(t, cacheErr, "Expected compiled schema to be retrievable by ID")
 	assert.Same(t, schema, cached, "Expected cached schema to match compiled schema")
 }
@@ -51,7 +51,7 @@ func TestGetSchema(t *testing.T) {
 	_, err := compiler.Compile([]byte(schemaJSON))
 	require.NoError(t, err, "Failed to compile schema")
 
-	schema, err := compiler.GetSchema("http://example.com/schema")
+	schema, err := compiler.Schema("http://example.com/schema")
 	require.NoError(t, err, "Failed to retrieve compiled schema")
 
 	assert.Equal(t, "http://example.com/schema", schema.ID, "Expected to retrieve schema with $id 'http://example.com/schema'")
@@ -61,7 +61,7 @@ func TestValidateRemoteSchema(t *testing.T) {
 	compiler := NewCompiler()
 
 	// Load the meta-schema
-	metaSchema, err := compiler.GetSchema(remoteSchemaURL)
+	metaSchema, err := compiler.Schema(remoteSchemaURL)
 	require.NoError(t, err, "Failed to load meta-schema")
 
 	// Ensure that the schema is not nil
@@ -120,7 +120,7 @@ func TestResolveReferencesCorrectly(t *testing.T) {
 	require.NoError(t, err, "Failed to compile base schema")
 
 	// Print base schema ID and check if cached correctly
-	cachedBaseSchema, cacheErr := compiler.GetSchema("http://example.com/base")
+	cachedBaseSchema, cacheErr := compiler.Schema("http://example.com/base")
 	require.NoError(t, cacheErr, "Base schema cache retrieval failed")
 	require.NotNil(t, cachedBaseSchema, "Base schema not cached correctly")
 
@@ -431,7 +431,7 @@ func TestSchemaReferenceOrderingReversed(t *testing.T) {
 
 // TestCompileBatchWithCrossReferences tests that CompileBatch can handle schemas
 // with cross-references without causing nil pointer dereference errors
-// This test specifically addresses the fix for using s.GetCompiler() instead of s.compiler
+// This test specifically addresses the fix for using s.Compiler() instead of s.compiler
 func TestCompileBatchWithCrossReferences(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -532,7 +532,7 @@ func TestCompileBatchWithCrossReferences(t *testing.T) {
 }
 
 // TestCompileBatchWithNestedReferences tests CompileBatch with deeply nested references
-// to ensure the fix for GetCompiler() works correctly in all contexts
+// to ensure the fix for Compiler() works correctly in all contexts
 func TestCompileBatchWithNestedReferences(t *testing.T) {
 	compiler := NewCompiler()
 

@@ -42,7 +42,7 @@ func main() {
 	fmt.Println("========================")
 
 	// Get i18n support
-	i18nBundle, err := jsonschema.GetI18n()
+	i18nBundle, err := jsonschema.I18n()
 	if err != nil {
 		log.Fatal("Failed to get i18n:", err)
 	}

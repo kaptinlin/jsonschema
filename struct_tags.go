@@ -111,8 +111,8 @@ func RegisterCustomValidator(name string, validator CustomValidatorFunc) {
 	globalValidatorRegistry.validators[name] = validator
 }
 
-// GetCustomValidator retrieves a custom validator by name
-func (r *ValidatorRegistry) GetCustomValidator(name string) (CustomValidatorFunc, bool) {
+// CustomValidator retrieves a custom validator by name
+func (r *ValidatorRegistry) CustomValidator(name string) (CustomValidatorFunc, bool) {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 	validator, exists := r.validators[name]
@@ -297,8 +297,8 @@ func ClearSchemaCache() {
 	})
 }
 
-// GetCacheStats returns statistics about the global schema cache - useful for monitoring
-func GetCacheStats() map[string]int {
+// CacheStats returns statistics about the global schema cache - useful for monitoring
+func CacheStats() map[string]int {
 	stats := map[string]int{
 		"cached_schemas": 0,
 	}
@@ -688,7 +688,7 @@ func (g *structTagGenerator) applyValidationRules(rules []tagparser.TagRule, fie
 		}
 
 		// Check custom validators
-		if customValidator, exists := globalValidatorRegistry.GetCustomValidator(rule.Name); exists {
+		if customValidator, exists := globalValidatorRegistry.CustomValidator(rule.Name); exists {
 			ruleKeywords := customValidator(fieldType, rule.Params)
 			keywords = append(keywords, ruleKeywords...)
 			continue

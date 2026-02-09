@@ -1,6 +1,6 @@
-# GetDetailedErrors 多语言支持演示
+# DetailedErrors 多语言支持演示
 
-本示例演示 `GetDetailedErrors` 方法与多语言系统的完美集成。
+本示例演示 `DetailedErrors` 方法与多语言系统的完美集成。
 
 ## 功能特性
 
@@ -26,12 +26,12 @@
 ### 基本用法
 ```go
 // 默认英语错误 (无需传nil，更简洁)
-errors := result.GetDetailedErrors()
+errors := result.DetailedErrors()
 
 // 本地化错误
-i18n, _ := jsonschema.GetI18n()
+i18n, _ := jsonschema.I18n()
 localizer := i18n.NewLocalizer("zh-Hans")
-localizedErrors := result.GetDetailedErrors(localizer)
+localizedErrors := result.DetailedErrors(localizer)
 ```
 
 ### 完整示例
@@ -40,12 +40,12 @@ func validateWithMultipleLanguages(schema *jsonschema.Schema, data any) {
     result := schema.Validate(data)
     if !result.IsValid() {
         // 英语
-        englishErrors := result.GetDetailedErrors()
-        
+        englishErrors := result.DetailedErrors()
+
         // 中文
-        i18n, _ := jsonschema.GetI18n()
+        i18n, _ := jsonschema.I18n()
         zhLocalizer := i18n.NewLocalizer("zh-Hans")
-        chineseErrors := result.GetDetailedErrors(zhLocalizer)
+        chineseErrors := result.DetailedErrors(zhLocalizer)
         
         // 显示对比
         fmt.Println("English:", englishErrors)
@@ -64,7 +64,7 @@ go run main.go
 ## 预期输出
 
 ```
-=== GetDetailedErrors 多语言支持演示 ===
+=== DetailedErrors 多语言支持演示 ===
 
 1. English (Default):
    /name/minLength: Value should be at least 3 characters

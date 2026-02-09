@@ -133,7 +133,7 @@ func TestCompiler_RegisterDefaultFunc(t *testing.T) {
 	compiler.RegisterDefaultFunc("test", testFunc)
 
 	// Test retrieval
-	fn, exists := compiler.getDefaultFunc("test")
+	fn, exists := compiler.defaultFunc("test")
 	if !exists {
 		t.Error("Expected function to be registered")
 	}

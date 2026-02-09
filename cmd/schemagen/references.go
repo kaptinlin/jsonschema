@@ -401,8 +401,8 @@ func (ra *ReferenceAnalyzer) dfsDetectCycle(node string, visited, recStack map[s
 	return nil
 }
 
-// GetDependencyGraph returns the built dependency graph
-func (ra *ReferenceAnalyzer) GetDependencyGraph() *DependencyGraph {
+// DependencyGraph returns the built dependency graph
+func (ra *ReferenceAnalyzer) DependencyGraph() *DependencyGraph {
 	return ra.graph
 }
 
@@ -411,8 +411,8 @@ func (ra *ReferenceAnalyzer) HasCycles() bool {
 	return len(ra.graph.cycles) > 0
 }
 
-// GetCycles returns all detected cycles
-func (ra *ReferenceAnalyzer) GetCycles() [][]string {
+// Cycles returns all detected cycles
+func (ra *ReferenceAnalyzer) Cycles() [][]string {
 	return ra.graph.cycles
 }
 
@@ -440,8 +440,8 @@ func (ra *ReferenceAnalyzer) NeedsRefGeneration(structName string) bool {
 	return false
 }
 
-// GetReferencedStructs returns all structs that need to be included in $defs
-func (ra *ReferenceAnalyzer) GetReferencedStructs(rootStruct string) []string {
+// ReferencedStructs returns all structs that need to be included in $defs
+func (ra *ReferenceAnalyzer) ReferencedStructs(rootStruct string) []string {
 	var referenced []string
 	visited := make(map[string]bool)
 

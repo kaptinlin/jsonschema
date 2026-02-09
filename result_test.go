@@ -58,7 +58,7 @@ func TestValidationOutputs(t *testing.T) {
 
 func TestToLocalizeList(t *testing.T) {
 	// Initialize localizer for Simplified Chinese
-	i18n, err := GetI18n()
+	i18n, err := I18n()
 	assert.Nil(t, err, "Failed to initialize i18n")
 	localizer := i18n.NewLocalizer("zh-Hans")
 
@@ -203,8 +203,8 @@ func TestToFlag(t *testing.T) {
 	assert.Equal(t, false, flagInvalid.Valid, "Expected validity of flag to match EvaluationResult validity for an invalid result")
 }
 
-// TestGetDetailedErrors tests the GetDetailedErrors method for extracting user-friendly error information
-func TestGetDetailedErrors(t *testing.T) {
+// TestDetailedErrors tests the DetailedErrors method for extracting user-friendly error information
+func TestDetailedErrors(t *testing.T) {
 	// Schema requiring runs-on property
 	schemaJSON := `{
 		"type": "object",
@@ -255,8 +255,8 @@ func TestGetDetailedErrors(t *testing.T) {
 	// Verify validation fails
 	assert.False(t, result.IsValid(), "Expected validation to fail")
 
-	// Test GetDetailedErrors without localizer (default English)
-	detailedErrors := result.GetDetailedErrors()
+	// Test DetailedErrors without localizer (default English)
+	detailedErrors := result.DetailedErrors()
 	assert.Greater(t, len(detailedErrors), 0, "Expected detailed errors but got none")
 
 	// Check for required property error
@@ -275,16 +275,16 @@ func TestGetDetailedErrors(t *testing.T) {
 	assert.True(t, foundRequiredError, "Expected to find a required property error in detailed errors")
 	assert.True(t, foundTypeError, "Expected to find a type error in detailed errors")
 
-	t.Logf("GetDetailedErrors returned %d errors", len(detailedErrors))
+	t.Logf("DetailedErrors returned %d errors", len(detailedErrors))
 
 	// Test edge cases
 	t.Run("edge_cases", func(t *testing.T) {
-		testGetDetailedErrorsEdgeCases(t)
+		testDetailedErrorsEdgeCases(t)
 	})
 
 	// Test multilingual support
 	t.Run("multilingual_support", func(t *testing.T) {
-		testGetDetailedErrorsMultilingual(t)
+		testDetailedErrorsMultilingual(t)
 	})
 }
 
@@ -312,13 +312,13 @@ func TestGetDetailedLocalizedErrors(t *testing.T) {
 	assert.False(t, result.IsValid(), "Expected validation to fail")
 
 	// Test without localizer (default English)
-	englishErrors := result.GetDetailedErrors()
+	englishErrors := result.DetailedErrors()
 
 	// Test with actual localizer
-	i18n, err := GetI18n()
+	i18n, err := I18n()
 	if err == nil {
 		localizer := i18n.NewLocalizer("zh-Hans")
-		chineseErrors := result.GetDetailedErrors(localizer)
+		chineseErrors := result.DetailedErrors(localizer)
 
 		assert.Equal(t, len(englishErrors), len(chineseErrors),
 			"English and Chinese errors should have same count")
@@ -330,8 +330,8 @@ func TestGetDetailedLocalizedErrors(t *testing.T) {
 	}
 }
 
-// Test edge cases for GetDetailedErrors
-func testGetDetailedErrorsEdgeCases(t *testing.T) {
+// Test edge cases for DetailedErrors
+func testDetailedErrorsEdgeCases(t *testing.T) {
 	// Test with valid data (should return empty map)
 	validSchema := `{"type": "object", "properties": {"name": {"type": "string"}}}`
 	compiler := NewCompiler()
@@ -343,8 +343,8 @@ func testGetDetailedErrorsEdgeCases(t *testing.T) {
 
 	assert.True(t, result.IsValid(), "Valid data should pass validation")
 
-	// GetDetailedErrors should return empty map for valid data
-	detailedErrors := result.GetDetailedErrors()
+	// DetailedErrors should return empty map for valid data
+	detailedErrors := result.DetailedErrors()
 	assert.Equal(t, 0, len(detailedErrors), "Valid data should have no detailed errors")
 
 	// Test with empty schema
@@ -355,12 +355,12 @@ func testGetDetailedErrorsEdgeCases(t *testing.T) {
 	result2 := schema2.ValidateMap(map[string]any{"anything": "goes"})
 	assert.True(t, result2.IsValid(), "Empty schema should accept anything")
 
-	detailedErrors2 := result2.GetDetailedErrors()
+	detailedErrors2 := result2.DetailedErrors()
 	assert.Equal(t, 0, len(detailedErrors2), "Empty schema should have no errors")
 }
 
-// Test multilingual support for GetDetailedErrors
-func testGetDetailedErrorsMultilingual(t *testing.T) {
+// Test multilingual support for DetailedErrors
+func testDetailedErrorsMultilingual(t *testing.T) {
 	// Schema with multiple error types
 	schemaJSON := `{
 		"type": "object",
@@ -386,18 +386,18 @@ func testGetDetailedErrorsMultilingual(t *testing.T) {
 	assert.False(t, result.IsValid(), "Invalid data should fail validation")
 
 	// Test default English
-	englishErrors := result.GetDetailedErrors()
+	englishErrors := result.DetailedErrors()
 	assert.Greater(t, len(englishErrors), 0, "Should have detailed errors")
 
 	// Test with i18n if available
-	i18n, err := GetI18n()
+	i18n, err := I18n()
 	if err == nil {
 		// Test multiple languages
 		languages := []string{"zh-Hans", "ja-JP", "fr-FR", "de-DE"}
 
 		for _, lang := range languages {
 			localizer := i18n.NewLocalizer(lang)
-			localizedErrors := result.GetDetailedErrors(localizer)
+			localizedErrors := result.DetailedErrors(localizer)
 
 			// Should have same number of errors as English
 			assert.Equal(t, len(englishErrors), len(localizedErrors),
@@ -453,7 +453,7 @@ func TestLogicalValidatorPaths(t *testing.T) {
 	result := schema.ValidateMap(data)
 	assert.False(t, result.IsValid())
 
-	errors := result.GetDetailedErrors()
+	errors := result.DetailedErrors()
 	assert.Greater(t, len(errors), 0)
 
 	// Verify oneOf error includes the property path

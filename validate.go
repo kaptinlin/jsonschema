@@ -59,19 +59,19 @@ func (s *Schema) ValidateMap(data map[string]any) *EvaluationResult {
 // parseJSONData safely parses []byte data as JSON
 func (s *Schema) parseJSONData(data []byte) (any, error) {
 	var parsed any
-	return parsed, s.GetCompiler().jsonDecoder(data, &parsed)
+	return parsed, s.Compiler().jsonDecoder(data, &parsed)
 }
 
 // processJSONBytes handles []byte input with smart JSON parsing
 func (s *Schema) processJSONBytes(jsonBytes []byte) (any, error) {
 	var parsed any
-	if err := s.GetCompiler().jsonDecoder(jsonBytes, &parsed); err == nil {
+	if err := s.Compiler().jsonDecoder(jsonBytes, &parsed); err == nil {
 		return parsed, nil
 	}
 
 	// Only return error if it looks like intended JSON
 	if len(jsonBytes) > 0 && (jsonBytes[0] == '{' || jsonBytes[0] == '[') {
-		return nil, s.GetCompiler().jsonDecoder(jsonBytes, &parsed)
+		return nil, s.Compiler().jsonDecoder(jsonBytes, &parsed)
 	}
 
 	// Otherwise, keep original bytes for validation as byte array
@@ -875,9 +875,9 @@ func (s *Schema) processObjectValidationWithoutRefs(instance any, result *Evalua
 
 	if rv.Kind() == reflect.Struct {
 		// Convert struct to map for constraint validation
-		objectMap := make(map[string]any)
+		objectMap := make(map[string]any, rv.NumField())
 		structType := rv.Type()
-		for i := 0; i < rv.NumField(); i++ {
+		for i := range rv.NumField() {
 			field := structType.Field(i)
 			if field.IsExported() {
 				fieldValue := rv.Field(i)

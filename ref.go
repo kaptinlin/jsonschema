@@ -58,7 +58,7 @@ func (s *Schema) resolveRefWithFullURL(ref string) (*Schema, error) {
 	}
 
 	// If not found in the current schema or its parents, look for the reference in the compiler
-	resolved, err := s.GetCompiler().GetSchema(ref)
+	resolved, err := s.Compiler().Schema(ref)
 	if err != nil {
 		return nil, ErrGlobalReferenceResolution
 	}
@@ -217,8 +217,8 @@ func (s *Schema) walkNestedSchemas(fn func(*Schema)) {
 	}
 }
 
-// GetUnresolvedReferenceURIs returns a list of URIs that this schema references but are not yet resolved.
-func (s *Schema) GetUnresolvedReferenceURIs() []string {
+// UnresolvedReferenceURIs returns a list of URIs that this schema references but are not yet resolved.
+func (s *Schema) UnresolvedReferenceURIs() []string {
 	var unresolvedURIs []string
 
 	// Check direct references
@@ -233,14 +233,14 @@ func (s *Schema) GetUnresolvedReferenceURIs() []string {
 	// Recursively check nested schemas
 	if s.Defs != nil {
 		for _, defSchema := range s.Defs {
-			unresolvedURIs = append(unresolvedURIs, defSchema.GetUnresolvedReferenceURIs()...)
+			unresolvedURIs = append(unresolvedURIs, defSchema.UnresolvedReferenceURIs()...)
 		}
 	}
 
 	if s.Properties != nil {
 		for _, propSchema := range *s.Properties {
 			if propSchema != nil {
-				unresolvedURIs = append(unresolvedURIs, propSchema.GetUnresolvedReferenceURIs()...)
+				unresolvedURIs = append(unresolvedURIs, propSchema.UnresolvedReferenceURIs()...)
 			}
 		}
 	}
@@ -251,30 +251,30 @@ func (s *Schema) GetUnresolvedReferenceURIs() []string {
 	unresolvedURIs = append(unresolvedURIs, getUnresolvedFromList(s.OneOf)...)
 
 	if s.Not != nil {
-		unresolvedURIs = append(unresolvedURIs, s.Not.GetUnresolvedReferenceURIs()...)
+		unresolvedURIs = append(unresolvedURIs, s.Not.UnresolvedReferenceURIs()...)
 	}
 
 	if s.Items != nil {
-		unresolvedURIs = append(unresolvedURIs, s.Items.GetUnresolvedReferenceURIs()...)
+		unresolvedURIs = append(unresolvedURIs, s.Items.UnresolvedReferenceURIs()...)
 	}
 
 	if s.PrefixItems != nil {
 		for _, schema := range s.PrefixItems {
-			unresolvedURIs = append(unresolvedURIs, schema.GetUnresolvedReferenceURIs()...)
+			unresolvedURIs = append(unresolvedURIs, schema.UnresolvedReferenceURIs()...)
 		}
 	}
 
 	if s.AdditionalProperties != nil {
-		unresolvedURIs = append(unresolvedURIs, s.AdditionalProperties.GetUnresolvedReferenceURIs()...)
+		unresolvedURIs = append(unresolvedURIs, s.AdditionalProperties.UnresolvedReferenceURIs()...)
 	}
 
 	if s.Contains != nil {
-		unresolvedURIs = append(unresolvedURIs, s.Contains.GetUnresolvedReferenceURIs()...)
+		unresolvedURIs = append(unresolvedURIs, s.Contains.UnresolvedReferenceURIs()...)
 	}
 
 	if s.PatternProperties != nil {
 		for _, schema := range *s.PatternProperties {
-			unresolvedURIs = append(unresolvedURIs, schema.GetUnresolvedReferenceURIs()...)
+			unresolvedURIs = append(unresolvedURIs, schema.UnresolvedReferenceURIs()...)
 		}
 	}
 
@@ -286,7 +286,7 @@ func getUnresolvedFromList(schemas []*Schema) []string {
 	var unresolvedURIs []string
 	for _, schema := range schemas {
 		if schema != nil {
-			unresolvedURIs = append(unresolvedURIs, schema.GetUnresolvedReferenceURIs()...)
+			unresolvedURIs = append(unresolvedURIs, schema.UnresolvedReferenceURIs()...)
 		}
 	}
 	return unresolvedURIs

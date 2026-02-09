@@ -8,8 +8,8 @@ func SetDefaultCompiler(c *Compiler) {
 	defaultCompiler = c
 }
 
-// GetDefaultCompiler returns the current default compiler
-func GetDefaultCompiler() *Compiler {
+// DefaultCompiler returns the current default compiler
+func DefaultCompiler() *Compiler {
 	return defaultCompiler
 }
 

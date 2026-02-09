@@ -72,7 +72,7 @@ func (p *TagParser) parseFields(structType reflect.Type, seenTypes map[string]in
 	var allFields []FieldInfo
 
 	// Iterate through all exported fields
-	for i := 0; i < structType.NumField(); i++ {
+	for i := range structType.NumField() {
 		field := structType.Field(i)
 
 		// Skip unexported fields

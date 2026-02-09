@@ -28,7 +28,7 @@ func evaluateConditional(
 	if ifResult != nil {
 		//nolint:errcheck
 		ifResult.SetEvaluationPath("/if").
-			SetSchemaLocation(schema.GetSchemaLocation("/if"))
+			SetSchemaLocation(schema.SchemaLocation("/if"))
 
 		results = append(results, ifResult)
 
@@ -43,7 +43,7 @@ func evaluateConditional(
 				if thenResult != nil {
 					//nolint:errcheck
 					thenResult.SetEvaluationPath("/then").
-						SetSchemaLocation(schema.GetSchemaLocation("/then"))
+						SetSchemaLocation(schema.SchemaLocation("/then"))
 
 					results = append(results, thenResult)
 

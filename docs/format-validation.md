@@ -24,7 +24,7 @@ schema, _ := compiler.Compile([]byte(`{"type": "string", "format": "uuid"}`))
 schema.Validate("invalid-uuid")  // Returns valid=false
 
 // Option 2: On the default compiler (affects all schemas)
-jsonschema.GetDefaultCompiler().SetAssertFormat(true)
+jsonschema.DefaultCompiler().SetAssertFormat(true)
 ```
 
 ## Registering Custom Formats

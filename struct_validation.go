@@ -73,7 +73,7 @@ func parseStructType(structType reflect.Type) *FieldCache {
 		FieldsByName: make(map[string]FieldInfo),
 	}
 
-	for i := 0; i < structType.NumField(); i++ {
+	for i := range structType.NumField() {
 		field := structType.Field(i)
 
 		// Skip unexported fields
@@ -250,7 +250,7 @@ func extractValue(rv reflect.Value) any {
 func convertSliceToAny(rv reflect.Value) []any {
 	length := rv.Len()
 	result := make([]any, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		elem := rv.Index(i)
 		// Recursively extract values to handle nested pointers and special types
 		result[i] = extractValue(elem)

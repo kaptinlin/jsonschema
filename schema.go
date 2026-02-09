@@ -227,7 +227,7 @@ func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolv
 	s.parent = parent
 
 	// Get effective compiler for initialization
-	effectiveCompiler := s.GetCompiler()
+	effectiveCompiler := s.Compiler()
 
 	parentBaseURI := s.getParentBaseURI()
 	if parentBaseURI == "" {
@@ -266,7 +266,7 @@ func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolv
 	}
 
 	// For constructor usage (compiler=nil), don't pass compiler to children
-	// They should inherit through parent-child relationship via GetCompiler()
+	// They should inherit through parent-child relationship via Compiler()
 	initializeNestedSchemasCore(s, compiler, resolveRefs)
 	if resolveRefs {
 		s.resolveReferences()
@@ -558,8 +558,8 @@ func (s *Schema) getSchema(ref string) (*Schema, error) {
 	return nil, ErrReferenceResolution
 }
 
-// GetSchemaURI returns the resolved URI for the schema, or an empty string if no URI is defined.
-func (s *Schema) GetSchemaURI() string {
+// SchemaURI returns the resolved URI for the schema, or an empty string if no URI is defined.
+func (s *Schema) SchemaURI() string {
 	if s.uri != "" {
 		return s.uri
 	}
@@ -571,9 +571,9 @@ func (s *Schema) GetSchemaURI() string {
 	return ""
 }
 
-// GetSchemaLocation returns the schema location with the given anchor
-func (s *Schema) GetSchemaLocation(anchor string) string {
-	uri := s.GetSchemaURI()
+// SchemaLocation returns the schema location with the given anchor
+func (s *Schema) SchemaLocation(anchor string) string {
+	uri := s.SchemaURI()
 
 	return uri + "#" + anchor
 }
@@ -868,16 +868,16 @@ func (s *Schema) SetCompiler(compiler *Compiler) *Schema {
 	return s
 }
 
-// GetCompiler gets the effective Compiler for the Schema
+// Compiler gets the effective Compiler for the Schema
 // Lookup order: current Schema -> parent Schema -> defaultCompiler
-func (s *Schema) GetCompiler() *Compiler {
+func (s *Schema) Compiler() *Compiler {
 	if s.compiler != nil {
 		return s.compiler
 	}
 
 	// Look up parent Schema's compiler
 	if s.parent != nil {
-		return s.parent.GetCompiler()
+		return s.parent.Compiler()
 	}
 
 	return defaultCompiler

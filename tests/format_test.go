@@ -376,7 +376,7 @@ func TestEmailFormatValidation_CompilerMethods(t *testing.T) {
 
 	t.Run("Method 3: Using custom default compiler", func(t *testing.T) {
 		// Save original default compiler
-		originalCompiler := jsonschema.GetDefaultCompiler()
+		originalCompiler := jsonschema.DefaultCompiler()
 		defer jsonschema.SetDefaultCompiler(originalCompiler)
 
 		// Create custom default compiler

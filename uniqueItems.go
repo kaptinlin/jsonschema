@@ -48,7 +48,7 @@ func evaluateUniqueItems(schema *Schema, data []any) *EvaluationError {
 	}
 
 	// Use a map to track the index of each item
-	seen := make(map[string][]int)
+	seen := make(map[string][]int, maxLength)
 	for index, item := range data[:maxLength] {
 		itemKey, err := normalizeForComparison(item)
 		if err != nil {
@@ -176,7 +176,7 @@ func normalizeValue(value any) (string, error) {
 			)
 		})
 
-		var pairs []string
+		pairs := make([]string, 0, len(keys))
 		for _, key := range keys {
 			keyStr, err := normalizeValue(key.Interface())
 			if err != nil {
@@ -191,8 +191,8 @@ func normalizeValue(value any) (string, error) {
 		return fmt.Sprintf("{%s}", strings.Join(pairs, ",")), nil
 
 	case reflect.Slice, reflect.Array:
-		var elements []string
-		for i := 0; i < rv.Len(); i++ {
+		elements := make([]string, 0, rv.Len())
+		for i := range rv.Len() {
 			elemStr, err := normalizeValue(rv.Index(i).Interface())
 			if err != nil {
 				return "", err

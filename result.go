@@ -252,7 +252,7 @@ func (e *EvaluationResult) flattenDetailsToList(localizer *i18n.Localizer, list 
 }
 
 func (e *EvaluationResult) convertErrors(localizer *i18n.Localizer) map[string]string {
-	errors := make(map[string]string)
+	errors := make(map[string]string, len(e.Errors))
 	for key, err := range e.Errors {
 		if localizer != nil {
 			errors[key] = err.Localize(localizer)
@@ -263,11 +263,11 @@ func (e *EvaluationResult) convertErrors(localizer *i18n.Localizer) map[string]s
 	return errors
 }
 
-// GetDetailedErrors collects all detailed validation errors from the nested Details hierarchy.
+// DetailedErrors collects all detailed validation errors from the nested Details hierarchy.
 // This method helps users access specific validation failures that might be buried in nested structures.
 // Returns a map where keys are field paths and values are the most specific error messages.
 // For localized messages, pass a localizer; for default English messages, call without arguments.
-func (e *EvaluationResult) GetDetailedErrors(localizer ...*i18n.Localizer) map[string]string {
+func (e *EvaluationResult) DetailedErrors(localizer ...*i18n.Localizer) map[string]string {
 	var loc *i18n.Localizer
 	if len(localizer) > 0 {
 		loc = localizer[0]

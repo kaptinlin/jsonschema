@@ -150,7 +150,7 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 // trackUnresolvedReferences tracks which schemas have unresolved references to which URIs.
 // This method should be called with mutex locked.
 func (c *Compiler) trackUnresolvedReferences(schema *Schema) {
-	unresolvedURIs := schema.GetUnresolvedReferenceURIs()
+	unresolvedURIs := schema.UnresolvedReferenceURIs()
 	for _, uri := range unresolvedURIs {
 		// Check if schema is already in the list to avoid duplicates
 		found := false
@@ -214,8 +214,8 @@ func (c *Compiler) SetSchema(uri string, schema *Schema) *Compiler {
 	return c
 }
 
-// GetSchema retrieves a schema by reference. If the schema is not found in the cache and the ref is a URL, it tries to resolve it.
-func (c *Compiler) GetSchema(ref string) (*Schema, error) {
+// Schema retrieves a schema by reference. If the schema is not found in the cache and the ref is a URL, it tries to resolve it.
+func (c *Compiler) Schema(ref string) (*Schema, error) {
 	baseURI, anchor := splitRef(ref)
 
 	c.mu.RLock()
@@ -280,8 +280,8 @@ func (c *Compiler) RegisterDefaultFunc(name string, fn DefaultFunc) *Compiler {
 	return c
 }
 
-// getDefaultFunc retrieves a registered default function by name.
-func (c *Compiler) getDefaultFunc(name string) (DefaultFunc, bool) {
+// defaultFunc retrieves a registered default function by name.
+func (c *Compiler) defaultFunc(name string) (DefaultFunc, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

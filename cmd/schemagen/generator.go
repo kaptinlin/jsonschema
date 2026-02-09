@@ -128,7 +128,7 @@ func (g *CodeGenerator) ProcessPackage(packagePath string) error {
 
 	// Check for circular dependencies and report them
 	if g.analyzer.HasCircularDependencies() {
-		cycles := g.analyzer.GetCircularDependencies()
+		cycles := g.analyzer.CircularDependencies()
 		if g.config.Verbose {
 			fmt.Printf("Detected %d circular dependency cycle(s):\n", len(cycles))
 			for i, cycle := range cycles {
@@ -183,7 +183,7 @@ func (g *CodeGenerator) generateStructCode(structInfo *GenerationInfo) error {
 
 	// Check if we need to generate $defs for referenced structs
 	var definitions []DefData
-	referencedStructs := g.analyzer.GetReferencedStructs(structInfo.Name)
+	referencedStructs := g.analyzer.ReferencedStructs(structInfo.Name)
 	for _, refStruct := range referencedStructs {
 		if g.analyzer.NeedsRefGeneration(refStruct) {
 			// Generate definition for this referenced struct

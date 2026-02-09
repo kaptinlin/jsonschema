@@ -191,7 +191,7 @@ options := jsonschema.DefaultStructTagOptions()
 jsonschema.ClearSchemaCache()
 
 // Get cache statistics
-stats := jsonschema.GetCacheStats()
+stats := jsonschema.CacheStats()
 fmt.Printf("Cache hits: %d, misses: %d\n", stats["hits"], stats["misses"])
 
 // Register a global custom validator

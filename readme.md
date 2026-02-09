@@ -322,7 +322,7 @@ These fields are preserved during the compile -> marshal round-trip, making it u
 
 ```go
 // Get i18n bundle with embedded locales
-i18nBundle, _ := jsonschema.GetI18n()
+i18nBundle, _ := jsonschema.I18n()
 
 // Create localizer for desired language
 // Supported: en, zh-Hans, zh-Hant, de-DE, es-ES, fr-FR, ja-JP, ko-KR, pt-BR

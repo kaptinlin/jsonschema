@@ -67,7 +67,7 @@ func evaluateUnevaluatedItems(
 			if result != nil {
 				//nolint:errcheck
 				result.SetEvaluationPath(fmt.Sprintf("/unevaluatedItems/%d", i)).
-					SetSchemaLocation(schema.GetSchemaLocation(fmt.Sprintf("/unevaluatedItems/%d", i))).
+					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/unevaluatedItems/%d", i))).
 					SetInstanceLocation(fmt.Sprintf("/%d", i))
 
 				results = append(results, result)

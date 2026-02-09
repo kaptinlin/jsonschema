@@ -29,7 +29,7 @@ Comprehensive error handling patterns and validation failure management.
 Multilingual error messages using Chinese (zh-Hans) and English locales with ToLocalizeList.
 
 ### 🌐 [Multilingual Errors](./multilingual-errors/)
-Advanced multilingual error handling with GetDetailedErrors method supporting 9 languages.
+Advanced multilingual error handling with DetailedErrors method supporting 9 languages.
 
 ### 🏗️ [Constructor](./constructor/)
 Schema creation using fluent constructor API with keywords and validation.

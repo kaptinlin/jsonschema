@@ -82,7 +82,7 @@ func TestSetCompiler(t *testing.T) {
 	assert.Same(t, customCompiler, schema.compiler, "Schema should have the custom compiler set")
 }
 
-func TestGetCompiler(t *testing.T) {
+func TestCompiler(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupFunc      func() *Schema
@@ -138,17 +138,17 @@ func TestGetCompiler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			schema := tt.setupFunc()
-			result := schema.GetCompiler()
+			result := schema.Compiler()
 
 			// We can't directly compare compiler instances, so we check they're not nil
 			// and that they have the same type
-			assert.NotNil(t, result, "GetCompiler should never return nil")
-			assert.IsType(t, &Compiler{}, result, "GetCompiler should return a Compiler")
+			assert.NotNil(t, result, "Compiler should never return nil")
+			assert.IsType(t, &Compiler{}, result, "Compiler should return a Compiler")
 		})
 	}
 }
 
-func TestGetCompilerInheritance(t *testing.T) {
+func TestCompilerInheritance(t *testing.T) {
 	// Create a custom compiler with a test function
 	customCompiler := NewCompiler()
 	customCompiler.RegisterDefaultFunc("testFunc", func(_ ...any) (any, error) {
@@ -162,11 +162,11 @@ func TestGetCompilerInheritance(t *testing.T) {
 	child := &Schema{parent: parent}
 
 	// Test that child inherits parent's compiler
-	childCompiler := child.GetCompiler()
+	childCompiler := child.Compiler()
 	assert.NotNil(t, childCompiler, "Child should inherit compiler from parent")
 
 	// Verify the inherited compiler has the custom function
-	fn, exists := childCompiler.getDefaultFunc("testFunc")
+	fn, exists := childCompiler.defaultFunc("testFunc")
 	assert.True(t, exists, "Child's compiler should have inherited the custom function")
 
 	result, err := fn()
@@ -238,7 +238,7 @@ func TestSchemaUnresolvedRefs(t *testing.T) {
 	schema, err := compiler.Compile([]byte(refSchemaJSON))
 	require.NoError(t, err, "Failed to resolve reference")
 
-	unresolved := schema.GetUnresolvedReferenceURIs()
+	unresolved := schema.UnresolvedReferenceURIs()
 	assert.Len(t, unresolved, 1, "Should have 1 unresolved ref")
 	assert.Equal(t, []string{"http://example.com/base"}, unresolved, "Should have correct unresolved schema")
 }

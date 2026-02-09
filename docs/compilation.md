@@ -301,8 +301,8 @@ compiler.Compile([]byte(`{
 }`), "post.json")
 
 // Get compiled schemas
-userSchema, _ := compiler.GetSchema("user.json")
-postSchema, _ := compiler.GetSchema("post.json")
+userSchema, _ := compiler.Schema("user.json")
+postSchema, _ := compiler.Schema("post.json")
 ```
 
 ---

@@ -38,7 +38,7 @@ func evaluateUnevaluatedProperties(
 			if result != nil {
 				//nolint:errcheck
 				result.SetEvaluationPath("/unevaluatedProperties").
-					SetSchemaLocation(schema.GetSchemaLocation("/unevaluatedProperties")).
+					SetSchemaLocation(schema.SchemaLocation("/unevaluatedProperties")).
 					SetInstanceLocation(fmt.Sprintf("/%s", propName))
 
 				results = append(results, result)

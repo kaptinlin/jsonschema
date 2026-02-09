@@ -21,7 +21,7 @@ func evaluateFormat(schema *Schema, value any) *EvaluationError {
 	var customValidator func(any) bool
 
 	// Get the effective compiler (may be from parent or defaultCompiler)
-	compiler := schema.GetCompiler()
+	compiler := schema.Compiler()
 
 	// 1. Check compiler-specific custom formats first
 	if compiler != nil {
