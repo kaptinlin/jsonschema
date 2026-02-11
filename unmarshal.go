@@ -512,7 +512,7 @@ func (s *Schema) setTimeValue(fieldVal reflect.Value, value any) error {
 }
 
 // parseTimeString parses time string in various formats
-func (s *Schema) parseTimeString(fieldVal reflect.Value, timeStr string) error {
+func (s *Schema) parseTimeString(fieldVal reflect.Value, raw string) error {
 	// Try multiple time formats
 	formats := []string{
 		time.RFC3339,
@@ -523,12 +523,12 @@ func (s *Schema) parseTimeString(fieldVal reflect.Value, timeStr string) error {
 	}
 
 	for _, format := range formats {
-		if t, err := time.Parse(format, timeStr); err == nil {
+		if t, err := time.Parse(format, raw); err == nil {
 			fieldVal.Set(reflect.ValueOf(t))
 			return nil
 		}
 	}
-	return fmt.Errorf("%w: %s", ErrTimeParseFailure, timeStr)
+	return fmt.Errorf("%w: %s", ErrTimeParseFailure, raw)
 }
 
 // deepCopyMap creates a deep copy of a map[string]any

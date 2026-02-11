@@ -118,12 +118,12 @@ func getDataTypeReflect(v any) string {
 }
 
 // getURLScheme extracts the scheme component of a URL string.
-func getURLScheme(urlStr string) string {
-	parsedURL, err := url.Parse(urlStr)
+func getURLScheme(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return ""
 	}
-	return parsedURL.Scheme
+	return parsed.Scheme
 }
 
 // isValidURI verifies if the provided string is a valid URI.
@@ -149,8 +149,8 @@ func resolveRelativeURI(baseURI, relativeURL string) string {
 }
 
 // isAbsoluteURI checks if the given URL is absolute.
-func isAbsoluteURI(urlStr string) bool {
-	u, err := url.Parse(urlStr)
+func isAbsoluteURI(rawURL string) bool {
+	u, err := url.Parse(rawURL)
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 

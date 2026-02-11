@@ -459,7 +459,15 @@ func evaluatePatternPropertiesStruct(schema *Schema, structValue reflect.Value, 
 		}
 
 		for pattern, patternSchema := range *schema.PatternProperties {
-			if matched, _ := regexp.MatchString(pattern, jsonName); matched {
+			// Use pre-compiled regex from schema; fall back to compile on demand.
+			re, ok := schema.compiledPatterns[pattern]
+			if !ok {
+				var err error
+				if re, err = regexp.Compile(pattern); err != nil {
+					continue // skip invalid pattern
+				}
+			}
+			if re.MatchString(jsonName) {
 				evaluatedProps[jsonName] = true
 				value := extractValue(fieldValue)
 
