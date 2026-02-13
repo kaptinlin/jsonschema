@@ -385,8 +385,8 @@ func TestSchemaMarshalDeterminismWithoutOption(t *testing.T) {
 	}
 
 	// Multiple serialization attempts without Deterministic option
-	var results []string
-	for i := 0; i < 10; i++ {
+	results := make([]string, 0, 10)
+	for range 10 {
 		data, err := json.Marshal(schema)
 		require.NoError(t, err)
 		results = append(results, string(data))
@@ -439,8 +439,8 @@ func TestSchemaMapMarshalDeterminism(t *testing.T) {
 	}
 
 	// Multiple serialization attempts
-	var results []string
-	for i := 0; i < 10; i++ {
+	results := make([]string, 0, 10)
+	for range 10 {
 		data, err := json.Marshal(schemaMap)
 		require.NoError(t, err)
 		results = append(results, string(data))
@@ -496,7 +496,7 @@ func TestRequiredFieldDeterministicOrdering(t *testing.T) {
 
 	// Test multiple serializations to ensure deterministic ordering
 	results := make(map[string]int)
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		data, err := json.Marshal(schema)
 		require.NoError(t, err)
 		results[string(data)]++
@@ -602,7 +602,7 @@ func TestNestedStructRequiredFieldDeterministicOrdering(t *testing.T) {
 
 	// Test multiple serializations to ensure deterministic ordering
 	results := make(map[string]int)
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		data, err := json.Marshal(schema)
 		require.NoError(t, err)
 		results[string(data)]++

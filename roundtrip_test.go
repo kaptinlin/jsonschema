@@ -283,7 +283,7 @@ func TestRoundTripDeeplyNested(t *testing.T) {
 
 	// Multiple roundtrips
 	currentJSON := schema
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		// Marshal
 		jsonBytes, err := json.Marshal(currentJSON, json.Deterministic(true))
 		require.NoError(t, err)
@@ -372,7 +372,7 @@ func TestRoundTripMultipleIterations(t *testing.T) {
 	require.NoError(t, err)
 
 	currentSchema := schema
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		// Marshal
 		jsonBytes, err := json.Marshal(currentSchema, json.Deterministic(true))
 		require.NoError(t, err)

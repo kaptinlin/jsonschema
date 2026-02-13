@@ -44,13 +44,13 @@ var (
 
 func init() {
 	// Initialize large arrays
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		largeStringArray[i] = string(rune('a' + (i % 26)))
 		largeNumberArray[i] = float64(i)
 	}
 
 	// Initialize large object array
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		largeObjectArray[i] = map[string]any{
 			"id":     float64(i),
 			"name":   string(rune('A' + (i % 26))),

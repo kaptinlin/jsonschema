@@ -1778,8 +1778,8 @@ func TestFromStructDeterministicSerialization(t *testing.T) {
 	require.NoError(t, err)
 
 	// Multiple serialization attempts should produce identical results
-	var results []string
-	for i := 0; i < 10; i++ {
+	results := make([]string, 0, 10)
+	for range 10 {
 		data, err := json.Marshal(schema, jsontext.WithIndent("    "))
 		if err != nil {
 			t.Fatalf("Failed to marshal schema: %v", err)
@@ -2260,8 +2260,8 @@ func TestRequiredSortDeterminism(t *testing.T) {
 		options.RequiredSort = RequiredSortAlphabetical
 		options.CacheEnabled = false
 
-		var results []string
-		for i := 0; i < 20; i++ {
+		results := make([]string, 0, 20)
+		for range 20 {
 			schema, err := FromStructWithOptions[TestStruct](options)
 			require.NoError(t, err)
 			jsonBytes, err := schema.MarshalJSON()

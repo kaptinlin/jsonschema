@@ -737,7 +737,7 @@ func TestCircularReferenceValidationPerformance(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run validation multiple times to check performance
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		result := compiledSchema.ValidateJSON([]byte(data))
 		assert.True(t, result.IsValid(), "Validation should succeed")
 	}
