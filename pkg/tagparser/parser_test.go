@@ -112,7 +112,7 @@ func TestTagParser_ParseStructTags(t *testing.T) {
 		NoTag    string
 	}
 
-	structType := reflect.TypeOf(TestStruct{})
+	structType := reflect.TypeFor[TestStruct]()
 	fields, err := parser.ParseStructTags(structType)
 	if err != nil {
 		t.Fatalf("ParseStructTags() error = %v", err)
@@ -777,7 +777,7 @@ func TestTagParser_ParseStructTags_EmbeddedStructs(t *testing.T) {
 	}{
 		{
 			name:  "basic embedded struct",
-			input: reflect.TypeOf(User{}),
+			input: reflect.TypeFor[User](),
 			expected: []struct {
 				fieldName      string
 				jsonName       string
@@ -794,7 +794,7 @@ func TestTagParser_ParseStructTags_EmbeddedStructs(t *testing.T) {
 		},
 		{
 			name:  "multiple embedded structs",
-			input: reflect.TypeOf(ExtendedContact{}),
+			input: reflect.TypeFor[ExtendedContact](),
 			expected: []struct {
 				fieldName      string
 				jsonName       string
@@ -810,7 +810,7 @@ func TestTagParser_ParseStructTags_EmbeddedStructs(t *testing.T) {
 		},
 		{
 			name:  "field conflict resolution",
-			input: reflect.TypeOf(ConflictTest{}),
+			input: reflect.TypeFor[ConflictTest](),
 			expected: []struct {
 				fieldName      string
 				jsonName       string
@@ -826,7 +826,7 @@ func TestTagParser_ParseStructTags_EmbeddedStructs(t *testing.T) {
 		},
 		{
 			name:  "deep nested embedding",
-			input: reflect.TypeOf(DeepNesting{}),
+			input: reflect.TypeFor[DeepNesting](),
 			expected: []struct {
 				fieldName      string
 				jsonName       string
@@ -892,7 +892,7 @@ func TestTagParser_ParseStructTags_CircularReference(t *testing.T) {
 	parser := New()
 
 	// Test circular reference handling
-	fields, err := parser.ParseStructTags(reflect.TypeOf(CircularEmbed{}))
+	fields, err := parser.ParseStructTags(reflect.TypeFor[CircularEmbed]())
 	if err != nil {
 		t.Fatalf("ParseStructTags() should handle circular references gracefully, got error: %v", err)
 	}
@@ -929,7 +929,7 @@ func TestTagParser_ParseStructTags_PointerEmbedding(t *testing.T) {
 		Value int `json:"value"`
 	}
 
-	fields, err := parser.ParseStructTags(reflect.TypeOf(WithPointerEmbed{}))
+	fields, err := parser.ParseStructTags(reflect.TypeFor[WithPointerEmbed]())
 	if err != nil {
 		t.Fatalf("ParseStructTags() error = %v", err)
 	}
@@ -977,7 +977,7 @@ func TestTagParser_ParseStructTags_NonStructEmbedding(t *testing.T) {
 		Value int    `json:"value"`
 	}
 
-	fields, err := parser.ParseStructTags(reflect.TypeOf(WithNonStructEmbed{}))
+	fields, err := parser.ParseStructTags(reflect.TypeFor[WithNonStructEmbed]())
 	if err != nil {
 		t.Fatalf("ParseStructTags() error = %v", err)
 	}
@@ -997,7 +997,7 @@ func TestTagParser_ParseStructTags_EmptyStruct(t *testing.T) {
 
 	type EmptyStruct struct{}
 
-	fields, err := parser.ParseStructTags(reflect.TypeOf(EmptyStruct{}))
+	fields, err := parser.ParseStructTags(reflect.TypeFor[EmptyStruct]())
 	if err != nil {
 		t.Fatalf("ParseStructTags() error = %v", err)
 	}
@@ -1056,7 +1056,7 @@ func TestTagParser_ParseStructTags_DepthLimit(t *testing.T) {
 	}
 
 	// This should hit the depth limit but not crash
-	fields, err := parser.ParseStructTags(reflect.TypeOf(Level11{}))
+	fields, err := parser.ParseStructTags(reflect.TypeFor[Level11]())
 	if err != nil {
 		t.Fatalf("ParseStructTags() should handle deep nesting gracefully, got error: %v", err)
 	}

@@ -2,6 +2,7 @@ package jsonschema
 
 import (
 	"fmt"
+	"maps"
 	"math/big"
 	"net/url"
 	"path"
@@ -21,17 +22,13 @@ func replace(template string, params map[string]any) string {
 
 // mergeIntMaps merges two integer maps. The values in the second map overwrite the first where keys overlap.
 func mergeIntMaps(map1, map2 map[int]bool) map[int]bool {
-	for key, value := range map2 {
-		map1[key] = value
-	}
+	maps.Copy(map1, map2)
 	return map1
 }
 
 // mergeStringMaps merges two string maps. The values in the second map overwrite the first where keys overlap.
 func mergeStringMaps(map1, map2 map[string]bool) map[string]bool {
-	for key, value := range map2 {
-		map1[key] = value
-	}
+	maps.Copy(map1, map2)
 	return map1
 }
 
@@ -72,7 +69,7 @@ func getDataTypeReflect(v any) string {
 	rv := reflect.ValueOf(v)
 
 	// Handle pointers by dereferencing them
-	for rv.Kind() == reflect.Ptr {
+	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return "null"
 		}
@@ -110,7 +107,7 @@ func getDataTypeReflect(v any) string {
 			return "null"
 		}
 		return getDataType(rv.Interface())
-	case reflect.Uintptr, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Func, reflect.Ptr, reflect.UnsafePointer:
+	case reflect.Uintptr, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Func, reflect.Pointer, reflect.UnsafePointer:
 		return "unknown"
 	default:
 		return "unknown"

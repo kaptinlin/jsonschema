@@ -35,7 +35,7 @@ type ConflictingFields struct {
 func TestFromStruct_EmbeddedStructs(t *testing.T) {
 	tests := []struct {
 		name           string
-		structType     interface{}
+		structType     any
 		expectedFields []string
 		requiredFields []string
 	}{
@@ -107,7 +107,7 @@ func TestFromStruct_EmbeddedStructs_JSONSchemaGeneration(t *testing.T) {
 	require.NotEmpty(t, schemaBytes, "schema bytes should not be empty")
 
 	// Basic validation of generated JSON schema
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	err = json.Unmarshal(schemaBytes, &parsed)
 	require.NoError(t, err, "generated schema should be valid JSON")
 
@@ -117,7 +117,7 @@ func TestFromStruct_EmbeddedStructs_JSONSchemaGeneration(t *testing.T) {
 	assert.Equal(t, "object", schemaType, "schema type should be object")
 
 	// Check properties
-	properties, ok := parsed["properties"].(map[string]interface{})
+	properties, ok := parsed["properties"].(map[string]any)
 	require.True(t, ok, "properties should be an object")
 
 	expectedProperties := []string{"id", "name", "email", "phone", "department"}
@@ -126,7 +126,7 @@ func TestFromStruct_EmbeddedStructs_JSONSchemaGeneration(t *testing.T) {
 	}
 
 	// Check required fields
-	required, ok := parsed["required"].([]interface{})
+	required, ok := parsed["required"].([]any)
 	require.True(t, ok, "required should be an array")
 
 	expectedRequired := []string{"id", "name", "department"}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -153,13 +154,7 @@ func (c *Compiler) trackUnresolvedReferences(schema *Schema) {
 	unresolvedURIs := schema.UnresolvedReferenceURIs()
 	for _, uri := range unresolvedURIs {
 		// Check if schema is already in the list to avoid duplicates
-		found := false
-		for _, existing := range c.unresolvedRefs[uri] {
-			if existing == schema {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(c.unresolvedRefs[uri], schema)
 		if !found {
 			c.unresolvedRefs[uri] = append(c.unresolvedRefs[uri], schema)
 		}

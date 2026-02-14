@@ -35,7 +35,7 @@ func TestSchemaWithPattern(t *testing.T) {
 			expectedSchema: jsonschema.Schema{
 				Schema:  "https://json-schema.org/draft/2020-12/schema",
 				Type:    jsonschema.SchemaType{"string"},
-				Pattern: ptrString("^a*$"),
+				Pattern: new("^a*$"),
 			},
 		},
 		{
@@ -48,7 +48,7 @@ func TestSchemaWithPattern(t *testing.T) {
 			expectedSchema: jsonschema.Schema{
 				Schema:  "https://json-schema.org/draft/2020-12/schema",
 				Type:    jsonschema.SchemaType{"string"},
-				Pattern: ptrString("^[a-zA-Z0-9]+$"),
+				Pattern: new("^[a-zA-Z0-9]+$"),
 			},
 		},
 	}

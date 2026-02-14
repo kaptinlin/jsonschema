@@ -191,8 +191,8 @@ func (a *StructAnalyzer) analyzeStructFields(structType *ast.StructType) ([]tagp
 
 			// Also extract json tag for field name
 			if jsonTag := extractTag(tagValue, "json"); jsonTag != "" && jsonTag != "-" {
-				if commaIdx := strings.Index(jsonTag, ","); commaIdx != -1 {
-					jsonName = strings.TrimSpace(jsonTag[:commaIdx])
+				if before, _, ok := strings.Cut(jsonTag, ","); ok {
+					jsonName = strings.TrimSpace(before)
 				} else {
 					jsonName = strings.TrimSpace(jsonTag)
 				}

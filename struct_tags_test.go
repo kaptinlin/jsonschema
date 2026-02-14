@@ -2288,7 +2288,7 @@ func TestRequiredSortDeterminism(t *testing.T) {
 
 		// Generate multiple schemas and verify they may have different orders
 		seenOrders := make(map[string]bool)
-		for i := 0; i < 20; i++ {
+		for range 20 {
 			schema, err := FromStructWithOptions[TestStruct](options)
 			require.NoError(t, err)
 			jsonBytes, err := schema.MarshalJSON()

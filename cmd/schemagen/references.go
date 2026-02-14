@@ -8,6 +8,7 @@ import (
 	"go/ast"
 	"go/types"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/kaptinlin/jsonschema"
@@ -151,8 +152,8 @@ func (ra *ReferenceAnalyzer) analyzeTypeString(fieldName, typeName string) *Fiel
 	typeName = strings.TrimPrefix(typeName, "*")
 
 	// Handle slice types
-	if strings.HasPrefix(typeName, "[]") {
-		elemType := strings.TrimPrefix(typeName, "[]")
+	if after, ok := strings.CutPrefix(typeName, "[]"); ok {
+		elemType := after
 		elemType = strings.TrimPrefix(elemType, "*") // Handle []*Type
 		if ra.isCustomStruct(elemType) {
 			return &FieldDependency{
@@ -215,7 +216,7 @@ func (ra *ReferenceAnalyzer) analyzeType(fieldName string, t reflect.Type) *Fiel
 			}
 		}
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// Pointer to struct
 		elemType := t.Elem()
 		if elemType.Kind() == reflect.Struct {
@@ -247,7 +248,7 @@ func (ra *ReferenceAnalyzer) analyzeType(fieldName string, t reflect.Type) *Fiel
 			}
 		}
 		// Handle slice of pointers to structs
-		if elemType.Kind() == reflect.Ptr && elemType.Elem().Kind() == reflect.Struct {
+		if elemType.Kind() == reflect.Pointer && elemType.Elem().Kind() == reflect.Struct {
 			structName := ra.extractStructName(elemType.Elem())
 			if structName != "" && ra.isCustomStruct(structName) {
 				return &FieldDependency{
@@ -277,7 +278,7 @@ func (ra *ReferenceAnalyzer) analyzeType(fieldName string, t reflect.Type) *Fiel
 			}
 		}
 		// Handle map with pointer to struct values
-		if valueType.Kind() == reflect.Ptr && valueType.Elem().Kind() == reflect.Struct {
+		if valueType.Kind() == reflect.Pointer && valueType.Elem().Kind() == reflect.Struct {
 			structName := ra.extractStructName(valueType.Elem())
 			if structName != "" && ra.isCustomStruct(structName) {
 				return &FieldDependency{
@@ -343,10 +344,8 @@ func (ra *ReferenceAnalyzer) addEdge(from, to string) {
 	}
 
 	// Check if edge already exists
-	for _, existing := range ra.graph.edges[from] {
-		if existing == to {
-			return // Edge already exists
-		}
+	if slices.Contains(ra.graph.edges[from], to) {
+		return // Edge already exists
 	}
 
 	ra.graph.edges[from] = append(ra.graph.edges[from], to)
@@ -429,10 +428,8 @@ func (ra *ReferenceAnalyzer) NeedsRefGeneration(structName string) bool {
 	if node.IsReferenced {
 		// Check if this struct is part of any cycle
 		for _, cycle := range ra.graph.cycles {
-			for _, cycleName := range cycle {
-				if cycleName == structName {
-					return true
-				}
+			if slices.Contains(cycle, structName) {
+				return true
 			}
 		}
 	}

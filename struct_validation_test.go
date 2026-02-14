@@ -94,11 +94,6 @@ type SingleField struct {
 // Helper Functions
 // =============================================================================
 
-func stringPtr(s string) *string    { return &s }
-func intPtr(i int) *int             { return &i }
-func boolPtr(b bool) *bool          { return &b }
-func float64Ptr(f float64) *float64 { return &f }
-
 func compileTestSchema(t *testing.T, schemaJSON string) *Schema {
 	t.Helper()
 	compiler := NewCompiler()
@@ -214,8 +209,8 @@ func TestPointerTypes(t *testing.T) {
 
 	t.Run("with values", func(t *testing.T) {
 		data := PointerTypes{
-			StringPtr: stringPtr("hello"), IntPtr: intPtr(42),
-			BoolPtr: boolPtr(true), Float64Ptr: float64Ptr(3.14),
+			StringPtr: new("hello"), IntPtr: new(42),
+			BoolPtr: new(true), Float64Ptr: new(3.14),
 		}
 		result := schema.Validate(data)
 		if !result.IsValid() {
@@ -390,7 +385,7 @@ func TestNestedStructs(t *testing.T) {
 	lastLogin := now.Add(-24 * time.Hour)
 
 	data := ComplexUser{
-		ID: 1, Name: "John Doe", Email: "john@example.com", Age: intPtr(30),
+		ID: 1, Name: "John Doe", Email: "john@example.com", Age: new(30),
 		IsActive: true, Balance: 1000.50, Tags: []string{"premium", "active"},
 		Metadata:  map[string]any{"source": "web", "campaign": "summer2024"},
 		CreatedAt: now, LastLogin: &lastLogin,

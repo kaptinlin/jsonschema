@@ -314,7 +314,7 @@ func CacheStats() map[string]int {
 // generateSchemaWithDependencyAnalysis generates schema using schemagen-style dependency analysis
 func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType reflect.Type) (*Schema, error) {
 	// Handle pointers
-	for structType.Kind() == reflect.Ptr {
+	for structType.Kind() == reflect.Pointer {
 		structType = structType.Elem()
 	}
 
@@ -428,7 +428,7 @@ func (g *structTagGenerator) generateFieldSchemaWithValidators(structType reflec
 
 	// Handle pointer types - make nullable
 	var isNullable bool
-	for fieldType.Kind() == reflect.Ptr {
+	for fieldType.Kind() == reflect.Pointer {
 		isNullable = true
 		fieldType = fieldType.Elem()
 	}
@@ -563,7 +563,7 @@ func (g *structTagGenerator) handleArrayType(fieldType reflect.Type) (*Schema, e
 	elemType := fieldType.Elem()
 
 	// Handle pointer element types
-	for elemType.Kind() == reflect.Ptr {
+	for elemType.Kind() == reflect.Pointer {
 		elemType = elemType.Elem()
 	}
 
@@ -610,7 +610,7 @@ func (g *structTagGenerator) handleMapType(fieldType reflect.Type) (*Schema, err
 	valueType := fieldType.Elem()
 
 	// Handle pointer value types
-	for valueType.Kind() == reflect.Ptr {
+	for valueType.Kind() == reflect.Pointer {
 		valueType = valueType.Elem()
 	}
 
@@ -1083,7 +1083,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 
 			// Unwrap pointer type to get the underlying type
 			actualType := fieldType
-			if fieldType.Kind() == reflect.Ptr {
+			if fieldType.Kind() == reflect.Pointer {
 				actualType = fieldType.Elem()
 			}
 
@@ -1504,7 +1504,7 @@ func (g *structTagGenerator) separateArrayAndItemKeywords(keywords []Keyword, fi
 
 	// Get the element type to determine if item-level constraints make sense
 	elemType := fieldType.Elem()
-	for elemType.Kind() == reflect.Ptr {
+	for elemType.Kind() == reflect.Pointer {
 		elemType = elemType.Elem()
 	}
 

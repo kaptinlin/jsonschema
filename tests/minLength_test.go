@@ -34,7 +34,7 @@ func TestSchemaWithMinLength(t *testing.T) {
 			}`,
 			expectedSchema: jsonschema.Schema{
 				Type:      jsonschema.SchemaType{"string"},
-				MinLength: ptrFloat64(2.0),
+				MinLength: new(2.0),
 			},
 		},
 	}

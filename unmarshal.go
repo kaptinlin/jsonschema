@@ -84,7 +84,7 @@ func (s *Schema) validateDestination(dst any) error {
 	}
 
 	dstVal := reflect.ValueOf(dst)
-	if dstVal.Kind() != reflect.Ptr {
+	if dstVal.Kind() != reflect.Pointer {
 		return &UnmarshalError{Type: "destination", Reason: ErrNotPointer.Error()}
 	}
 
@@ -320,7 +320,7 @@ func (s *Schema) unmarshalToDestination(dst any, data map[string]any) error {
 		return s.unmarshalToMap(dstVal, data)
 	case reflect.Struct:
 		return s.unmarshalToStruct(dstVal, data)
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if dstVal.IsNil() {
 			dstVal.Set(reflect.New(dstVal.Type().Elem()))
 		}
@@ -395,7 +395,7 @@ func (s *Schema) setFieldValue(fieldVal reflect.Value, value any) error {
 	fieldType := fieldVal.Type()
 
 	// Handle pointer fields
-	if fieldType.Kind() == reflect.Ptr {
+	if fieldType.Kind() == reflect.Pointer {
 		return s.setPointerValue(fieldVal, valueVal, fieldType)
 	}
 
@@ -412,7 +412,7 @@ func (s *Schema) setFieldValue(fieldVal reflect.Value, value any) error {
 	}
 
 	// Special handling for time.Time
-	if fieldType == reflect.TypeOf(time.Time{}) {
+	if fieldType == reflect.TypeFor[time.Time]() {
 		return s.setTimeValue(fieldVal, value)
 	}
 
@@ -431,7 +431,7 @@ func (s *Schema) setFieldValue(fieldVal reflect.Value, value any) error {
 
 // setNilValue handles nil value assignment
 func (s *Schema) setNilValue(fieldVal reflect.Value) error {
-	if fieldVal.Kind() == reflect.Ptr {
+	if fieldVal.Kind() == reflect.Pointer {
 		fieldVal.Set(reflect.Zero(fieldVal.Type()))
 	}
 	return nil

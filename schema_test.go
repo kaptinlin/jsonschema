@@ -537,7 +537,7 @@ func TestDependentRequiredDeterministicOrdering(t *testing.T) {
 
 	// Test multiple serializations
 	results := make(map[string]int)
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		data, err := json.Marshal(schema)
 		require.NoError(t, err)
 		results[string(data)]++
@@ -676,7 +676,7 @@ func TestFromStructNestedRequiredDeterministicOrdering(t *testing.T) {
 
 	// Generate schema multiple times and ensure deterministic ordering
 	results := make(map[string]int)
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		ClearSchemaCache()
 		schema, err := FromStruct[Person]()
 		require.NoError(t, err)
@@ -750,7 +750,7 @@ func TestDeeplyNestedRequiredDeterminism(t *testing.T) {
 
 	// Test determinism with multiple iterations
 	results := make(map[string]int)
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		data, err := json.Marshal(schema)
 		require.NoError(t, err)
 		results[string(data)]++

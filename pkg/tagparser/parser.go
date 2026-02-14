@@ -60,7 +60,7 @@ func (p *TagParser) parseFields(structType reflect.Type, seenTypes map[string]in
 	}
 
 	// Handle pointer to struct
-	for structType.Kind() == reflect.Ptr {
+	for structType.Kind() == reflect.Pointer {
 		structType = structType.Elem()
 	}
 
@@ -72,9 +72,7 @@ func (p *TagParser) parseFields(structType reflect.Type, seenTypes map[string]in
 	var allFields []FieldInfo
 
 	// Iterate through all exported fields
-	for i := range structType.NumField() {
-		field := structType.Field(i)
-
+	for field := range structType.Fields() {
 		// Skip unexported fields
 		if !field.IsExported() {
 			continue
@@ -104,7 +102,7 @@ func (p *TagParser) parseEmbeddedField(field reflect.StructField, seenTypes map[
 	fieldType := field.Type
 
 	// Handle pointer to struct
-	for fieldType.Kind() == reflect.Ptr {
+	for fieldType.Kind() == reflect.Pointer {
 		fieldType = fieldType.Elem()
 	}
 
@@ -295,8 +293,8 @@ func parseTagParts(tag string) []string {
 
 				if inParameterValue {
 					// Look for rule name at the beginning of current string
-					if equalIdx := strings.Index(currentStr, "="); equalIdx != -1 {
-						ruleName := strings.TrimSpace(currentStr[:equalIdx])
+					if before, _, ok := strings.Cut(currentStr, "="); ok {
+						ruleName := strings.TrimSpace(before)
 						if needsCommaSeparation(ruleName) {
 							// Check if the next part after comma looks like a new rule (contains =)
 							// Look ahead to see if this might be a new rule starting
@@ -353,9 +351,9 @@ func parseTagRule(part string) TagRule {
 	}
 
 	// Check if rule has parameters (contains =)
-	if idx := strings.Index(part, "="); idx != -1 {
-		name := strings.TrimSpace(part[:idx])
-		paramStr := strings.TrimSpace(part[idx+1:])
+	if before, after, ok := strings.Cut(part, "="); ok {
+		name := strings.TrimSpace(before)
+		paramStr := strings.TrimSpace(after)
 
 		// Parse parameters
 		var params []string
@@ -465,8 +463,8 @@ func getJSONFieldName(field reflect.StructField) string {
 	}
 
 	// Extract name before first comma
-	if idx := strings.Index(jsonTag, ","); idx != -1 {
-		jsonName := strings.TrimSpace(jsonTag[:idx])
+	if before, _, ok := strings.Cut(jsonTag, ","); ok {
+		jsonName := strings.TrimSpace(before)
 		if jsonName != "" {
 			return jsonName
 		}
@@ -495,7 +493,7 @@ func shouldBeOptional(field reflect.StructField, required bool) bool {
 	}
 
 	// Pointer types are optional by default (unless required)
-	if field.Type.Kind() == reflect.Ptr {
+	if field.Type.Kind() == reflect.Pointer {
 		return true
 	}
 
@@ -512,7 +510,7 @@ func getFieldTypeName(fieldType reflect.Type) string {
 func typeToString(t reflect.Type) string {
 	//exhaustive:ignore - we handle all relevant types for string conversion
 	switch t.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		return "*" + typeToString(t.Elem())
 	case reflect.Slice:
 		return "[]" + typeToString(t.Elem())

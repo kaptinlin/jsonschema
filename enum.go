@@ -38,7 +38,7 @@ func isNumeric(v reflect.Value) bool {
 		return true
 	case reflect.Invalid, reflect.Bool, reflect.Uintptr,
 		reflect.Complex64, reflect.Complex128, reflect.Array, reflect.Chan,
-		reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr,
+		reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer,
 		reflect.Slice, reflect.String, reflect.Struct, reflect.UnsafePointer:
 		return false
 	default:

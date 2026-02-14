@@ -62,8 +62,8 @@ func TestSchemaWithMultipleOf(t *testing.T) {
 	}
 
 	// Use ptrFloat64 and ptrString to ensure they are being used
-	_ = ptrFloat64(1.0)
-	_ = ptrString("test")
+	_ = new(1.0)
+	_ = new("test")
 
 	// Start the test server
 	server := startTestServer()

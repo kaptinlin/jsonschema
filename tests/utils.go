@@ -15,13 +15,10 @@ import (
 )
 
 // Helper function to create *float64
+//
+//go:fix inline
 func ptrFloat64(v float64) *float64 {
-	return &v
-}
-
-// Helper function to create *string
-func ptrString(v string) *string {
-	return &v
+	return new(v)
 }
 
 // startTestServer starts an HTTP server for serving remote schemas.

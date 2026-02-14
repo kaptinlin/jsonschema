@@ -2,6 +2,7 @@ package jsonschema
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 )
@@ -78,9 +79,7 @@ func evaluateUnevaluatedItems(
 				}
 			}
 			// Merge evaluation states
-			for k, v := range evaluatedMap {
-				evaluatedItems[k] = v
-			}
+			maps.Copy(evaluatedItems, evaluatedMap)
 		}
 	}
 

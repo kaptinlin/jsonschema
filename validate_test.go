@@ -115,7 +115,7 @@ func TestValidateStruct(t *testing.T) {
 		{
 			name:        "valid struct",
 			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}, "required": ["name"]}`,
-			data:        Person{Name: "John", Age: intPtr(30)},
+			data:        Person{Name: "John", Age: new(30)},
 			expectValid: true,
 		},
 		{
@@ -127,13 +127,13 @@ func TestValidateStruct(t *testing.T) {
 		{
 			name:        "struct with all fields",
 			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}, "email": {"type": "string"}}, "required": ["name"]}`,
-			data:        Person{Name: "John", Age: intPtr(30), Email: strPtr("john@example.com")},
+			data:        Person{Name: "John", Age: new(30), Email: new("john@example.com")},
 			expectValid: true,
 		},
 		{
 			name:        "struct with invalid type",
 			schema:      `{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number", "minimum": 18}}, "required": ["name"]}`,
-			data:        Person{Name: "John", Age: intPtr(10)}, // Age is less than the minimum
+			data:        Person{Name: "John", Age: new(10)}, // Age is less than the minimum
 			expectValid: false,
 		},
 	}
@@ -744,6 +744,3 @@ func TestCircularReferenceValidationPerformance(t *testing.T) {
 }
 
 // Helper functions
-func strPtr(s string) *string {
-	return &s
-}

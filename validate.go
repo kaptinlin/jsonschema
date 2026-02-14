@@ -2,6 +2,7 @@ package jsonschema
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -517,7 +518,7 @@ func evaluateObject(schema *Schema, data any, evaluatedProps map[string]bool, ev
 
 	// Slow path: Use reflection for uncommon types (structs, interfaces, other map types)
 	rv := reflect.ValueOf(data)
-	for rv.Kind() == reflect.Ptr {
+	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return nil, nil
 		}
@@ -821,12 +822,7 @@ func (ds *DynamicScope) LookupDynamicAnchor(anchor string) *Schema {
 
 // Contains checks if a schema is already in the dynamic scope (circular reference detection).
 func (ds *DynamicScope) Contains(schema *Schema) bool {
-	for _, s := range ds.schemas {
-		if s == schema {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ds.schemas, schema)
 }
 
 // isByteSlice checks if the given value is a []byte type definition (like json.RawMessage)
@@ -866,7 +862,7 @@ func (s *Schema) processObjectValidationWithoutRefs(instance any, result *Evalua
 
 	// For struct types, validate basic constraints
 	rv := reflect.ValueOf(instance)
-	for rv.Kind() == reflect.Ptr {
+	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return
 		}

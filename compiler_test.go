@@ -296,8 +296,8 @@ func TestWithDecoderJSON(t *testing.T) {
 	// Custom JSON decoder
 	customDecoder := func(data []byte, v any) error {
 		// Remove the custom prefix
-		if bytes.HasPrefix(data, []byte("custom:")) {
-			data = bytes.TrimPrefix(data, []byte("custom:"))
+		if after, ok := bytes.CutPrefix(data, []byte("custom:")); ok {
+			data = after
 		}
 		return json.Unmarshal(data, v)
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/kaptinlin/go-i18n"
 	"github.com/kaptinlin/jsonschema"
@@ -118,11 +119,11 @@ func processUser(schema *jsonschema.Schema, data any, localizer *i18n.Localizer)
 	result := schema.Validate(data)
 	if !result.IsValid() {
 		localizedErrors := result.ToLocalizeList(localizer)
-		var errMsg string
+		var errMsg strings.Builder
 		for field, message := range localizedErrors.Errors {
-			errMsg += fmt.Sprintf("%s: %s; ", field, message)
+			errMsg.WriteString(fmt.Sprintf("%s: %s; ", field, message))
 		}
-		return fmt.Errorf("%w: %s", ErrValidationFailed, errMsg)
+		return fmt.Errorf("%w: %s", ErrValidationFailed, errMsg.String())
 	}
 
 	// Step 2: Unmarshal validated data

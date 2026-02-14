@@ -89,12 +89,7 @@ func evaluateProperties(
 
 // isRequired checks if a property is required.
 func isRequired(schema *Schema, propName string) bool {
-	for _, reqProp := range schema.Required {
-		if reqProp == propName {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(schema.Required, propName)
 }
 
 // defaultIsSpecified checks if a default value is specified for a property schema.

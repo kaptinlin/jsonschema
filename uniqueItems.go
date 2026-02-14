@@ -33,10 +33,7 @@ func evaluateUniqueItems(schema *Schema, data []any) *EvaluationError {
 	// If items is false, only validate items defined by prefixItems
 	if schema.Items != nil && schema.Items.Boolean != nil && !*schema.Items.Boolean {
 		if schema.PrefixItems != nil {
-			maxLength = len(schema.PrefixItems)
-			if maxLength > len(data) {
-				maxLength = len(data)
-			}
+			maxLength = min(len(schema.PrefixItems), len(data))
 		} else {
 			maxLength = 0
 		}
@@ -216,7 +213,7 @@ func normalizeValue(value any) (string, error) {
 	case reflect.Float32, reflect.Float64:
 		return fmt.Sprintf("%g", rv.Float()), nil
 
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if rv.IsNil() {
 			return "null", nil
 		}

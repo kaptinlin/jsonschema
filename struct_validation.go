@@ -159,7 +159,7 @@ func isEmptyValue(rv reflect.Value) bool {
 		return rv.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return rv.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return rv.IsNil()
 	case reflect.Struct:
 		// Use IsZero method if available (time.Time, custom types)
@@ -181,7 +181,7 @@ func isMissingValue(rv reflect.Value) bool {
 	switch rv.Kind() {
 	case reflect.Invalid:
 		return true
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return rv.IsNil()
 	case reflect.Struct:
 		// Use IsZero method if available (time.Time, custom types)
@@ -212,7 +212,7 @@ func isMissingValue(rv reflect.Value) bool {
 // extractValue safely gets the any value from a reflect.Value
 func extractValue(rv reflect.Value) any {
 	// Handle pointers by dereferencing them first
-	for rv.Kind() == reflect.Ptr {
+	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return nil
 		}
@@ -220,7 +220,7 @@ func extractValue(rv reflect.Value) any {
 	}
 
 	// Special handling for time.Time - convert to string for JSON schema validation
-	if rv.Type() == reflect.TypeOf(time.Time{}) {
+	if rv.Type() == reflect.TypeFor[time.Time]() {
 		t, ok := rv.Interface().(time.Time)
 		if !ok {
 			return nil
