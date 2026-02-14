@@ -186,7 +186,7 @@ func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
 
 	data, err := io.ReadAll(body)
 	if err != nil {
-		return nil, fmt.Errorf("%w: reading from %s: %w", ErrDataRead, url, err)
+		return nil, fmt.Errorf("reading from %s: %w", url, err)
 	}
 
 	compiledSchema, err := c.Compile(data, id)
@@ -360,7 +360,7 @@ func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, 
 	for id, schemaBytes := range schemas {
 		schema, err := newSchema(schemaBytes)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s: %w", ErrSchemaCompilation, id, err)
+			return nil, fmt.Errorf("compiling schema %s: %w", id, err)
 		}
 
 		if schema.ID == "" {
