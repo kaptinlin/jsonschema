@@ -7,20 +7,30 @@ type Keyword func(*Schema)
 // String keywords
 // ===============================
 
-// MinLen sets the minLength keyword
-func MinLen(minLen int) Keyword {
+// MinLength sets the minLength keyword
+func MinLength(minLen int) Keyword {
 	return func(s *Schema) {
 		f := float64(minLen)
 		s.MinLength = &f
 	}
 }
 
-// MaxLen sets the maxLength keyword
-func MaxLen(maxLen int) Keyword {
+// MaxLength sets the maxLength keyword
+func MaxLength(maxLen int) Keyword {
 	return func(s *Schema) {
 		f := float64(maxLen)
 		s.MaxLength = &f
 	}
+}
+
+// MinLen is deprecated. Use MinLength instead.
+func MinLen(minLen int) Keyword {
+	return MinLength(minLen)
+}
+
+// MaxLen is deprecated. Use MaxLength instead.
+func MaxLen(maxLen int) Keyword {
+	return MaxLength(maxLen)
 }
 
 // Pattern sets the pattern keyword
