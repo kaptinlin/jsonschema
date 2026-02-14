@@ -861,7 +861,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				return nil
 			}
 			if length, err := strconv.Atoi(params[0]); err == nil {
-				return []Keyword{MinLen(length)}
+				return []Keyword{MinLength(length)}
 			}
 			return nil
 		},
@@ -870,7 +870,7 @@ func createRuntimeValidatorMapping() map[string]validatorFunc {
 				return nil
 			}
 			if length, err := strconv.Atoi(params[0]); err == nil {
-				return []Keyword{MaxLen(length)}
+				return []Keyword{MaxLength(length)}
 			}
 			return nil
 		},

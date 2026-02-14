@@ -507,7 +507,7 @@ func (s *Schema) setTimeValue(fieldVal reflect.Value, value any) error {
 		fieldVal.Set(reflect.ValueOf(v))
 		return nil
 	default:
-		return fmt.Errorf("%w: %T", ErrTimeTypeConversion, value)
+		return fmt.Errorf("%w: %T", ErrTimeConversion, value)
 	}
 }
 
@@ -528,7 +528,7 @@ func (s *Schema) parseTimeString(fieldVal reflect.Value, raw string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("%w: %s", ErrTimeParseFailure, raw)
+	return fmt.Errorf("%w: %s", ErrTimeParsing, raw)
 }
 
 // deepCopyMap creates a deep copy of a map[string]any

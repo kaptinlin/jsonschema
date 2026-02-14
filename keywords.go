@@ -23,12 +23,16 @@ func MaxLength(maxLen int) Keyword {
 	}
 }
 
-// MinLen is deprecated. Use MinLength instead.
+// Deprecated: Use MinLength instead.
+//
+//go:fix inline
 func MinLen(minLen int) Keyword {
 	return MinLength(minLen)
 }
 
-// MaxLen is deprecated. Use MaxLength instead.
+// Deprecated: Use MaxLength instead.
+//
+//go:fix inline
 func MaxLen(maxLen int) Keyword {
 	return MaxLength(maxLen)
 }

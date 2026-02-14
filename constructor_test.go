@@ -10,7 +10,7 @@ import (
 func Example_object() {
 	// Simple object schema using constructor API
 	schema := jsonschema.Object(
-		jsonschema.Prop("name", jsonschema.String(jsonschema.MinLen(1))),
+		jsonschema.Prop("name", jsonschema.String(jsonschema.MinLength(1))),
 		jsonschema.Prop("age", jsonschema.Integer(jsonschema.Min(0))),
 		jsonschema.Required("name"),
 	)
@@ -30,8 +30,8 @@ func Example_complexSchema() {
 	// Complex nested schema with validation keywords
 	userSchema := jsonschema.Object(
 		jsonschema.Prop("name", jsonschema.String(
-			jsonschema.MinLen(1),
-			jsonschema.MaxLen(100),
+			jsonschema.MinLength(1),
+			jsonschema.MaxLength(100),
 		)),
 		jsonschema.Prop("age", jsonschema.Integer(
 			jsonschema.Min(0),
@@ -39,8 +39,8 @@ func Example_complexSchema() {
 		)),
 		jsonschema.Prop("email", jsonschema.Email()),
 		jsonschema.Prop("address", jsonschema.Object(
-			jsonschema.Prop("street", jsonschema.String(jsonschema.MinLen(1))),
-			jsonschema.Prop("city", jsonschema.String(jsonschema.MinLen(1))),
+			jsonschema.Prop("street", jsonschema.String(jsonschema.MinLength(1))),
+			jsonschema.Prop("city", jsonschema.String(jsonschema.MinLength(1))),
 			jsonschema.Prop("zip", jsonschema.String(jsonschema.Pattern(`^\d{5}$`))),
 			jsonschema.Required("street", "city"),
 		)),
@@ -128,7 +128,7 @@ func Example_oneOfAnyOf() {
 
 	// AnyOf: at least one schema must match
 	anyOfSchema := jsonschema.AnyOf(
-		jsonschema.String(jsonschema.MinLen(5)),
+		jsonschema.String(jsonschema.MinLength(5)),
 		jsonschema.Integer(jsonschema.Min(0)),
 	)
 
@@ -233,7 +233,7 @@ func Example_schemaRegistration() {
 	userSchema := jsonschema.Object(
 		jsonschema.ID("https://example.com/schemas/user"),
 		jsonschema.Prop("id", jsonschema.UUID()),
-		jsonschema.Prop("name", jsonschema.String(jsonschema.MinLen(1))),
+		jsonschema.Prop("name", jsonschema.String(jsonschema.MinLength(1))),
 		jsonschema.Prop("email", jsonschema.Email()),
 		jsonschema.Required("id", "name", "email"),
 	)

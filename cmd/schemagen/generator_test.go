@@ -497,7 +497,7 @@ func TestCodeGenerator_ValidatorMappingGeneration(t *testing.T) {
 			ruleName:    "minLength",
 			fieldType:   "string",
 			params:      []string{"2"},
-			expectedGen: "jsonschema.MinLen(2)",
+			expectedGen: "jsonschema.MinLength(2)",
 		},
 		{
 			name:        "maximum",

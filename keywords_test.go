@@ -16,25 +16,25 @@ func TestStringKeywords(t *testing.T) {
 	}{
 		{
 			name:    "MinLen valid",
-			schema:  jsonschema.String(jsonschema.MinLen(3)),
+			schema:  jsonschema.String(jsonschema.MinLength(3)),
 			valid:   "hello",
 			invalid: "hi",
 		},
 		{
 			name:    "MinLen invalid",
-			schema:  jsonschema.String(jsonschema.MinLen(5)),
+			schema:  jsonschema.String(jsonschema.MinLength(5)),
 			valid:   "hello",
 			invalid: "hi",
 		},
 		{
 			name:    "MaxLen valid",
-			schema:  jsonschema.String(jsonschema.MaxLen(5)),
+			schema:  jsonschema.String(jsonschema.MaxLength(5)),
 			valid:   "hello",
 			invalid: "hello world",
 		},
 		{
 			name:    "MaxLen invalid",
-			schema:  jsonschema.String(jsonschema.MaxLen(3)),
+			schema:  jsonschema.String(jsonschema.MaxLength(3)),
 			valid:   "hi",
 			invalid: "hello",
 		},
@@ -53,8 +53,8 @@ func TestStringKeywords(t *testing.T) {
 		{
 			name: "Combined string keywords",
 			schema: jsonschema.String(
-				jsonschema.MinLen(3),
-				jsonschema.MaxLen(10),
+				jsonschema.MinLength(3),
+				jsonschema.MaxLength(10),
 				jsonschema.Pattern("^[a-z]+$"),
 			),
 			valid:   "hello",
@@ -392,7 +392,7 @@ func TestAnnotationKeywords(t *testing.T) {
 		jsonschema.Description("The user's display name"),
 		jsonschema.Default("Anonymous"),
 		jsonschema.Examples("John", "Jane"),
-		jsonschema.MinLen(1),
+		jsonschema.MinLength(1),
 	)
 
 	result := schema.Validate("Alice")
@@ -406,8 +406,8 @@ func TestKeywordCombinations(t *testing.T) {
 	// Test complex combinations of different keyword types
 	schema := jsonschema.Object(
 		jsonschema.Prop("username", jsonschema.String(
-			jsonschema.MinLen(3),
-			jsonschema.MaxLen(20),
+			jsonschema.MinLength(3),
+			jsonschema.MaxLength(20),
 			jsonschema.Pattern("^[a-zA-Z0-9_]+$"),
 			jsonschema.Title("Username"),
 			jsonschema.Description("User's login name"),
@@ -418,7 +418,7 @@ func TestKeywordCombinations(t *testing.T) {
 			jsonschema.Title("Age"),
 		)),
 		jsonschema.Prop("tags", jsonschema.Array(
-			jsonschema.Items(jsonschema.String(jsonschema.MinLen(1))),
+			jsonschema.Items(jsonschema.String(jsonschema.MinLength(1))),
 			jsonschema.UniqueItems(true),
 			jsonschema.MaxItems(10),
 		)),

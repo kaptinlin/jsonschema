@@ -14,13 +14,6 @@ import (
 	"github.com/kaptinlin/jsonschema"
 )
 
-// Helper function to create *float64
-//
-//go:fix inline
-func ptrFloat64(v float64) *float64 {
-	return new(v)
-}
-
 // startTestServer starts an HTTP server for serving remote schemas.
 func startTestServer() *http.Server {
 	server := &http.Server{

@@ -852,7 +852,7 @@ func TestFromStruct_APICompatibility_ConstructorInterop(t *testing.T) {
 
 	// Create a larger schema using constructor API with embedded struct tag schema
 	userSchema := Object(
-		Prop("name", String(MinLen(1))),
+		Prop("name", String(MinLength(1))),
 		Prop("address", addressSchema), // Use struct tag schema as property
 		Required("name", "address"),
 	)

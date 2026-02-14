@@ -83,7 +83,7 @@ var primitiveTypes = map[string]string{
 // NewCodeGenerator creates a new code generator instance
 func NewCodeGenerator(config *GeneratorConfig) (*CodeGenerator, error) {
 	if config == nil {
-		return nil, jsonschema.ErrConfigCannotBeNil
+		return nil, jsonschema.ErrNilConfig
 	}
 
 	// Create analyzer for parsing Go source files
@@ -437,8 +437,8 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			return ""
 		},
 		// String validators (using helper functions)
-		"minLength": simpleValidator("MinLen"),
-		"maxLength": simpleValidator("MaxLen"),
+		"minLength": simpleValidator("MinLength"),
+		"maxLength": simpleValidator("MaxLength"),
 		"pattern": func(_ string, params []string) string {
 			if len(params) == 0 {
 				return ""

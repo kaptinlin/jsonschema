@@ -21,8 +21,8 @@ func basicTypesExample() {
 
 	// String with validation
 	nameSchema := jsonschema.String(
-		jsonschema.MinLen(1),
-		jsonschema.MaxLen(50),
+		jsonschema.MinLength(1),
+		jsonschema.MaxLength(50),
 		jsonschema.Pattern("^[a-zA-Z\\s]+$"),
 	)
 	fmt.Printf("Name validation: %t\n", nameSchema.Validate("John Doe").IsValid())
@@ -50,7 +50,7 @@ func objectSchemaExample() {
 	fmt.Println("=== Object Schema ===")
 
 	userSchema := jsonschema.Object(
-		jsonschema.Prop("name", jsonschema.String(jsonschema.MinLen(1))),
+		jsonschema.Prop("name", jsonschema.String(jsonschema.MinLength(1))),
 		jsonschema.Prop("email", jsonschema.Email()),
 		jsonschema.Prop("age", jsonschema.Integer(jsonschema.Min(0))),
 		jsonschema.Required("name", "email"),

@@ -825,7 +825,7 @@ func (st *SchemaType) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return ErrInvalidJSONSchemaType
+	return ErrInvalidSchemaType
 }
 
 // ConstValue represents a constant value in a JSON Schema.

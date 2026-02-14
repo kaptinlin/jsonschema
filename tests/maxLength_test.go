@@ -28,7 +28,7 @@ func TestSchemaWithMaxLength(t *testing.T) {
 			}`,
 			expectedSchema: jsonschema.Schema{
 				Type:      jsonschema.SchemaType{"string"},
-				MaxLength: ptrFloat64(2),
+				MaxLength: new(float64(2)),
 			},
 		},
 		{
