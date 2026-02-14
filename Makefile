@@ -5,7 +5,7 @@ export GOBIN = $(PROJECT_ROOT)/bin
 
 GOLANGCI_LINT_BINARY := $(GOBIN)/golangci-lint
 GOLANGCI_LINT_VERSION := $(shell $(GOLANGCI_LINT_BINARY) version --format short 2>/dev/null || $(GOLANGCI_LINT_BINARY) version --short 2>/dev/null || echo "not-installed")
-REQUIRED_GOLANGCI_LINT_VERSION := $(shell cat .golangci.version 2>/dev/null || echo "2.4.0")
+REQUIRED_GOLANGCI_LINT_VERSION := $(shell cat .golangci.version 2>/dev/null || echo "2.9.0")
 
 # Directories containing independent Go modules.
 MODULE_DIRS = .

@@ -49,7 +49,7 @@ jobs:
 
       - name: Read golangci-lint version
         id: golangci-version
-        run: echo "version=$(cat .golangci.version 2>/dev/null || echo '2.4.0')" >> $GITHUB_OUTPUT
+        run: echo "version=$(cat .golangci.version 2>/dev/null || echo '2.9.0')" >> $GITHUB_OUTPUT
 
       - name: Run linter via Makefile
         run: make lint

@@ -8,19 +8,18 @@
 # Test binary, built with `go test -c`
 *.test
 
-# Log
+# Log files
 *.log
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Output of the go coverage tool
 *.out
 
-# Dependency directories (remove the comment below to include it)
+# Dependency directories
 # vendor/
 
 # Go workspace file
 go.work
-.gocache
-.gomodcache
+go.work.sum
 
 # IntelliJ files
 .idea/
@@ -32,21 +31,24 @@ cover.html
 # Local binary folder
 bin/
 
-# Local build folder for storing build artifacts
+# Local build folder
 build/
-
-# Generated binaries (exclude binary but keep source directory)
-/schemagen
-cmd/schemagen/jshcemagen
 
 # Mac OS files
 **/.DS_Store
 
-# todo
+# .ralphy
+.ralphy/deferred.json
+.ralphy/*.txt
+
+# todo files
 .todo
+TODO.md
 
-# vscode
+# Project-specific
+.gocache
+.gomodcache
 .vscode/
-
-# debug directory
+/schemagen
+cmd/schemagen/jshcemagen
 debug/
