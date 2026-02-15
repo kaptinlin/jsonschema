@@ -19,7 +19,7 @@ import "github.com/kaptinlin/jsonschema"
 
 // Create a user schema
 userSchema := jsonschema.Object(
-    jsonschema.Prop("name", jsonschema.String(jsonschema.MinLen(1))),
+    jsonschema.Prop("name", jsonschema.String(jsonschema.MinLength(1))),
     jsonschema.Prop("age", jsonschema.Integer(jsonschema.Min(0))),
     jsonschema.Prop("email", jsonschema.Email()),
     jsonschema.Required("name", "email"),
@@ -51,8 +51,8 @@ The Constructor API uses function composition to build schemas:
 ```go
 // String with validation
 nameSchema := jsonschema.String(
-    jsonschema.MinLen(1),
-    jsonschema.MaxLen(100),
+    jsonschema.MinLength(1),
+    jsonschema.MaxLength(100),
     jsonschema.Pattern("^[a-zA-Z\\s]+$"),
 )
 
@@ -78,7 +78,7 @@ Objects are constructed using properties and keywords:
 profileSchema := jsonschema.Object(
     // Properties
     jsonschema.Prop("username", jsonschema.String(
-        jsonschema.MinLen(3),
+        jsonschema.MinLength(3),
         jsonschema.Pattern("^[a-zA-Z0-9_]+$"),
     )),
     jsonschema.Prop("profile", jsonschema.Object(
@@ -143,8 +143,8 @@ jsonschema.Ref("#/definitions/User")  // Reference to another schema
 
 ```go
 jsonschema.String(
-    jsonschema.MinLen(5),                    // Minimum length
-    jsonschema.MaxLen(100),                  // Maximum length
+    jsonschema.MinLength(5),                    // Minimum length
+    jsonschema.MaxLength(100),                  // Maximum length
     jsonschema.Pattern("^[a-zA-Z]+$"),       // Regular expression
     jsonschema.Format("email"),              // Format validation
 )
@@ -245,7 +245,7 @@ The Constructor API integrates with the compiler system for schema registration 
 userSchema := jsonschema.Object(
     jsonschema.ID("https://example.com/schemas/user"),
     jsonschema.Prop("id", jsonschema.UUID()),
-    jsonschema.Prop("name", jsonschema.String(jsonschema.MinLen(1))),
+    jsonschema.Prop("name", jsonschema.String(jsonschema.MinLength(1))),
     jsonschema.Prop("email", jsonschema.Email()),
     jsonschema.Required("id", "name", "email"),
 )
@@ -345,8 +345,8 @@ conditionalSchema := jsonschema.If(
 blogPostSchema := jsonschema.Object(
     jsonschema.Prop("id", jsonschema.UUID()),
     jsonschema.Prop("title", jsonschema.String(
-        jsonschema.MinLen(1),
-        jsonschema.MaxLen(200),
+        jsonschema.MinLength(1),
+        jsonschema.MaxLength(200),
     )),
     jsonschema.Prop("author", jsonschema.Object(
         jsonschema.Prop("id", jsonschema.UUID()),
@@ -356,8 +356,8 @@ blogPostSchema := jsonschema.Object(
     )),
     jsonschema.Prop("tags", jsonschema.Array(
         jsonschema.Items(jsonschema.String(
-            jsonschema.MinLen(1),
-            jsonschema.MaxLen(50),
+            jsonschema.MinLength(1),
+            jsonschema.MaxLength(50),
         )),
         jsonschema.UniqueItems(true),
         jsonschema.MinItems(1),
@@ -366,7 +366,7 @@ blogPostSchema := jsonschema.Object(
     jsonschema.Prop("comments", jsonschema.Array(
         jsonschema.Items(jsonschema.Object(
             jsonschema.Prop("id", jsonschema.UUID()),
-            jsonschema.Prop("content", jsonschema.String(jsonschema.MinLen(1))),
+            jsonschema.Prop("content", jsonschema.String(jsonschema.MinLength(1))),
             jsonschema.Prop("author_name", jsonschema.String()),
             jsonschema.Prop("created_at", jsonschema.DateTime()),
             jsonschema.Required("id", "content", "author_name", "created_at"),
@@ -491,7 +491,7 @@ Creates a string schema with validation keywords.
 
 ```go
 schema := jsonschema.String(
-    jsonschema.MinLen(1),
+    jsonschema.MinLength(1),
     jsonschema.Format("email"),
 )
 ```
@@ -587,7 +587,7 @@ Creates an anyOf composition schema.
 
 ```go
 schema := jsonschema.AnyOf(
-    jsonschema.String(jsonschema.MinLen(5)),
+    jsonschema.String(jsonschema.MinLength(5)),
     jsonschema.Integer(jsonschema.Min(0)),
 )
 ```
@@ -641,8 +641,8 @@ conditionalSchema := jsonschema.If(
 
 ### String Keywords
 
-- `MinLen(min int) Keyword` - Sets minLength
-- `MaxLen(max int) Keyword` - Sets maxLength  
+- `MinLength(min int) Keyword` - Sets minLength
+- `MaxLength(max int) Keyword` - Sets maxLength  
 - `Pattern(pattern string) Keyword` - Sets pattern
 - `Format(format string) Keyword` - Sets format
 

@@ -23,20 +23,6 @@ func MaxLength(maxLen int) Keyword {
 	}
 }
 
-// Deprecated: Use MinLength instead.
-//
-//go:fix inline
-func MinLen(minLen int) Keyword {
-	return MinLength(minLen)
-}
-
-// Deprecated: Use MaxLength instead.
-//
-//go:fix inline
-func MaxLen(maxLen int) Keyword {
-	return MaxLength(maxLen)
-}
-
 // Pattern sets the pattern keyword
 func Pattern(pattern string) Keyword {
 	return func(s *Schema) {

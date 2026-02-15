@@ -160,7 +160,7 @@ Create JSON schemas directly in Go code with type-safe constructors:
 ```go
 // Define schemas with fluent API
 schema := jsonschema.Object(
-    jsonschema.Prop("name", jsonschema.String(jsonschema.MinLen(1))),
+    jsonschema.Prop("name", jsonschema.String(jsonschema.MinLength(1))),
     jsonschema.Prop("email", jsonschema.Email()),
     jsonschema.Required("name", "email"),
 )
