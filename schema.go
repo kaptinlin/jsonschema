@@ -220,19 +220,49 @@ func (s *Schema) initializeSchemaWithoutReferences(compiler *Compiler, parent *S
 // When resolveRefs is true, references are resolved immediately after nested schema initialization.
 // When resolveRefs is false, reference resolution is deferred (used by CompileBatch).
 func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolveRefs bool) {
-	// Only set compiler if it's not nil (for constructor usage)
 	if compiler != nil {
 		s.compiler = compiler
 	}
 	s.parent = parent
 
-	// Get effective compiler for initialization
 	effectiveCompiler := s.Compiler()
 
+	// Resolve base URI
+	s.resolveBaseURI(effectiveCompiler)
+
+	// Set anchors
+	if s.Anchor != "" {
+		s.setAnchor(s.Anchor)
+	}
+	if s.DynamicAnchor != "" {
+		s.setDynamicAnchor(s.DynamicAnchor)
+	}
+
+	// Register schema in root
+	if s.uri != "" && isValidURI(s.uri) {
+		root := s.getRootSchema()
+		root.setSchema(s.uri, s)
+	}
+
+	// Initialize nested schemas
+	initializeNestedSchemasCore(s, compiler, resolveRefs)
+	if resolveRefs {
+		s.resolveReferences()
+	}
+
+	// Handle PreserveExtra option
+	if effectiveCompiler != nil && !effectiveCompiler.PreserveExtra {
+		s.Extra = nil
+	}
+}
+
+// resolveBaseURI resolves the base URI for the schema
+func (s *Schema) resolveBaseURI(compiler *Compiler) {
 	parentBaseURI := s.getParentBaseURI()
 	if parentBaseURI == "" {
-		parentBaseURI = effectiveCompiler.DefaultBaseURI
+		parentBaseURI = compiler.DefaultBaseURI
 	}
+
 	if s.ID != "" {
 		if isValidURI(s.ID) {
 			s.uri = s.ID
@@ -246,36 +276,8 @@ func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolv
 		s.baseURI = parentBaseURI
 	}
 
-	if s.baseURI == "" {
-		if s.uri != "" && isValidURI(s.uri) {
-			s.baseURI = getBaseURI(s.uri)
-		}
-	}
-
-	if s.Anchor != "" {
-		s.setAnchor(s.Anchor)
-	}
-
-	if s.DynamicAnchor != "" {
-		s.setDynamicAnchor(s.DynamicAnchor)
-	}
-
-	if s.uri != "" && isValidURI(s.uri) {
-		root := s.getRootSchema()
-		root.setSchema(s.uri, s)
-	}
-
-	// For constructor usage (compiler=nil), don't pass compiler to children
-	// They should inherit through parent-child relationship via Compiler()
-	initializeNestedSchemasCore(s, compiler, resolveRefs)
-	if resolveRefs {
-		s.resolveReferences()
-	}
-
-	// Handle PreserveExtra option
-	// If false (default), clear any collected extra fields
-	if effectiveCompiler != nil && !effectiveCompiler.PreserveExtra {
-		s.Extra = nil
+	if s.baseURI == "" && s.uri != "" && isValidURI(s.uri) {
+		s.baseURI = getBaseURI(s.uri)
 	}
 }
 
@@ -508,11 +510,8 @@ func (s *Schema) setAnchor(anchor string) {
 	}
 
 	// Only set anchor at root level if it's in the same scope as root
-	// If this schema has its own $id that's different from root, it's in a different scope
-	if s.ID == "" || s.ID == root.ID {
-		if _, ok := root.anchors[anchor]; !ok {
-			root.anchors[anchor] = s
-		}
+	if (s.ID == "" || s.ID == root.ID) && root.anchors[anchor] == nil {
+		root.anchors[anchor] = s
 	}
 }
 
@@ -521,7 +520,7 @@ func (s *Schema) setDynamicAnchor(anchor string) {
 	if s.dynamicAnchors == nil {
 		s.dynamicAnchors = make(map[string]*Schema)
 	}
-	if _, ok := s.dynamicAnchors[anchor]; !ok {
+	if s.dynamicAnchors[anchor] == nil {
 		s.dynamicAnchors[anchor] = s
 	}
 
@@ -530,7 +529,7 @@ func (s *Schema) setDynamicAnchor(anchor string) {
 		scope.dynamicAnchors = make(map[string]*Schema)
 	}
 
-	if _, ok := scope.dynamicAnchors[anchor]; !ok {
+	if scope.dynamicAnchors[anchor] == nil {
 		scope.dynamicAnchors[anchor] = s
 	}
 }
@@ -692,24 +691,18 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 
 	// Smart handling for "items" polymorphism (Draft 07 vs 2020-12)
 	if len(aux.Items) > 0 {
-		// Simple check for array start token '['
 		trimmed := bytes.TrimSpace(aux.Items)
 		if len(trimmed) > 0 && trimmed[0] == '[' {
 			// Case 1: items is an array (Draft 07 Tuple Validation)
-			// Map JSON "items" -> Go "PrefixItems"
 			if err := json.Unmarshal(aux.Items, &s.PrefixItems); err != nil {
 				return err
 			}
-
-			// In Draft 07, "additionalItems" validates the rest.
-			// Map JSON "additionalItems" -> Go "Items"
-			// (Note: In 2020-12, "items" handles what "additionalItems" used to do when prefixItems is present)
+			// In Draft 07, "additionalItems" validates the rest
 			if aux.AdditionalItems != nil {
 				s.Items = aux.AdditionalItems
 			}
 		} else {
 			// Case 2: items is a schema object (Draft 2020-12 List Validation)
-			// Map JSON "items" -> Go "Items"
 			if err := json.Unmarshal(aux.Items, &s.Items); err != nil {
 				return err
 			}
@@ -723,15 +716,12 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	}
 
 	// Handle backward compatibility: "definitions" (Draft-7) -> "$defs" (Draft 2020-12)
-	if defsData, ok := raw["definitions"]; ok {
-		// Only use "definitions" if "$defs" is not already set
-		if s.Defs == nil {
-			var defs map[string]*Schema
-			if err := json.Unmarshal(defsData, &defs); err != nil {
-				return err
-			}
-			s.Defs = defs
+	if defsData, ok := raw["definitions"]; ok && s.Defs == nil {
+		var defs map[string]*Schema
+		if err := json.Unmarshal(defsData, &defs); err != nil {
+			return err
 		}
+		s.Defs = defs
 	}
 
 	// Special handling for the const field
@@ -739,8 +729,7 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		if s.Const == nil {
 			s.Const = &ConstValue{}
 		}
-		err := s.Const.UnmarshalJSON(constData)
-		if err != nil {
+		if err := s.Const.UnmarshalJSON(constData); err != nil {
 			return err
 		}
 	}
@@ -836,12 +825,10 @@ type ConstValue struct {
 
 // UnmarshalJSON handles unmarshaling a JSON value into the ConstValue type.
 func (cv *ConstValue) UnmarshalJSON(data []byte) error {
-	// Ensure cv is not nil
 	if cv == nil {
 		return ErrNilConstValue
 	}
 
-	// Set IsSet to true because we are setting a value
 	cv.IsSet = true
 
 	// If the input is "null", explicitly set Value to nil
@@ -850,7 +837,6 @@ func (cv *ConstValue) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// Otherwise parse the value normally
 	return json.Unmarshal(data, &cv.Value)
 }
 

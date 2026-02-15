@@ -21,7 +21,7 @@ func evaluateProperties(
 	_ map[int]bool, dynamicScope *DynamicScope,
 ) ([]*EvaluationResult, *EvaluationError) {
 	if schema.Properties == nil {
-		return nil, nil // No properties defined, nothing to do.
+		return nil, nil
 	}
 
 	var invalidProperties []string
@@ -31,35 +31,23 @@ func evaluateProperties(
 		evaluatedProps[propName] = true
 		propValue, exists := object[propName]
 
+		var result *EvaluationResult
 		if exists {
-			result, _, _ := propSchema.evaluate(propValue, dynamicScope)
-			if result != nil {
-				//nolint:errcheck
-				result.SetEvaluationPath(fmt.Sprintf("/properties/%s", propName)).
-					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/properties/%s", propName))).
-					SetInstanceLocation(fmt.Sprintf("/%s", propName))
-
-				results = append(results, result)
-
-				if !result.IsValid() {
-					invalidProperties = append(invalidProperties, propName)
-				}
-			}
+			result, _, _ = propSchema.evaluate(propValue, dynamicScope)
 		} else if isRequired(schema, propName) && !defaultIsSpecified(propSchema) {
-			// Handle properties that are expected but not provided
-			result, _, _ := propSchema.evaluate(nil, dynamicScope)
+			result, _, _ = propSchema.evaluate(nil, dynamicScope)
+		}
 
-			if result != nil {
-				//nolint:errcheck
-				result.SetEvaluationPath(fmt.Sprintf("/properties/%s", propName)).
-					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/properties/%s", propName))).
-					SetInstanceLocation(fmt.Sprintf("/%s", propName))
+		if result != nil {
+			//nolint:errcheck
+			result.SetEvaluationPath(fmt.Sprintf("/properties/%s", propName)).
+				SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/properties/%s", propName))).
+				SetInstanceLocation(fmt.Sprintf("/%s", propName))
 
-				results = append(results, result)
+			results = append(results, result)
 
-				if !result.IsValid() {
-					invalidProperties = append(invalidProperties, propName)
-				}
+			if !result.IsValid() {
+				invalidProperties = append(invalidProperties, propName)
 			}
 		}
 	}

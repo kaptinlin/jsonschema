@@ -124,10 +124,7 @@ func (e *EvaluationResult) AddError(err *EvaluationError) *EvaluationResult {
 		e.Errors = make(map[string]*EvaluationError)
 	}
 
-	if e.Valid {
-		e.Valid = false
-	}
-
+	e.Valid = false
 	e.Errors[err.Keyword] = err
 	return e
 }
@@ -193,7 +190,6 @@ func (e *EvaluationResult) ToFlag() *Flag {
 // ToList converts the evaluation results into a list format with optional hierarchy
 // includeHierarchy is variadic; if not provided, it defaults to true
 func (e *EvaluationResult) ToList(includeHierarchy ...bool) *List {
-	// Set default value for includeHierarchy to true
 	hierarchyIncluded := true
 	if len(includeHierarchy) > 0 {
 		hierarchyIncluded = includeHierarchy[0]
@@ -205,7 +201,6 @@ func (e *EvaluationResult) ToList(includeHierarchy ...bool) *List {
 // ToLocalizeList converts the evaluation results into a list format with optional hierarchy with localization.
 // includeHierarchy is variadic; if not provided, it defaults to true
 func (e *EvaluationResult) ToLocalizeList(localizer *i18n.Localizer, includeHierarchy ...bool) *List {
-	// Set default value for includeHierarchy to true
 	hierarchyIncluded := true
 	if len(includeHierarchy) > 0 {
 		hierarchyIncluded = includeHierarchy[0]
@@ -223,11 +218,11 @@ func (e *EvaluationResult) ToLocalizeList(localizer *i18n.Localizer, includeHier
 
 	if hierarchyIncluded {
 		for _, detail := range e.Details {
-			childList := detail.ToLocalizeList(localizer, true) // recursively include hierarchy
+			childList := detail.ToLocalizeList(localizer, true)
 			list.Details = append(list.Details, *childList)
 		}
 	} else {
-		e.flattenDetailsToList(localizer, list, e.Details) // flat structure
+		e.flattenDetailsToList(localizer, list, e.Details)
 	}
 
 	return list
@@ -279,7 +274,6 @@ func (e *EvaluationResult) DetailedErrors(localizer ...*i18n.Localizer) map[stri
 }
 
 // collectDetailedErrors recursively traverses the Details hierarchy to collect leaf-level errors.
-// This is a private helper method that implements the core logic for detailed error collection.
 func (e *EvaluationResult) collectDetailedErrors(collector map[string]string, localizer *i18n.Localizer, basePath string) {
 	// Collect errors from current level
 	if len(e.Errors) > 0 {

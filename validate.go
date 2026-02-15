@@ -66,13 +66,14 @@ func (s *Schema) parseJSONData(data []byte) (any, error) {
 // processJSONBytes handles []byte input with smart JSON parsing
 func (s *Schema) processJSONBytes(jsonBytes []byte) (any, error) {
 	var parsed any
-	if err := s.Compiler().jsonDecoder(jsonBytes, &parsed); err == nil {
+	err := s.Compiler().jsonDecoder(jsonBytes, &parsed)
+	if err == nil {
 		return parsed, nil
 	}
 
 	// Only return error if it looks like intended JSON
 	if len(jsonBytes) > 0 && (jsonBytes[0] == '{' || jsonBytes[0] == '[') {
-		return nil, s.Compiler().jsonDecoder(jsonBytes, &parsed)
+		return nil, err
 	}
 
 	// Otherwise, keep original bytes for validation as byte array
@@ -83,21 +84,13 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 	// Handle []byte input
 	instance = s.preprocessByteInput(instance)
 
-	// Check for circular reference before processing
-	if dynamicScope.Contains(s) {
-		// Determine if this is a problematic circular reference
-		if s.isProblematicCircularReference(dynamicScope) {
-			result := NewEvaluationResult(s)
-			// For problematic circular references, we perform basic validation without following references
-			// This prevents infinite recursion while still validating according to schema constraints
-			evaluatedProps := make(map[string]bool)
-			evaluatedItems := make(map[int]bool)
-
-			// Process basic validation without references to avoid infinite loop
-			s.processBasicValidationWithoutRefs(instance, result, evaluatedProps, evaluatedItems)
-
-			return result, evaluatedProps, evaluatedItems
-		}
+	// Check for problematic circular reference
+	if dynamicScope.Contains(s) && s.isProblematicCircularReference(dynamicScope) {
+		result := NewEvaluationResult(s)
+		evaluatedProps := make(map[string]bool)
+		evaluatedItems := make(map[int]bool)
+		s.processBasicValidationWithoutRefs(instance, result, evaluatedProps, evaluatedItems)
+		return result, evaluatedProps, evaluatedItems
 	}
 
 	dynamicScope.Push(s)
@@ -107,7 +100,7 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 	evaluatedProps := make(map[string]bool)
 	evaluatedItems := make(map[int]bool)
 
-	// Process schema types
+	// Handle boolean schema
 	if s.Boolean != nil {
 		if err := s.evaluateBoolean(instance, evaluatedProps, evaluatedItems); err != nil {
 			//nolint:errcheck
@@ -844,19 +837,9 @@ func convertToByteSlice(v any) ([]byte, bool) {
 func (s *Schema) processObjectValidationWithoutRefs(instance any, result *EvaluationResult, evaluatedProps map[string]bool) {
 	// Fast path: direct map[string]any type
 	if object, ok := instance.(map[string]any); ok {
-		// Validate basic object constraints
 		errors := validateObjectConstraints(s, object)
 		s.addErrors(result, errors)
-
-		// Check additional properties constraint for circular references
-		if s.AdditionalProperties != nil {
-			s.checkAdditionalPropertiesForCircular(object, result, evaluatedProps)
-		} else {
-			// Mark all properties as evaluated if no additional properties constraint
-			for key := range object {
-				evaluatedProps[key] = true
-			}
-		}
+		s.handleAdditionalPropertiesForCircular(object, result, evaluatedProps)
 		return
 	}
 
@@ -869,29 +852,41 @@ func (s *Schema) processObjectValidationWithoutRefs(instance any, result *Evalua
 		rv = rv.Elem()
 	}
 
-	if rv.Kind() == reflect.Struct {
-		// Convert struct to map for constraint validation
-		objectMap := make(map[string]any, rv.NumField())
-		structType := rv.Type()
-		for i := range rv.NumField() {
-			field := structType.Field(i)
-			if field.IsExported() {
-				fieldValue := rv.Field(i)
-				if fieldValue.CanInterface() {
-					objectMap[field.Name] = fieldValue.Interface()
-					evaluatedProps[field.Name] = true
-				}
-			}
+	if rv.Kind() != reflect.Struct {
+		return
+	}
+
+	// Convert struct to map for constraint validation
+	objectMap := make(map[string]any, rv.NumField())
+	structType := rv.Type()
+	for i := range rv.NumField() {
+		field := structType.Field(i)
+		if !field.IsExported() {
+			continue
 		}
-
-		errors := validateObjectConstraints(s, objectMap)
-		s.addErrors(result, errors)
-
-		// Check additional properties for struct as well
-		if s.AdditionalProperties != nil {
-			s.checkAdditionalPropertiesForCircular(objectMap, result, evaluatedProps)
+		fieldValue := rv.Field(i)
+		if fieldValue.CanInterface() {
+			objectMap[field.Name] = fieldValue.Interface()
+			evaluatedProps[field.Name] = true
 		}
 	}
+
+	errors := validateObjectConstraints(s, objectMap)
+	s.addErrors(result, errors)
+	s.handleAdditionalPropertiesForCircular(objectMap, result, evaluatedProps)
+}
+
+// handleAdditionalPropertiesForCircular handles additionalProperties validation for circular references
+func (s *Schema) handleAdditionalPropertiesForCircular(object map[string]any, result *EvaluationResult, evaluatedProps map[string]bool) {
+	if s.AdditionalProperties == nil {
+		// Mark all properties as evaluated if no additional properties constraint
+		for key := range object {
+			evaluatedProps[key] = true
+		}
+		return
+	}
+
+	s.checkAdditionalPropertiesForCircular(object, result, evaluatedProps)
 }
 
 // processArrayValidationWithoutRefs validates array constraints without following item schema references
@@ -925,21 +920,22 @@ func (s *Schema) checkAdditionalPropertiesForCircular(object map[string]any, res
 
 		// Check if all object properties are allowed
 		for prop := range object {
-			if !allowedProps[prop] {
+			if allowedProps[prop] {
+				evaluatedProps[prop] = true
+			} else {
 				//nolint:errcheck
 				result.AddError(NewEvaluationError("additionalProperties", "additional_property_false",
 					"Additional property '{property}' not allowed", map[string]any{
 						"property": prop,
 					}))
-			} else {
-				evaluatedProps[prop] = true
 			}
 		}
-	} else {
-		// Mark all properties as evaluated if additional properties are allowed
-		for key := range object {
-			evaluatedProps[key] = true
-		}
+		return
+	}
+
+	// Mark all properties as evaluated if additional properties are allowed
+	for key := range object {
+		evaluatedProps[key] = true
 	}
 }
 
@@ -952,17 +948,14 @@ func (s *Schema) isProblematicCircularReference(scope *DynamicScope) bool {
 		}
 	}
 
-	// Use different thresholds based on the type of reference and context
-
 	// For metaschema validation (remote references), be very permissive
-	// These are legitimate validation scenarios, not circular references
 	if s.ID != "" && strings.Contains(s.ID, "json-schema.org") {
-		return depth > 5 // High threshold for metaschema
+		return depth > 5
 	}
 
 	// For schemas that are clearly self-referential by design, allow more depth
 	if s.hasSelfReferentialPattern() {
-		return depth > 10 // Allow reasonable nesting for self-referential schemas
+		return depth > 10
 	}
 
 	// For other cases, use a moderate threshold

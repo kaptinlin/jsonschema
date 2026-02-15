@@ -57,7 +57,6 @@ func (s *Schema) resolveRefWithFullURL(ref string) (*Schema, error) {
 		return resolved, nil
 	}
 
-	// If not found in the current schema or its parents, look for the reference in the compiler
 	resolved, err := s.Compiler().Schema(ref)
 	if err != nil {
 		return nil, ErrGlobalReferenceResolution
@@ -71,15 +70,11 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 		return s, nil
 	}
 
-	// Parse JSON Pointer using the jsonpointer library
-	// This handles ~ escaping (~ -> ~0, / -> ~1) automatically
 	segments := jsonpointer.Parse(pointer)
 	currentSchema := s
 	previousSegment := ""
 
 	for i, segment := range segments {
-		// jsonpointer.Parse handles ~0 and ~1 escaping, but not URL percent encoding
-		// We need to handle URL percent encoding separately for JSON Schema compatibility
 		decodedSegment, err := url.PathUnescape(segment)
 		if err != nil {
 			return nil, ErrJSONPointerSegmentDecode
@@ -92,8 +87,7 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 			continue
 		}
 
-		if !found && i == len(segments)-1 {
-			// If no schema is found and it's the last segment, throw error
+		if i == len(segments)-1 {
 			return nil, ErrJSONPointerSegmentNotFound
 		}
 
@@ -114,11 +108,10 @@ func findSchemaInSegment(currentSchema *Schema, segment string, previousSegment 
 		}
 	case "prefixItems":
 		index, err := strconv.Atoi(segment)
-
 		if err == nil && currentSchema.PrefixItems != nil && index < len(currentSchema.PrefixItems) {
 			return currentSchema.PrefixItems[index], true
 		}
-	case "$defs", "definitions": // Support both $defs (2020-12) and definitions (Draft-7) for backward compatibility
+	case "$defs", "definitions":
 		if defSchema, exists := currentSchema.Defs[segment]; exists {
 			return defSchema, true
 		}
@@ -151,21 +144,16 @@ func (s *Schema) ResolveUnresolvedReferences() {
 }
 
 func (s *Schema) resolveReferences() {
-	// Resolve the root reference if this schema itself is a reference.
 	if s.Ref != "" {
-		resolved, err := s.resolveRef(s.Ref)
-		if err == nil {
+		if resolved, err := s.resolveRef(s.Ref); err == nil {
 			s.ResolvedRef = resolved
 		}
-		// If resolution fails, leave ResolvedRef as nil and validation will handle this gracefully.
 	}
 
 	if s.DynamicRef != "" {
-		resolved, err := s.resolveRef(s.DynamicRef)
-		if err == nil {
+		if resolved, err := s.resolveRef(s.DynamicRef); err == nil {
 			s.ResolvedDynamicRef = resolved
 		}
-		// If resolution fails, leave ResolvedDynamicRef as nil and validation will handle this gracefully.
 	}
 
 	s.walkNestedSchemas((*Schema).resolveReferences)

@@ -153,9 +153,7 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 func (c *Compiler) trackUnresolvedReferences(schema *Schema) {
 	unresolvedURIs := schema.UnresolvedReferenceURIs()
 	for _, uri := range unresolvedURIs {
-		// Check if schema is already in the list to avoid duplicates
-		found := slices.Contains(c.unresolvedRefs[uri], schema)
-		if !found {
+		if !slices.Contains(c.unresolvedRefs[uri], schema) {
 			c.unresolvedRefs[uri] = append(c.unresolvedRefs[uri], schema)
 		}
 	}
@@ -170,7 +168,7 @@ func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
 	c.mu.RUnlock()
 
 	if exists {
-		return schema, nil // Return cached schema if available
+		return schema, nil
 	}
 
 	loader, ok := c.Loaders[getURLScheme(url)]
@@ -321,7 +319,7 @@ func (c *Compiler) setupMediaTypes() {
 // setupLoaders configures default loaders for fetching schemas via HTTP/HTTPS.
 func (c *Compiler) setupLoaders() {
 	client := &http.Client{
-		Timeout: 10 * time.Second, // Set a reasonable timeout for network requests.
+		Timeout: 10 * time.Second,
 	}
 
 	defaultHTTPLoader := func(url string) (io.ReadCloser, error) {
@@ -336,10 +334,7 @@ func (c *Compiler) setupLoaders() {
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			err = resp.Body.Close()
-			if err != nil {
-				return nil, err
-			}
+			_ = resp.Body.Close()
 			return nil, ErrInvalidStatusCode
 		}
 

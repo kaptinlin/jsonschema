@@ -39,13 +39,11 @@ func getDataType(v any) string {
 		return "null"
 	case bool:
 		return "boolean"
-	// json.Number is not available in go-json-experiment/json
-	// Numbers are handled as float64 by default
 	case float32, float64:
 		// Convert to big.Float to check if it can be considered an integer
 		bigFloat := new(big.Float).SetFloat64(reflect.ValueOf(v).Float())
 		if _, acc := bigFloat.Int(nil); acc == big.Exact {
-			return "integer" // Treated as integer if no fractional part
+			return "integer"
 		}
 		return "number"
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
@@ -59,7 +57,6 @@ func getDataType(v any) string {
 	case map[string]any:
 		return "object"
 	default:
-		// Use reflection for other types (struct, slices, maps, etc.)
 		return getDataTypeReflect(v)
 	}
 }
@@ -136,11 +133,11 @@ func resolveRelativeURI(baseURI, relativeURL string) string {
 	}
 	base, err := url.Parse(baseURI)
 	if err != nil || base.Scheme == "" || base.Host == "" {
-		return relativeURL // Return the original if there's a base URL parsing error
+		return relativeURL
 	}
 	rel, err := url.Parse(relativeURL)
 	if err != nil {
-		return relativeURL // Return the original if there's a relative URL parsing error
+		return relativeURL
 	}
 	return base.ResolveReference(rel).String()
 }
