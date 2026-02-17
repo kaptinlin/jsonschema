@@ -1,30 +1,30 @@
 package jsonschema
 
-// Default compiler instance for initializing Schema
+// defaultCompiler is the default compiler instance for initializing Schema.
 var defaultCompiler = NewCompiler()
 
-// SetDefaultCompiler allows setting a custom compiler for the constructor API
+// SetDefaultCompiler sets a custom compiler for the constructor API.
 func SetDefaultCompiler(c *Compiler) {
 	defaultCompiler = c
 }
 
-// DefaultCompiler returns the current default compiler
+// DefaultCompiler returns the current default compiler.
 func DefaultCompiler() *Compiler {
 	return defaultCompiler
 }
 
-// Property represents a Schema property definition
+// Property represents a Schema property definition.
 type Property struct {
 	Name   string
 	Schema *Schema
 }
 
-// Prop creates a property definition
+// Prop creates a property definition.
 func Prop(name string, schema *Schema) Property {
 	return Property{Name: name, Schema: schema}
 }
 
-// Object creates an object Schema with properties and keywords
+// Object creates an object Schema with properties and keywords.
 func Object(items ...any) *Schema {
 	schema := &Schema{Type: SchemaType{"object"}}
 
@@ -60,75 +60,39 @@ func Object(items ...any) *Schema {
 	return schema
 }
 
-// String creates a string Schema with validation keywords
-func String(keywords ...Keyword) *Schema {
-	schema := &Schema{Type: SchemaType{"string"}}
+// newTypedSchema creates a schema with the given type and applies keywords.
+func newTypedSchema(typeName string, keywords []Keyword) *Schema {
+	schema := &Schema{}
+	if typeName != "" {
+		schema.Type = SchemaType{typeName}
+	}
 	for _, keyword := range keywords {
 		keyword(schema)
 	}
 	schema.initializeSchema(nil, nil)
 	return schema
 }
+
+// String creates a string Schema with validation keywords
+func String(keywords ...Keyword) *Schema { return newTypedSchema("string", keywords) }
 
 // Integer creates an integer Schema with validation keywords
-func Integer(keywords ...Keyword) *Schema {
-	schema := &Schema{Type: SchemaType{"integer"}}
-	for _, keyword := range keywords {
-		keyword(schema)
-	}
-	schema.initializeSchema(nil, nil)
-	return schema
-}
+func Integer(keywords ...Keyword) *Schema { return newTypedSchema("integer", keywords) }
 
 // Number creates a number Schema with validation keywords
-func Number(keywords ...Keyword) *Schema {
-	schema := &Schema{Type: SchemaType{"number"}}
-	for _, keyword := range keywords {
-		keyword(schema)
-	}
-	schema.initializeSchema(nil, nil)
-	return schema
-}
+func Number(keywords ...Keyword) *Schema { return newTypedSchema("number", keywords) }
 
 // Boolean creates a boolean Schema
-func Boolean(keywords ...Keyword) *Schema {
-	schema := &Schema{Type: SchemaType{"boolean"}}
-	for _, keyword := range keywords {
-		keyword(schema)
-	}
-	schema.initializeSchema(nil, nil)
-	return schema
-}
+func Boolean(keywords ...Keyword) *Schema { return newTypedSchema("boolean", keywords) }
 
 // Null creates a null Schema
-func Null(keywords ...Keyword) *Schema {
-	schema := &Schema{Type: SchemaType{"null"}}
-	for _, keyword := range keywords {
-		keyword(schema)
-	}
-	schema.initializeSchema(nil, nil)
-	return schema
-}
+func Null(keywords ...Keyword) *Schema { return newTypedSchema("null", keywords) }
 
 // Array creates an array Schema with validation keywords
-func Array(keywords ...Keyword) *Schema {
-	schema := &Schema{Type: SchemaType{"array"}}
-	for _, keyword := range keywords {
-		keyword(schema)
-	}
-	schema.initializeSchema(nil, nil)
-	return schema
-}
+func Array(keywords ...Keyword) *Schema { return newTypedSchema("array", keywords) }
 
 // Any creates a Schema without type restriction
-func Any(keywords ...Keyword) *Schema {
-	schema := &Schema{}
-	for _, keyword := range keywords {
-		keyword(schema)
-	}
-	schema.initializeSchema(nil, nil)
-	return schema
-}
+func Any(keywords ...Keyword) *Schema { return newTypedSchema("", keywords) }
 
 // Const creates a const Schema
 func Const(value any) *Schema {

@@ -62,7 +62,9 @@ func evaluateFormat(schema *Schema, value any) *EvaluationError {
 	return nil // Default behavior: ignore unknown formats
 }
 
-// matchesType checks if a value type matches the required type
+// matchesType checks if a value type matches the required type.
+// It returns true if there's no type restriction or if the types match.
+// Special case: integer values are considered valid for number types.
 func matchesType(valueType, requiredType string) bool {
 	if requiredType == "" {
 		return true // No type restriction

@@ -240,7 +240,7 @@ func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolv
 
 	// Register schema in root
 	if s.uri != "" && isValidURI(s.uri) {
-		root := s.getRootSchema()
+		root := s.rootSchema()
 		root.setSchema(s.uri, s)
 	}
 
@@ -258,7 +258,7 @@ func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolv
 
 // resolveBaseURI resolves the base URI for the schema
 func (s *Schema) resolveBaseURI(compiler *Compiler) {
-	parentBaseURI := s.getParentBaseURI()
+	parentBaseURI := s.parentBaseURI()
 	if parentBaseURI == "" {
 		parentBaseURI = compiler.DefaultBaseURI
 	}
@@ -295,34 +295,19 @@ func initializeNestedSchemasCore(s *Schema, compiler *Compiler, resolveRefs bool
 		}
 	}
 	// Initialize logical schema groupings
-	for _, schema := range s.AllOf {
-		if schema != nil {
-			initChild(schema)
-		}
-	}
-	for _, schema := range s.AnyOf {
-		if schema != nil {
-			initChild(schema)
-		}
-	}
-	for _, schema := range s.OneOf {
-		if schema != nil {
-			initChild(schema)
+	for _, schemas := range [][]*Schema{s.AllOf, s.AnyOf, s.OneOf} {
+		for _, schema := range schemas {
+			if schema != nil {
+				initChild(schema)
+			}
 		}
 	}
 
 	// Initialize conditional schemas
-	if s.Not != nil {
-		initChild(s.Not)
-	}
-	if s.If != nil {
-		initChild(s.If)
-	}
-	if s.Then != nil {
-		initChild(s.Then)
-	}
-	if s.Else != nil {
-		initChild(s.Else)
+	for _, schema := range []*Schema{s.Not, s.If, s.Then, s.Else} {
+		if schema != nil {
+			initChild(schema)
+		}
 	}
 	if s.DependentSchemas != nil {
 		for _, depSchema := range s.DependentSchemas {
@@ -336,14 +321,10 @@ func initializeNestedSchemasCore(s *Schema, compiler *Compiler, resolveRefs bool
 			initChild(item)
 		}
 	}
-	if s.Items != nil {
-		initChild(s.Items)
-	}
-	if s.Contains != nil {
-		initChild(s.Contains)
-	}
-	if s.AdditionalProperties != nil {
-		initChild(s.AdditionalProperties)
+	for _, schema := range []*Schema{s.Items, s.Contains, s.AdditionalProperties} {
+		if schema != nil {
+			initChild(schema)
+		}
 	}
 	if s.Properties != nil {
 		for _, prop := range *s.Properties {
@@ -355,17 +336,10 @@ func initializeNestedSchemasCore(s *Schema, compiler *Compiler, resolveRefs bool
 			initChild(prop)
 		}
 	}
-	if s.UnevaluatedProperties != nil {
-		initChild(s.UnevaluatedProperties)
-	}
-	if s.UnevaluatedItems != nil {
-		initChild(s.UnevaluatedItems)
-	}
-	if s.ContentSchema != nil {
-		initChild(s.ContentSchema)
-	}
-	if s.PropertyNames != nil {
-		initChild(s.PropertyNames)
+	for _, schema := range []*Schema{s.UnevaluatedProperties, s.UnevaluatedItems, s.ContentSchema, s.PropertyNames} {
+		if schema != nil {
+			initChild(schema)
+		}
 	}
 }
 
@@ -504,7 +478,7 @@ func (s *Schema) setAnchor(anchor string) {
 	}
 	s.anchors[anchor] = s
 
-	root := s.getRootSchema()
+	root := s.rootSchema()
 	if root.anchors == nil {
 		root.anchors = make(map[string]*Schema)
 	}
@@ -524,7 +498,7 @@ func (s *Schema) setDynamicAnchor(anchor string) {
 		s.dynamicAnchors[anchor] = s
 	}
 
-	scope := s.getScopeSchema()
+	scope := s.scopeSchema()
 	if scope.dynamicAnchors == nil {
 		scope.dynamicAnchors = make(map[string]*Schema)
 	}
@@ -562,7 +536,7 @@ func (s *Schema) SchemaURI() string {
 	if s.uri != "" {
 		return s.uri
 	}
-	root := s.getRootSchema()
+	root := s.rootSchema()
 	if root.uri != "" {
 		return root.uri
 	}
@@ -577,29 +551,29 @@ func (s *Schema) SchemaLocation(anchor string) string {
 	return uri + "#" + anchor
 }
 
-// getRootSchema returns the highest-level parent schema, serving as the root in the schema tree.
-func (s *Schema) getRootSchema() *Schema {
+// rootSchema returns the highest-level parent schema, serving as the root in the schema tree.
+func (s *Schema) rootSchema() *Schema {
 	if s.parent != nil {
-		return s.parent.getRootSchema()
+		return s.parent.rootSchema()
 	}
 
 	return s
 }
 
-func (s *Schema) getScopeSchema() *Schema {
+func (s *Schema) scopeSchema() *Schema {
 	if s.ID != "" {
 		return s
 	}
 	if s.parent != nil {
-		return s.parent.getScopeSchema()
+		return s.parent.scopeSchema()
 	}
 
 	return s
 }
 
-// getParentBaseURI returns the base URI from the nearest parent schema that has one defined,
+// parentBaseURI returns the base URI from the nearest parent schema that has one defined,
 // or an empty string if none of the parents up to the root define a base URI.
-func (s *Schema) getParentBaseURI() string {
+func (s *Schema) parentBaseURI() string {
 	for p := s.parent; p != nil; p = p.parent {
 		if p.baseURI != "" {
 			return p.baseURI

@@ -17,8 +17,8 @@ func TestGetRootSchema(t *testing.T) {
 	child.initializeSchema(compiler, root)
 	grandChild.initializeSchema(compiler, child)
 
-	if grandChild.getRootSchema().ID != "root" {
-		t.Errorf("Expected root schema ID to be 'root', got '%s'", grandChild.getRootSchema().ID)
+	if grandChild.rootSchema().ID != "root" {
+		t.Errorf("Expected root schema ID to be 'root', got '%s'", grandChild.rootSchema().ID)
 	}
 }
 
