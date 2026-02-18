@@ -223,4 +223,3 @@ func (s *Schema) UnresolvedReferenceURIs() []string {
 
 	return unresolvedURIs
 }
-
