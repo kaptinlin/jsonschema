@@ -31,21 +31,21 @@ Individual files implement JSON Schema validation keywords (e.g., `properties.go
 ## Build and Development Commands
 
 ### Basic Commands
-- `make test` - Run all tests with race detection
-- `make lint` - Run all linters (golangci-lint + go mod tidy check)  
+- `task test` - Run all tests with race detection
+- `task lint` - Run all linters (golangci-lint + go mod tidy check)  
 - `make bench` - Run benchmarks
-- `make verify` - Run complete verification (deps + fmt + vet + lint + test)
+- `task verify` - Run complete verification (deps + fmt + vet + lint + test)
 
 ### Test Commands
-- `make test-unit` - Run unit tests only
-- `make test-coverage` - Generate coverage report (creates coverage.html)
-- `make test-verbose` - Run tests with verbose output
+- `task test-unit` - Run unit tests only
+- `task test-coverage` - Generate coverage report (creates coverage.html)
+- `task test-verbose` - Run tests with verbose output
 
 ### Code Quality
 - `make fmt` - Format Go code
 - `make vet` - Run go vet
-- `make clean` - Clean build artifacts and caches
-- `make deps` - Download and tidy Go module dependencies
+- `task clean` - Clean build artifacts and caches
+- `task deps` - Download and tidy Go module dependencies
 
 ### Code Generation
 - `go install github.com/kaptinlin/jsonschema/cmd/schemagen@latest` - Install schemagen tool
@@ -95,7 +95,7 @@ Individual files implement JSON Schema validation keywords (e.g., `properties.go
 
 Run tests before committing:
 ```bash
-make verify
+task verify
 ```
 
 Generate schemas from struct tags:

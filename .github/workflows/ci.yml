@@ -25,11 +25,17 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      - name: Install Task
+        uses: go-task/setup-task@v1
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Download dependencies
         run: go mod download
 
       - name: Run unit tests
-        run: make test
+        run: task test
 
   lint:
     name: Lint
@@ -45,6 +51,12 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      - name: Install Task
+        uses: go-task/setup-task@v1
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Download dependencies
         run: go mod download
 
@@ -53,9 +65,10 @@ jobs:
         run: echo "version=$(cat .golangci.version 2>/dev/null || echo '2.9.0')" >> $GITHUB_OUTPUT
 
       - name: Run linter via Makefile
-        run: make lint
+        run: task lint
 
       - name: Check go mod tidy
         run: |
           go mod tidy
           git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum is not tidy" && exit 1)
+
