@@ -594,6 +594,11 @@ func validateObjectConstraints(schema *Schema, object map[string]any) []*Evaluat
 
 // evaluateNumeric groups the validation of all numeric-specific keywords.
 func evaluateNumeric(schema *Schema, data any) []*EvaluationError {
+	// Fast path: If no numeric constraints are defined, skip validation
+	if !hasNumericConstraints(schema) {
+		return nil
+	}
+
 	dataType := getDataType(data)
 	if dataType != "number" && dataType != "integer" {
 		return nil
@@ -611,6 +616,7 @@ func evaluateNumeric(schema *Schema, data any) []*EvaluationError {
 	var errors []*EvaluationError
 
 	// Collect all numeric validation errors
+	// The big.Rat value is reused across all comparisons for efficiency
 	if schema.MultipleOf != nil {
 		if err := evaluateMultipleOf(schema, value); err != nil {
 			errors = append(errors, err)
@@ -642,6 +648,16 @@ func evaluateNumeric(schema *Schema, data any) []*EvaluationError {
 	}
 
 	return errors
+}
+
+// hasNumericConstraints checks if the schema has any numeric validation constraints
+// This allows for a fast path when no numeric validation is needed
+func hasNumericConstraints(schema *Schema) bool {
+	return schema.MultipleOf != nil ||
+		schema.Maximum != nil ||
+		schema.ExclusiveMaximum != nil ||
+		schema.Minimum != nil ||
+		schema.ExclusiveMinimum != nil
 }
 
 // evaluateString groups the validation of all string-specific keywords.

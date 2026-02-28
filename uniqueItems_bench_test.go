@@ -60,7 +60,6 @@ func init() {
 	}
 }
 
-// BenchmarkUniqueItemsSmallStringArray benchmarks uniqueItems validation on small string arrays
 func BenchmarkUniqueItemsSmallStringArray(b *testing.B) {
 	uniqueItems := true
 	schema := &Schema{UniqueItems: &uniqueItems}
@@ -72,7 +71,6 @@ func BenchmarkUniqueItemsSmallStringArray(b *testing.B) {
 	}
 }
 
-// BenchmarkUniqueItemsLargeStringArray benchmarks uniqueItems validation on large string arrays
 func BenchmarkUniqueItemsLargeStringArray(b *testing.B) {
 	uniqueItems := true
 	schema := &Schema{UniqueItems: &uniqueItems}
@@ -84,7 +82,6 @@ func BenchmarkUniqueItemsLargeStringArray(b *testing.B) {
 	}
 }
 
-// BenchmarkUniqueItemsSmallNumberArray benchmarks uniqueItems validation on small number arrays
 func BenchmarkUniqueItemsSmallNumberArray(b *testing.B) {
 	uniqueItems := true
 	schema := &Schema{UniqueItems: &uniqueItems}
@@ -96,7 +93,6 @@ func BenchmarkUniqueItemsSmallNumberArray(b *testing.B) {
 	}
 }
 
-// BenchmarkUniqueItemsLargeNumberArray benchmarks uniqueItems validation on large number arrays
 func BenchmarkUniqueItemsLargeNumberArray(b *testing.B) {
 	uniqueItems := true
 	schema := &Schema{UniqueItems: &uniqueItems}
@@ -108,7 +104,6 @@ func BenchmarkUniqueItemsLargeNumberArray(b *testing.B) {
 	}
 }
 
-// BenchmarkUniqueItemsSmallBoolArray benchmarks uniqueItems validation on small bool arrays
 func BenchmarkUniqueItemsSmallBoolArray(b *testing.B) {
 	uniqueItems := true
 	schema := &Schema{UniqueItems: &uniqueItems}
@@ -120,7 +115,6 @@ func BenchmarkUniqueItemsSmallBoolArray(b *testing.B) {
 	}
 }
 
-// BenchmarkUniqueItemsSmallMixedArray benchmarks uniqueItems validation on mixed type arrays
 func BenchmarkUniqueItemsSmallMixedArray(b *testing.B) {
 	uniqueItems := true
 	schema := &Schema{UniqueItems: &uniqueItems}
@@ -132,7 +126,6 @@ func BenchmarkUniqueItemsSmallMixedArray(b *testing.B) {
 	}
 }
 
-// BenchmarkUniqueItemsSmallObjectArray benchmarks uniqueItems validation on small object arrays
 func BenchmarkUniqueItemsSmallObjectArray(b *testing.B) {
 	uniqueItems := true
 	schema := &Schema{UniqueItems: &uniqueItems}
@@ -144,7 +137,6 @@ func BenchmarkUniqueItemsSmallObjectArray(b *testing.B) {
 	}
 }
 
-// BenchmarkUniqueItemsLargeObjectArray benchmarks uniqueItems validation on large object arrays
 func BenchmarkUniqueItemsLargeObjectArray(b *testing.B) {
 	uniqueItems := true
 	schema := &Schema{UniqueItems: &uniqueItems}
@@ -156,7 +148,6 @@ func BenchmarkUniqueItemsLargeObjectArray(b *testing.B) {
 	}
 }
 
-// BenchmarkUniqueItemsNestedArrays benchmarks uniqueItems validation on nested arrays
 func BenchmarkUniqueItemsNestedArrays(b *testing.B) {
 	uniqueItems := true
 	schema := &Schema{UniqueItems: &uniqueItems}
@@ -165,80 +156,5 @@ func BenchmarkUniqueItemsNestedArrays(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		_ = evaluateUniqueItems(schema, nestedArrays)
-	}
-}
-
-// BenchmarkNormalizeValueString benchmarks the normalizeValue function for strings
-func BenchmarkNormalizeValueString(b *testing.B) {
-	value := "test string value"
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = normalizeValue(value)
-	}
-}
-
-// BenchmarkNormalizeValueNumber benchmarks the normalizeValue function for numbers
-func BenchmarkNormalizeValueNumber(b *testing.B) {
-	value := 42.5
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = normalizeValue(value)
-	}
-}
-
-// BenchmarkNormalizeValueBool benchmarks the normalizeValue function for booleans
-func BenchmarkNormalizeValueBool(b *testing.B) {
-	value := true
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = normalizeValue(value)
-	}
-}
-
-// BenchmarkNormalizeValueObject benchmarks the normalizeValue function for objects
-func BenchmarkNormalizeValueObject(b *testing.B) {
-	value := map[string]any{
-		"id":     1.0,
-		"name":   "test",
-		"score":  95.5,
-		"active": true,
-	}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = normalizeValue(value)
-	}
-}
-
-// BenchmarkNormalizeValueArray benchmarks the normalizeValue function for arrays
-func BenchmarkNormalizeValueArray(b *testing.B) {
-	value := []any{1.0, 2.0, 3.0, "test", true, nil}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = normalizeValue(value)
-	}
-}
-
-// BenchmarkNormalizeValueNested benchmarks the normalizeValue function for nested structures
-func BenchmarkNormalizeValueNested(b *testing.B) {
-	value := map[string]any{
-		"user": map[string]any{
-			"id":   1.0,
-			"name": "Alice",
-			"tags": []any{"admin", "user", "premium"},
-		},
-		"metadata": map[string]any{
-			"created": "2024-01-01",
-			"updated": "2024-01-15",
-		},
-	}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		_, _ = normalizeValue(value)
 	}
 }
