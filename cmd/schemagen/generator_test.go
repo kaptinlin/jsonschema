@@ -207,7 +207,7 @@ func TestCodeGenerator_AdvancedObjectFeatures(t *testing.T) {
 					{Name: "patternProperties", Params: []string{"^field_", "string"}},
 				},
 			},
-			expectedSubstring: "jsonschema.PatternProperties",
+			expectedSubstring: "jsonschema.PatternProps",
 		},
 		{
 			name: "propertyNames",

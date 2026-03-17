@@ -426,6 +426,7 @@ func needsCommaSeparation(ruleName string) bool {
 		"prefixItems":       true, // prefixItems=string,number,boolean
 		"dependentRequired": true, // dependentRequired=field1,field2,field3
 		"dependentSchemas":  true, // dependentSchemas=property,SchemaType
+		"patternProperties": true, // patternProperties=^pattern_,string
 		// Note: contains typically takes only one schema, so not included here
 	}
 	return commaSeparatedRules[ruleName]

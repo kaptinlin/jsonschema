@@ -1066,3 +1066,117 @@ func TestTagParser_ParseStructTags_DepthLimit(t *testing.T) {
 		t.Error("Expected at least some fields to be parsed despite deep nesting")
 	}
 }
+
+func TestTagParser_PatternProperties(t *testing.T) {
+	parser := New()
+
+	tests := []struct {
+		name     string
+		tag      string
+		expected []TagRule
+	}{
+		{
+			name: "patternProperties with pattern and type",
+			tag:  "patternProperties=^setting_,string",
+			expected: []TagRule{
+				{Name: "patternProperties", Params: []string{"^setting_", "string"}},
+			},
+		},
+		{
+			name: "patternProperties with integer type",
+			tag:  "patternProperties=^config_,integer",
+			expected: []TagRule{
+				{Name: "patternProperties", Params: []string{"^config_", "integer"}},
+			},
+		},
+		{
+			name: "multiple patternProperties rules",
+			tag:  "patternProperties=^field_,string,patternProperties=^num_,integer",
+			expected: []TagRule{
+				{Name: "patternProperties", Params: []string{"^field_", "string"}},
+				{Name: "patternProperties", Params: []string{"^num_", "integer"}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rules, err := parser.ParseTagString(tt.tag)
+			if err != nil {
+				t.Fatalf("ParseTagString() error = %v", err)
+			}
+
+			if len(rules) != len(tt.expected) {
+				t.Fatalf("ParseTagString() got %d rules, want %d", len(rules), len(tt.expected))
+			}
+
+			for i, rule := range rules {
+				if rule.Name != tt.expected[i].Name {
+					t.Errorf("Rule[%d].Name = %v, want %v", i, rule.Name, tt.expected[i].Name)
+				}
+				if len(rule.Params) != len(tt.expected[i].Params) {
+					t.Errorf("Rule[%d].Params length = %d, want %d", i, len(rule.Params), len(tt.expected[i].Params))
+					continue
+				}
+				for j, param := range rule.Params {
+					if param != tt.expected[i].Params[j] {
+						t.Errorf("Rule[%d].Params[%d] = %v, want %v", i, j, param, tt.expected[i].Params[j])
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestTagParser_PropertyNames(t *testing.T) {
+	parser := New()
+
+	tests := []struct {
+		name     string
+		tag      string
+		expected []TagRule
+	}{
+		{
+			name: "propertyNames with JSON schema",
+			tag:  `propertyNames={"pattern":"^[a-z][a-zA-Z0-9]*$"}`,
+			expected: []TagRule{
+				{Name: "propertyNames", Params: []string{`{"pattern":"^[a-z][a-zA-Z0-9]*$"}`}},
+			},
+		},
+		{
+			name: "propertyNames with simple type",
+			tag:  "propertyNames=string",
+			expected: []TagRule{
+				{Name: "propertyNames", Params: []string{"string"}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rules, err := parser.ParseTagString(tt.tag)
+			if err != nil {
+				t.Fatalf("ParseTagString() error = %v", err)
+			}
+
+			if len(rules) != len(tt.expected) {
+				t.Fatalf("ParseTagString() got %d rules, want %d", len(rules), len(tt.expected))
+			}
+
+			for i, rule := range rules {
+				if rule.Name != tt.expected[i].Name {
+					t.Errorf("Rule[%d].Name = %v, want %v", i, rule.Name, tt.expected[i].Name)
+				}
+				if len(rule.Params) != len(tt.expected[i].Params) {
+					t.Errorf("Rule[%d].Params length = %d, want %d", i, len(rule.Params), len(tt.expected[i].Params))
+					continue
+				}
+				for j, param := range rule.Params {
+					if param != tt.expected[i].Params[j] {
+						t.Errorf("Rule[%d].Params[%d] = %v, want %v", i, j, param, tt.expected[i].Params[j])
+					}
+				}
+			}
+		})
+	}
+}

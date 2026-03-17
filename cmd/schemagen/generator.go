@@ -586,7 +586,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 				schemaCode = schemaType
 			}
 
-			return fmt.Sprintf("jsonschema.PatternProperties(map[string]*jsonschema.Schema{`%s`: %s})", pattern, schemaCode)
+			return fmt.Sprintf("jsonschema.PatternProps(map[string]*jsonschema.Schema{`%s`: %s})", pattern, schemaCode)
 		},
 		"propertyNames": func(_ string, params []string) string {
 			if len(params) == 0 {
@@ -594,15 +594,22 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			schemaType := params[0]
 
+			// Check if it's a JSON object (starts with {)
+			if strings.HasPrefix(strings.TrimSpace(schemaType), "{") {
+				// Extract pattern value from JSON like {"pattern":"^[a-z]"}
+				pattern := extractPatternFromJSON(schemaType)
+				if pattern != "" {
+					return fmt.Sprintf("jsonschema.PropertyNames(jsonschema.String(jsonschema.Pattern(`%s`)))", pattern)
+				}
+			}
+
 			// Check if it's a primitive type (most commonly string for property names)
 			if constructor, exists := primitiveTypes[schemaType]; exists {
 				return fmt.Sprintf("jsonschema.PropertyNames(%s())", constructor)
 			}
 			if isCustomStructType(schemaType) {
-				// This will be processed specially in generateFieldProperty for $refs
 				return fmt.Sprintf("jsonschema.PropertyNames((&%s{}).Schema())", schemaType)
 			}
-			// Handle as a literal schema value or reference
 			return fmt.Sprintf("jsonschema.PropertyNames(%s)", schemaType)
 		},
 		"unevaluatedProperties": func(_ string, params []string) string {
@@ -961,8 +968,15 @@ func (g *CodeGenerator) generateArraySchema(_ string, _ tagparser.FieldInfo) (st
 }
 
 // generateMapSchema generates schema for map types with proper AdditionalProperties support
-func (g *CodeGenerator) generateMapSchema(_ string, _ tagparser.FieldInfo) (string, error) {
-	// For maps, always return jsonschema.Object
+func (g *CodeGenerator) generateMapSchema(_ string, field tagparser.FieldInfo) (string, error) {
+	// Check if patternProperties is specified - if so, don't add additionalProperties
+	for _, rule := range field.Rules {
+		if rule.Name == "patternProperties" {
+			return "jsonschema.Object", nil
+		}
+	}
+
+	// For maps, return jsonschema.Object
 	// The additionalProperties constraint will be handled by the additionalProperties validator
 	return "jsonschema.Object", nil
 }
@@ -1004,4 +1018,20 @@ func structNameToFileName(structName string) string {
 	}
 
 	return strings.ToLower(result.String())
+}
+
+// extractPatternFromJSON extracts pattern value from JSON like {"pattern":"^[a-z]"}
+func extractPatternFromJSON(jsonStr string) string {
+	// Simple extraction for {"pattern":"value"}
+	if start := strings.Index(jsonStr, `"pattern"`); start != -1 {
+		if colon := strings.Index(jsonStr[start:], ":"); colon != -1 {
+			remaining := jsonStr[start+colon+1:]
+			if quote1 := strings.Index(remaining, `"`); quote1 != -1 {
+				if quote2 := strings.Index(remaining[quote1+1:], `"`); quote2 != -1 {
+					return remaining[quote1+1 : quote1+1+quote2]
+				}
+			}
+		}
+	}
+	return ""
 }
