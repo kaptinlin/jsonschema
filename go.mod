@@ -3,12 +3,12 @@ module github.com/kaptinlin/jsonschema
 go 1.26
 
 require (
-	github.com/kaptinlin/go-i18n v0.2.12
+	github.com/kaptinlin/go-i18n v0.3.0
 	github.com/stretchr/testify v1.11.1
 )
 
 require (
-	github.com/kaptinlin/messageformat-go v0.4.18 // indirect
+	github.com/kaptinlin/messageformat-go v0.4.19 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

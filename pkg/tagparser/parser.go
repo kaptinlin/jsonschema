@@ -4,6 +4,7 @@
 package tagparser
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -516,7 +517,7 @@ func typeToString(t reflect.Type) string {
 	case reflect.Slice:
 		return "[]" + typeToString(t.Elem())
 	case reflect.Array:
-		return "[" + string(rune(t.Len())) + "]" + typeToString(t.Elem())
+		return fmt.Sprintf("[%d]", t.Len()) + typeToString(t.Elem())
 	case reflect.Map:
 		return "map[" + typeToString(t.Key()) + "]" + typeToString(t.Elem())
 	case reflect.Chan:
