@@ -121,7 +121,7 @@ func processUser(schema *jsonschema.Schema, data any, localizer *i18n.Localizer)
 		localizedErrors := result.ToLocalizeList(localizer)
 		var errMsg strings.Builder
 		for field, message := range localizedErrors.Errors {
-			errMsg.WriteString(fmt.Sprintf("%s: %s; ", field, message))
+			fmt.Fprintf(&errMsg, "%s: %s; ", field, message)
 		}
 		return fmt.Errorf("%w: %s", ErrValidationFailed, errMsg.String())
 	}

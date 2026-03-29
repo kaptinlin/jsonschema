@@ -44,7 +44,7 @@ func NewStructAnalyzer() (*StructAnalyzer, error) {
 // AnalyzePackage analyzes all Go files in a package directory
 func (a *StructAnalyzer) AnalyzePackage(pkgPath string) ([]*GenerationInfo, error) {
 	// Parse all Go files in the package
-	astPkgs, err := parser.ParseDir(a.fset, pkgPath, nil, parser.ParseComments)
+	astPkgs, err := parser.ParseDir(a.fset, pkgPath, nil, parser.ParseComments) //nolint:staticcheck
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse package %s: %w", pkgPath, err)
 	}
