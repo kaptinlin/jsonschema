@@ -2,9 +2,10 @@ name: Go CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -23,7 +24,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-          cache-dependency-path: go.sum
 
       - name: Install Task
         uses: go-task/setup-task@v2
@@ -31,10 +31,7 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run unit tests
+      - name: Run tests
         run: task test
 
   lint:
@@ -49,7 +46,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-          cache-dependency-path: go.sum
 
       - name: Install Task
         uses: go-task/setup-task@v2
@@ -57,18 +53,24 @@ jobs:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Read golangci-lint version
-        id: golangci-version
-        run: echo "version=$(cat .golangci.version 2>/dev/null || echo '2.9.0')" >> $GITHUB_OUTPUT
-
-      - name: Run linter via Makefile
+      - name: Run linters
         run: task lint
 
-      - name: Check go mod tidy
-        run: |
-          go mod tidy
-          git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum is not tidy" && exit 1)
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...

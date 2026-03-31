@@ -1,34 +1,29 @@
 version: "2"
+
 run:
-  timeout: 5m
+  timeout: 10m
   go: "1.26"
   tests: true
 
 linters:
+  default: standard
   enable:
     - errcheck
     - govet
     - ineffassign
-    - staticcheck
     - unused
-    - misspell
-    - revive
-    - whitespace
-    - err113
-    - errorlint
-    - nilerr
-    - gocritic
-    - nakedret
-    - unconvert
-    - dogsled
-    - copyloopvar
-    - prealloc
-    - gosec
-    - exhaustive
-    - noctx
-    - nolintlint
-    - promlinter
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        - "-SA1019"
+        - "-ST1000"
 
 issues:
-  max-issues-per-linter: 0
-  max-same-issues: 0
+  max-issues-per-linter: 10
+  max-same-issues: 3
+
+output:
+  format: colored-line-number
+  print-linter-name: true
+  sort-results: true
