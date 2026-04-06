@@ -3,7 +3,7 @@ module github.com/kaptinlin/jsonschema
 go 1.26.1
 
 require (
-	github.com/kaptinlin/go-i18n v0.3.0
+	github.com/kaptinlin/go-i18n v0.3.1
 	github.com/stretchr/testify v1.11.1
 )
 
