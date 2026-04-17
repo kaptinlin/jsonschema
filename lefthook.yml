@@ -1,0 +1,36 @@
+# Lefthook configuration
+# https://github.com/evilmartians/lefthook
+#
+# Install: lefthook install
+# Run:     lefthook run pre-commit
+
+output:
+  - summary
+  - failure
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: trailing-whitespace
+      glob: "*.{go,yml,yaml,json,md,mod,sum}"
+      stage_fixed: true
+      run: sed -i '' 's/[[:space:]]*$//' {staged_files}
+
+    - name: gitleaks
+      run: gitleaks protect --staged --no-banner
+
+    - name: lint
+      glob: "*.go"
+      run: task lint
+
+    - name: test
+      glob: "*.go"
+      run: task test
+
+    - name: markdownlint
+      glob: "*.md"
+      run: markdownlint-cli2 {staged_files}
+
+    - name: yamllint
+      glob: "*.{yml,yaml}"
+      run: yamllint -s {staged_files}

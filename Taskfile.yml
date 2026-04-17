@@ -116,6 +116,21 @@ tasks:
       - go mod tidy
       - git diff --exit-code -- go.mod go.sum
 
+  markdownlint:
+    desc: Run markdownlint
+    cmds:
+      - markdownlint-cli2 "**/*.md"
+
+  yamllint:
+    desc: Run yamllint
+    cmds:
+      - yamllint -s .
+
+  vuln:
+    desc: Run govulncheck
+    cmds:
+      - govulncheck ./...
+
   fmt:
     desc: Format Go code
     cmds:
@@ -129,11 +144,12 @@ tasks:
       - go vet ./...
 
   verify:
-    desc: Run all verification steps (deps, format, vet, lint, test)
+    desc: Run all verification steps (deps, format, vet, lint, test, vuln)
     cmds:
       - task: deps
       - task: fmt
       - task: vet
       - task: lint
       - task: test
+      - task: vuln
       - echo "All verification steps completed successfully ✅"

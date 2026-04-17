@@ -1,0 +1,29 @@
+extends: default
+
+rules:
+  line-length:
+    max: 200
+    level: warning
+
+  indentation:
+    spaces: 2
+    indent-sequences: true
+
+  comments:
+    require-starting-space: true
+    min-spaces-from-content: 1
+
+  document-start: disable
+
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false
+
+ignore: |
+  node_modules/
+  vendor/
+  .git/
+  .references/
+  .agents/
+  .claude/
+  testdata/

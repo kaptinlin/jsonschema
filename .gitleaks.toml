@@ -1,0 +1,11 @@
+title = "gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''\.references/''',
+  '''testdata/''',
+  '''vendor/''',
+]
