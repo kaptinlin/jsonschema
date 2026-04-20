@@ -638,9 +638,7 @@ func TestNestedStructValidation(t *testing.T) {
 
 	// Generate schema from struct tags
 	schema, err := FromStruct[Profile]()
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	userData := Profile{Name: "John Doe", Email: "john.doe@example.com", Age: 25,
 		Params: []Parameter{
 			{

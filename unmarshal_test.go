@@ -59,7 +59,7 @@ func TestUnmarshalBasicTypes(t *testing.T) {
 			expected: User{
 				ID:        1,
 				Name:      "Anonymous",
-				CreatedAt: parseTime("2025-01-01T00:00:00Z"),
+				CreatedAt: parseTime(t, "2025-01-01T00:00:00Z"),
 				Active:    true,
 			},
 		},
@@ -72,7 +72,7 @@ func TestUnmarshalBasicTypes(t *testing.T) {
 			expected: User{
 				ID:        2,
 				Name:      "John",
-				CreatedAt: parseTime("2025-01-01T00:00:00Z"),
+				CreatedAt: parseTime(t, "2025-01-01T00:00:00Z"),
 				Active:    true,
 			},
 		},
@@ -85,7 +85,7 @@ func TestUnmarshalBasicTypes(t *testing.T) {
 			expected: User{
 				ID:        3,
 				Name:      "Jane",
-				CreatedAt: parseTime("2025-01-01T00:00:00Z"),
+				CreatedAt: parseTime(t, "2025-01-01T00:00:00Z"),
 				Active:    true,
 			},
 		},
@@ -659,12 +659,13 @@ func BenchmarkUnmarshal(b *testing.B) {
 }
 
 // Helper function to parse time strings for tests
-func parseTime(timeStr string) time.Time {
-	t, err := time.Parse(time.RFC3339, timeStr)
-	if err != nil {
-		panic(err)
-	}
-	return t
+func parseTime(t testing.TB, timeStr string) time.Time {
+	t.Helper()
+
+	parsed, err := time.Parse(time.RFC3339, timeStr)
+	require.NoError(t, err)
+
+	return parsed
 }
 
 // TestUnmarshalSliceOfStructs tests unmarshaling arrays of structured data
