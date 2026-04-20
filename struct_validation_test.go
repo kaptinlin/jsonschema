@@ -632,6 +632,36 @@ func TestAdvancedSchemaFeatures(t *testing.T) {
 		}
 	})
 
+	t.Run("patternProperties invalid struct field", func(t *testing.T) {
+		type TestStruct struct {
+			Foo string `json:"foo"`
+		}
+
+		schema := compileTestSchema(t, `{
+			"type": "object",
+			"patternProperties": {
+				"^foo": {"type": "string", "minLength": 3}
+			}
+		}`)
+
+		result := schema.Validate(TestStruct{Foo: "no"})
+		if result.IsValid() {
+			t.Fatal("Expected validation to fail for invalid patternProperties on struct field")
+		}
+		if _, ok := result.Errors["properties"]; !ok {
+			t.Fatalf("Expected top-level properties error, got %v", result.Errors)
+		}
+		if len(result.Details) != 1 {
+			t.Fatalf("Expected 1 detail, got %d", len(result.Details))
+		}
+		if result.Details[0].EvaluationPath != "/patternProperties/foo" {
+			t.Fatalf("Expected evaluation path /patternProperties/foo, got %q", result.Details[0].EvaluationPath)
+		}
+		if result.Details[0].InstanceLocation != "/foo" {
+			t.Fatalf("Expected instance location /foo, got %q", result.Details[0].InstanceLocation)
+		}
+	})
+
 	t.Run("additionalProperties false", func(t *testing.T) {
 		type TestStruct struct {
 			Name string `json:"name"`
@@ -650,6 +680,16 @@ func TestAdvancedSchemaFeatures(t *testing.T) {
 		result := schema.Validate(data)
 		if result.IsValid() {
 			t.Error("Expected validation to fail for additionalProperties: false")
+		}
+		found := false
+		for _, detail := range result.Details {
+			if detail.EvaluationPath == "/additionalProperties/age" && detail.InstanceLocation == "/age" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("Expected additionalProperties detail for age, got %+v", result.Details)
 		}
 	})
 
@@ -670,6 +710,19 @@ func TestAdvancedSchemaFeatures(t *testing.T) {
 		result := schema.Validate(data)
 		if result.IsValid() {
 			t.Error("Expected validation to fail for propertyNames constraint")
+		}
+		if len(result.Details) != 2 {
+			t.Fatalf("Expected 2 details, got %d", len(result.Details))
+		}
+		found := false
+		for _, detail := range result.Details {
+			if detail.EvaluationPath == "/propertyNames/bbb" && detail.InstanceLocation == "/bbb" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("Expected propertyNames detail for bbb, got %+v", result.Details)
 		}
 	})
 
