@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/kaptinlin/go-i18n"
+
 	"github.com/kaptinlin/jsonschema"
 )
 

@@ -36,7 +36,6 @@ func evaluateUnevaluatedProperties(
 			// If property has not been evaluated, validate it against the "unevaluatedProperties" schema.
 			result, _, _ := schema.UnevaluatedProperties.evaluate(propValue, dynamicScope)
 			if result != nil {
-				//nolint:errcheck
 				result.SetEvaluationPath("/unevaluatedProperties").
 					SetSchemaLocation(schema.SchemaLocation("/unevaluatedProperties")).
 					SetInstanceLocation(fmt.Sprintf("/%s", propName))

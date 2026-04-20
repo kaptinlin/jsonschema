@@ -3,9 +3,10 @@ package main
 import (
 	"testing"
 
-	"github.com/kaptinlin/jsonschema/pkg/tagparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kaptinlin/jsonschema/pkg/tagparser"
 )
 
 // Basic Reference Tests
@@ -23,7 +24,7 @@ func TestCodeGenerator_BasicReferences(t *testing.T) {
 		Required: true,
 	}
 
-	property, err := generator.generateFieldProperty(field)
+	property, err := generator.generateFieldProperty(&field)
 	require.NoError(t, err, "generateFieldProperty should succeed")
 
 	// Should generate direct method call for simple references

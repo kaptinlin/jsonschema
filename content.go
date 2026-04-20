@@ -65,7 +65,6 @@ func evaluateContent(schema *Schema, instance any, _ map[string]bool, _ map[int]
 	if schema.ContentSchema != nil {
 		result, _, _ := schema.ContentSchema.evaluate(parsedValue, dynamicScope)
 		if result != nil {
-			//nolint:errcheck
 			result.SetEvaluationPath("/contentSchema").
 				SetSchemaLocation(schema.SchemaLocation("/contentSchema"))
 

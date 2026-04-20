@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/go-json-experiment/json"
+
 	"github.com/kaptinlin/jsonschema"
 )
 

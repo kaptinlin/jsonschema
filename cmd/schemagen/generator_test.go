@@ -3,9 +3,10 @@ package main
 import (
 	"testing"
 
-	"github.com/kaptinlin/jsonschema/pkg/tagparser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kaptinlin/jsonschema/pkg/tagparser"
 )
 
 // Test helpers following DRY principle
@@ -125,7 +126,8 @@ func TestCodeGenerator_ComplexDataTypeGeneration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schema, err := generator.generateFieldSchema(tt.field)
+			field := tt.field
+			schema, err := generator.generateFieldSchema(&field)
 			require.NoError(t, err, "generateFieldSchema should succeed")
 			assert.Contains(t, schema, tt.expected, "schema should contain expected substring")
 		})
@@ -181,7 +183,8 @@ func TestCodeGenerator_AdvancedArrayFeatures(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			property, err := generator.generateFieldProperty(tt.field)
+			field := tt.field
+			property, err := generator.generateFieldProperty(&field)
 			require.NoError(t, err, "generateFieldProperty should succeed")
 			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
@@ -237,7 +240,8 @@ func TestCodeGenerator_AdvancedObjectFeatures(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			property, err := generator.generateFieldProperty(tt.field)
+			field := tt.field
+			property, err := generator.generateFieldProperty(&field)
 			require.NoError(t, err, "generateFieldProperty should succeed")
 			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
@@ -305,7 +309,8 @@ func TestCodeGenerator_LogicalCombinations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			property, err := generator.generateFieldProperty(tt.field)
+			field := tt.field
+			property, err := generator.generateFieldProperty(&field)
 			require.NoError(t, err, "generateFieldProperty should succeed")
 			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
@@ -361,7 +366,8 @@ func TestCodeGenerator_ConditionalLogic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			property, err := generator.generateFieldProperty(tt.field)
+			field := tt.field
+			property, err := generator.generateFieldProperty(&field)
 			require.NoError(t, err, "generateFieldProperty should succeed")
 			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
@@ -418,7 +424,8 @@ func TestCodeGenerator_MetadataAnnotations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			property, err := generator.generateFieldProperty(tt.field)
+			field := tt.field
+			property, err := generator.generateFieldProperty(&field)
 			require.NoError(t, err, "generateFieldProperty should succeed")
 			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})
@@ -474,7 +481,8 @@ func TestCodeGenerator_ContentValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			property, err := generator.generateFieldProperty(tt.field)
+			field := tt.field
+			property, err := generator.generateFieldProperty(&field)
 			require.NoError(t, err, "generateFieldProperty should succeed")
 			assert.Contains(t, property, tt.expectedSubstring, "property should contain expected substring")
 		})

@@ -53,7 +53,7 @@ func quotedValidator(funcName string) ValidatorGenerator {
 		if len(params) == 0 {
 			return ""
 		}
-		return fmt.Sprintf("jsonschema.%s(\"%s\")", funcName, params[0])
+		return fmt.Sprintf("jsonschema.%s(%q)", funcName, params[0])
 	}
 }
 
@@ -165,7 +165,8 @@ func (g *CodeGenerator) generateStructCode(structInfo *GenerationInfo) error {
 	var properties []string
 	var requiredFields []string
 
-	for _, field := range structInfo.Fields {
+	for i := range structInfo.Fields {
+		field := &structInfo.Fields[i]
 		propertyCode, err := g.generateFieldProperty(field)
 		if err != nil {
 			return fmt.Errorf("failed to generate property for field %s: %w", field.Name, err)
@@ -177,7 +178,7 @@ func (g *CodeGenerator) generateStructCode(structInfo *GenerationInfo) error {
 
 		// Collect required fields
 		if field.Required {
-			requiredFields = append(requiredFields, fmt.Sprintf("\"%s\"", field.JSONName))
+			requiredFields = append(requiredFields, fmt.Sprintf("%q", field.JSONName))
 		}
 	}
 
@@ -228,7 +229,7 @@ func (g *CodeGenerator) generateDefinition(structName string) (*DefData, error) 
 }
 
 // generateFieldProperty generates a single property line for a field
-func (g *CodeGenerator) generateFieldProperty(field tagparser.FieldInfo) (string, error) {
+func (g *CodeGenerator) generateFieldProperty(field *tagparser.FieldInfo) (string, error) {
 	// Check for special schema rules that should become the base schema
 	var refRule, dynamicRefRule, enumRule, constRule *tagparser.TagRule
 	for _, rule := range field.Rules {
@@ -339,7 +340,7 @@ func (g *CodeGenerator) generateFieldProperty(field tagparser.FieldInfo) (string
 		}
 	}
 
-	return fmt.Sprintf("jsonschema.Prop(\"%s\", %s)", field.JSONName, schemaCode), nil
+	return fmt.Sprintf("jsonschema.Prop(%q, %s)", field.JSONName, schemaCode), nil
 }
 
 // applyRefTransformation applies $ref transformation to complex validators
@@ -643,7 +644,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			var values []string
 			for _, param := range params {
 				if strings.Contains(fieldType, "string") || fieldType == "string" {
-					values = append(values, fmt.Sprintf("\"%s\"", param))
+					values = append(values, fmt.Sprintf("%q", param))
 				} else {
 					values = append(values, param)
 				}
@@ -655,7 +656,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 				return ""
 			}
 			if strings.Contains(fieldType, "string") || fieldType == "string" {
-				return fmt.Sprintf("jsonschema.Const(\"%s\")", params[0])
+				return fmt.Sprintf("jsonschema.Const(%q)", params[0])
 			}
 			return fmt.Sprintf("jsonschema.Const(%s)", params[0])
 		},
@@ -713,7 +714,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 				} else {
 					// Handle as a literal value (like string enums)
 					if strings.Contains(fieldType, "string") || fieldType == "string" {
-						schemas = append(schemas, fmt.Sprintf("jsonschema.Const(\"%s\")", schemaType))
+						schemas = append(schemas, fmt.Sprintf("jsonschema.Const(%q)", schemaType))
 					} else {
 						schemas = append(schemas, schemaType)
 					}
@@ -796,7 +797,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			}
 			var fields []string
 			for _, field := range params {
-				fields = append(fields, fmt.Sprintf("\"%s\"", field))
+				fields = append(fields, fmt.Sprintf("%q", field))
 			}
 			return fmt.Sprintf("jsonschema.DependentRequired(%s)", strings.Join(fields, ", "))
 		},
@@ -821,7 +822,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 					schemaCode = schemaType
 				}
 
-				return fmt.Sprintf("jsonschema.DependentSchemas(map[string]*jsonschema.Schema{\"%s\": %s})", property, schemaCode)
+				return fmt.Sprintf("jsonschema.DependentSchemas(map[string]*jsonschema.Schema{%q: %s})", property, schemaCode)
 			}
 			return ""
 		},
@@ -836,7 +837,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			for _, param := range params {
 				// Determine if we need to quote the example based on field type
 				if strings.Contains(fieldType, "string") || fieldType == "string" {
-					values = append(values, fmt.Sprintf("\"%s\"", param))
+					values = append(values, fmt.Sprintf("%q", param))
 				} else {
 					values = append(values, param)
 				}
@@ -853,7 +854,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			// Handle different types for default values
 			switch {
 			case strings.Contains(fieldType, "string") || fieldType == "string":
-				return fmt.Sprintf("jsonschema.Default(\"%s\")", params[0])
+				return fmt.Sprintf("jsonschema.Default(%q)", params[0])
 			case strings.Contains(fieldType, "bool") || fieldType == "bool":
 				return fmt.Sprintf("jsonschema.Default(%s)", params[0])
 			case strings.Contains(fieldType, "int") || strings.Contains(fieldType, "float") ||
@@ -861,7 +862,7 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 				return fmt.Sprintf("jsonschema.Default(%s)", params[0])
 			default:
 				// For other types, treat as string
-				return fmt.Sprintf("jsonschema.Default(\"%s\")", params[0])
+				return fmt.Sprintf("jsonschema.Default(%q)", params[0])
 			}
 		},
 		// Content validation (using helper functions)
@@ -896,10 +897,10 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			var defsMap []string
 			for _, defName := range params {
 				if isCustomStructType(defName) {
-					defsMap = append(defsMap, fmt.Sprintf("\"%s\": (&%s{}).Schema()", defName, defName))
+					defsMap = append(defsMap, fmt.Sprintf("%q: (&%s{}).Schema()", defName, defName))
 				} else {
 					// Handle as a reference to existing definition
-					defsMap = append(defsMap, fmt.Sprintf("\"%s\": jsonschema.Ref(\"#/$defs/%s\")", defName, defName))
+					defsMap = append(defsMap, fmt.Sprintf("%q: jsonschema.Ref(%q)", defName, "#/$defs/"+defName))
 				}
 			}
 			if len(defsMap) > 0 {
@@ -914,13 +915,13 @@ func createValidatorMapping() map[string]ValidatorGenerator {
 			dynamicRefURI := params[0]
 			// Since there's no direct DynamicRef constructor, we'll create a schema with DynamicRef field
 			// This requires generating more complex code
-			return fmt.Sprintf("&jsonschema.Schema{DynamicRef: \"%s\"}", dynamicRefURI)
+			return fmt.Sprintf("&jsonschema.Schema{DynamicRef: %q}", dynamicRefURI)
 		},
 	}
 }
 
 // generateFieldSchema generates schema code for a single field
-func (g *CodeGenerator) generateFieldSchema(field tagparser.FieldInfo) (string, error) {
+func (g *CodeGenerator) generateFieldSchema(field *tagparser.FieldInfo) (string, error) {
 	typeName := field.TypeName
 
 	// Handle pointer types (remove * prefix)
@@ -961,14 +962,14 @@ func (g *CodeGenerator) generateFieldSchema(field tagparser.FieldInfo) (string, 
 }
 
 // generateArraySchema generates schema for array/slice types with proper Items support
-func (g *CodeGenerator) generateArraySchema(_ string, _ tagparser.FieldInfo) (string, error) {
+func (g *CodeGenerator) generateArraySchema(_ string, _ *tagparser.FieldInfo) (string, error) {
 	// For arrays, always return jsonschema.Array
 	// The items constraint will be handled by the items validator in the validator rules
 	return "jsonschema.Array", nil
 }
 
 // generateMapSchema generates schema for map types with proper AdditionalProperties support
-func (g *CodeGenerator) generateMapSchema(_ string, field tagparser.FieldInfo) (string, error) {
+func (g *CodeGenerator) generateMapSchema(_ string, field *tagparser.FieldInfo) (string, error) {
 	// Check if patternProperties is specified - if so, don't add additionalProperties
 	for _, rule := range field.Rules {
 		if rule.Name == "patternProperties" {

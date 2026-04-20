@@ -31,7 +31,6 @@ func valuesEqual(a, b any) bool {
 
 // isNumeric checks if a reflect.Value represents a numeric type
 func isNumeric(v reflect.Value) bool {
-	//nolint:exhaustive // Only checking for numeric types
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,

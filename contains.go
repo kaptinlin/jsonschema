@@ -31,7 +31,6 @@ func evaluateContains(
 		result, _, _ := schema.Contains.evaluate(item, dynamicScope)
 
 		if result != nil {
-			//nolint:errcheck
 			result.SetEvaluationPath("/contains").
 				SetSchemaLocation(schema.SchemaLocation("/contains")).
 				SetInstanceLocation(fmt.Sprintf("/%d", i))

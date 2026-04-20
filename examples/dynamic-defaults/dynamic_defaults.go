@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/google/uuid"
+
 	jsonschema "github.com/kaptinlin/jsonschema"
 )
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
+
 	"github.com/kaptinlin/jsonschema"
 )
 

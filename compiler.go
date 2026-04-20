@@ -180,7 +180,7 @@ func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loading schema from %s: %w", url, err)
 	}
-	defer body.Close() //nolint:errcheck
+	defer func() { _ = body.Close() }()
 
 	data, err := io.ReadAll(body)
 	if err != nil {

@@ -31,7 +31,6 @@ func (s *Schema) ValidateJSON(data []byte) *EvaluationResult {
 	parsed, err := s.parseJSONData(data)
 	if err != nil {
 		result := NewEvaluationResult(s)
-		//nolint:errcheck
 		result.AddError(NewEvaluationError("format", "invalid_json", "Invalid JSON format"))
 		return result
 	}
@@ -60,7 +59,8 @@ func (s *Schema) ValidateMap(data map[string]any) *EvaluationResult {
 // parseJSONData safely parses []byte data as JSON
 func (s *Schema) parseJSONData(data []byte) (any, error) {
 	var parsed any
-	return parsed, s.Compiler().jsonDecoder(data, &parsed)
+	err := s.Compiler().jsonDecoder(data, &parsed)
+	return parsed, err
 }
 
 // processJSONBytes handles []byte input with smart JSON parsing
@@ -103,7 +103,6 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 	// Handle boolean schema
 	if s.Boolean != nil {
 		if err := s.evaluateBoolean(instance, evaluatedProps, evaluatedItems); err != nil {
-			//nolint:errcheck
 			result.AddError(err)
 		}
 		return result, evaluatedProps, evaluatedItems
@@ -150,7 +149,6 @@ type jsonParseError struct {
 func (s *Schema) processReferences(instance any, dynamicScope *DynamicScope, result *EvaluationResult, evaluatedProps map[string]bool, evaluatedItems map[int]bool) {
 	// Handle JSON parse errors
 	if _, ok := instance.(*jsonParseError); ok {
-		//nolint:errcheck
 		result.AddError(NewEvaluationError("format", "invalid_json", "Invalid JSON format in byte array"))
 		return
 	}
@@ -159,10 +157,8 @@ func (s *Schema) processReferences(instance any, dynamicScope *DynamicScope, res
 	if s.ResolvedRef != nil {
 		refResult, props, items := s.ResolvedRef.evaluate(instance, dynamicScope)
 		if refResult != nil {
-			//nolint:errcheck
 			result.AddDetail(refResult)
 			if !refResult.IsValid() {
-				//nolint:errcheck
 				result.AddError(NewEvaluationError("$ref", "ref_mismatch", "Value does not match the reference schema"))
 			}
 		}
@@ -191,10 +187,8 @@ func (s *Schema) processDynamicRef(instance any, dynamicScope *DynamicScope, res
 
 	dynamicRefResult, props, items := anchorSchema.evaluate(instance, dynamicScope)
 	if dynamicRefResult != nil {
-		//nolint:errcheck
 		result.AddDetail(dynamicRefResult)
 		if !dynamicRefResult.IsValid() {
-			//nolint:errcheck
 			result.AddError(NewEvaluationError("$dynamicRef", "dynamic_ref_mismatch", "Value does not match the dynamic reference schema"))
 		}
 	}
@@ -239,7 +233,6 @@ func (s *Schema) processBasicValidationWithoutRefs(instance any, result *Evaluat
 
 	if s.Format != nil {
 		if err := evaluateFormat(s, instance); err != nil {
-			//nolint:errcheck
 			result.AddError(err)
 		}
 	}
@@ -259,21 +252,18 @@ func (s *Schema) processBasicValidationWithoutRefs(instance any, result *Evaluat
 func (s *Schema) processBasicValidation(instance any, result *EvaluationResult) {
 	if s.Type != nil {
 		if err := evaluateType(s, instance); err != nil {
-			//nolint:errcheck
 			result.AddError(err)
 		}
 	}
 
 	if s.Enum != nil {
 		if err := evaluateEnum(s, instance); err != nil {
-			//nolint:errcheck
 			result.AddError(err)
 		}
 	}
 
 	if s.Const != nil {
 		if err := evaluateConst(s, instance); err != nil {
-			//nolint:errcheck
 			result.AddError(err)
 		}
 	}
@@ -299,11 +289,9 @@ func (s *Schema) processLogicalOperations(instance any, dynamicScope *DynamicSco
 	if s.Not != nil {
 		evalResult, err := evaluateNot(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 		if evalResult != nil {
-			//nolint:errcheck
 			result.AddDetail(evalResult)
 		}
 		if err != nil {
-			//nolint:errcheck
 			result.AddError(err)
 		}
 	}
@@ -339,7 +327,6 @@ func (s *Schema) processTypeSpecificValidation(instance any, dynamicScope *Dynam
 
 	if s.Format != nil {
 		if err := evaluateFormat(s, instance); err != nil {
-			//nolint:errcheck
 			result.AddError(err)
 		}
 	}
@@ -365,11 +352,9 @@ func (s *Schema) processContentValidation(instance any, dynamicScope *DynamicSco
 	if s.ContentEncoding != nil || s.ContentMediaType != nil || s.ContentSchema != nil {
 		contentResult, err := evaluateContent(s, instance, evaluatedProps, evaluatedItems, dynamicScope)
 		if contentResult != nil {
-			//nolint:errcheck
 			result.AddDetail(contentResult)
 		}
 		if err != nil {
-			//nolint:errcheck
 			result.AddError(err)
 		}
 	}
@@ -413,18 +398,15 @@ func (s *Schema) hasObjectValidation() bool {
 // Helper methods for adding results and errors.
 func (s *Schema) addResultsAndError(result *EvaluationResult, results []*EvaluationResult, err *EvaluationError) {
 	for _, res := range results {
-		//nolint:errcheck
 		result.AddDetail(res)
 	}
 	if err != nil {
-		//nolint:errcheck
 		result.AddError(err)
 	}
 }
 
 func (s *Schema) addResultsAndErrors(result *EvaluationResult, results []*EvaluationResult, errors []*EvaluationError) {
 	for _, res := range results {
-		//nolint:errcheck
 		result.AddDetail(res)
 	}
 	s.addErrors(result, errors)
@@ -432,7 +414,6 @@ func (s *Schema) addResultsAndErrors(result *EvaluationResult, results []*Evalua
 
 func (s *Schema) addErrors(result *EvaluationResult, errors []*EvaluationError) {
 	for _, err := range errors {
-		//nolint:errcheck
 		result.AddError(err)
 	}
 }
@@ -916,7 +897,6 @@ func (s *Schema) checkAdditionalPropertiesForCircular(object map[string]any, res
 			if allowedProps[prop] {
 				evaluatedProps[prop] = true
 			} else {
-				//nolint:errcheck
 				result.AddError(NewEvaluationError("additionalProperties", "additional_property_false",
 					"Additional property '{property}' not allowed", map[string]any{
 						"property": prop,

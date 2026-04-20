@@ -44,7 +44,6 @@ func evaluateAdditionalProperties(
 			if !properties[propName] {
 				result, _, _ := schema.AdditionalProperties.evaluate(propValue, dynamicScope)
 				if result != nil {
-					//nolint:errcheck
 					result.SetEvaluationPath(fmt.Sprintf("/additionalProperties/%s", propName)).
 						SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/additionalProperties/%s", propName))).
 						SetInstanceLocation(fmt.Sprintf("/%s", propName))

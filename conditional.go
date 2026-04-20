@@ -26,7 +26,6 @@ func evaluateConditional(
 	var results []*EvaluationResult
 
 	if ifResult != nil {
-		//nolint:errcheck
 		ifResult.SetEvaluationPath("/if").
 			SetSchemaLocation(schema.SchemaLocation("/if"))
 
@@ -41,7 +40,6 @@ func evaluateConditional(
 				thenResult, thenEvaluatedProps, thenEvaluatedItems := schema.Then.evaluate(instance, dynamicScope)
 
 				if thenResult != nil {
-					//nolint:errcheck
 					thenResult.SetEvaluationPath("/then").
 						SetSchemaLocation(schema.SchemaLocation("/then"))
 

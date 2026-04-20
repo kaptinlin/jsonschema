@@ -67,7 +67,6 @@ func evaluatePatternProperties(
 				// Evaluate the property value directly using the associated schema or boolean.
 				result, _, _ := patternSchema.evaluate(propValue, dynamicScope)
 				if result != nil {
-					//nolint:errcheck
 					result.SetEvaluationPath(fmt.Sprintf("/patternProperties/%s", propName)).
 						SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/patternProperties/%s", propName))).
 						SetInstanceLocation(fmt.Sprintf("/%s", propName))

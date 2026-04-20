@@ -3,9 +3,10 @@ package tests
 import (
 	"testing"
 
-	"github.com/kaptinlin/jsonschema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kaptinlin/jsonschema"
 )
 
 // TestFormatForTestSuite executes the format validation tests for Schema Test Suite.

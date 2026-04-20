@@ -356,14 +356,15 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 		return nil, fmt.Errorf("%w: %w", ErrStructTagParsing, err)
 	}
 
-	for _, fieldInfo := range fieldInfos {
+	for i := range fieldInfos {
+		fieldInfo := &fieldInfos[i]
 		// Skip fields without tags unless explicitly allowed or promoted from embedding
 		if !g.options.AllowUntaggedFields && fieldInfo.Tag == "" && !fieldInfo.IsPromoted {
 			continue
 		}
 
 		// Generate schema for this field using reused schemagen logic
-		fieldSchema, err := g.generateFieldSchemaWithValidators(structType, &fieldInfo)
+		fieldSchema, err := g.generateFieldSchemaWithValidators(structType, fieldInfo)
 		if err != nil {
 			return nil, err
 		}

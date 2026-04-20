@@ -38,7 +38,6 @@ func evaluateItems(
 			item := array[i]
 			result, _, _ := schema.Items.evaluate(item, dynamicScope)
 			if result != nil {
-				//nolint:errcheck
 				result.SetEvaluationPath(fmt.Sprintf("/items/%d", i)).
 					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/items/%d", i))).
 					SetInstanceLocation(fmt.Sprintf("/%d", i))

@@ -3,8 +3,9 @@ package jsonschema_test
 import (
 	"testing"
 
-	"github.com/kaptinlin/jsonschema"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/kaptinlin/jsonschema"
 )
 
 func TestStringKeywords(t *testing.T) {

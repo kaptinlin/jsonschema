@@ -85,8 +85,7 @@ func IsTime(v any) bool {
 	// golang time package does not support leap seconds.
 	// so we are parsing it manually here.
 
-	// hh:mm:ss
-	// 01234567
+	// Expect hh:mm:ss at the start.
 	if len(str) < 9 || str[2] != ':' || str[5] != ':' {
 		return false
 	}
@@ -221,7 +220,7 @@ func IsDuration(v any) bool {
 		return len(s) == 0 // P_W
 	}
 	if len(units) > 0 {
-		if !strings.Contains("YMD", units) { //nolint:gocritic
+		if !containsOrderedUnits(units, "YMD") {
 			return false
 		}
 		if len(s) == 0 {
@@ -233,7 +232,11 @@ func IsDuration(v any) bool {
 	}
 	s = s[1:]
 	units, ok = parseUnits()
-	return ok && len(s) == 0 && len(units) > 0 && strings.Contains("HMS", units) //nolint:gocritic
+	return ok && len(s) == 0 && len(units) > 0 && containsOrderedUnits(units, "HMS")
+}
+
+func containsOrderedUnits(units, allowed string) bool {
+	return strings.Contains(allowed, units)
 }
 
 // IsPeriod tells whether given string is a valid period format

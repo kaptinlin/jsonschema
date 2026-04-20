@@ -1,29 +1,95 @@
+# golangci-lint v2 — canonical config for this ecosystem.
+# Owner: golangci-linting skill. Do not fork or override per-project
+# without amending the skill.
 version: "2"
 
 run:
-  timeout: 10m
-  go: "1.26"
-  tests: true
+  timeout: 5m
+  go: "1.26.2"
 
 linters:
+  # `standard` = errcheck, govet, ineffassign, staticcheck, unused.
   default: standard
   enable:
-    - errcheck
-    - govet
-    - ineffassign
-    - unused
+    # --- Error vocabulary ----------------------------------------------
+    - errname
+    - errorlint
+    - nilerr
+    # --- Switch totality -----------------------------------------------
+    - exhaustive
+    # --- Code quality --------------------------------------------------
+    - gocritic
+    - revive
+    - misspell
+    - nakedret
+    - whitespace
+    - prealloc
+    # --- Resource & context safety -------------------------------------
+    - bodyclose
+    - noctx
+    # --- Security ------------------------------------------------------
+    - gosec
+    # --- Suppression hygiene -------------------------------------------
+    - nolintlint
+
   settings:
-    staticcheck:
-      checks:
-        - "all"
-        - "-SA1019"
-        - "-ST1000"
+    exhaustive:
+      # A `default:` clause that calls panic("unreachable") satisfies
+      # totality. Required by library-panic-optimizing.
+      default-signifies-exhaustive: true
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+
+    revive:
+      rules:
+        - name: exported
+          arguments: [disableStutteringCheck]
+        - name: if-return
+        - name: error-return
+        - name: error-naming
+        - name: error-strings
+        - name: var-naming
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: indent-error-flow
+        - name: superfluous-else
+        - name: unreachable-code
+
+    nakedret:
+      max-func-lines: 30
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+  exclusions:
+    # Generated files: do not lint.
+    generated: lax
+    # Test files: relax the linters that fight tests, keep the rest.
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - noctx
+          - bodyclose
+          - errname
+          - revive
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/kaptinlin/jsonschema
 
 issues:
-  max-issues-per-linter: 10
-  max-same-issues: 3
-
-output:
-  format: colored-line-number
-  print-linter-name: true
-  sort-results: true
+  max-issues-per-linter: 0
+  max-same-issues: 0

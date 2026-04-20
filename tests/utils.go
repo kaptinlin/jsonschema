@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-json-experiment/json"
+
 	"github.com/kaptinlin/jsonschema"
 )
 
@@ -49,7 +50,7 @@ func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusio
 	defer stopTestServer(server)
 
 	// Read the JSON file containing the test definitions.
-	data, err := os.ReadFile(filePath) //nolint:gosec
+	data, err := os.ReadFile(filePath) //nolint:gosec // Test code reads fixture paths controlled by the suite.
 	if err != nil {
 		t.Fatalf("Failed to read test file: %s", err)
 	}

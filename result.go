@@ -74,7 +74,6 @@ func NewEvaluationResult(schema *Schema) *EvaluationResult {
 		schema: schema,
 		Valid:  true,
 	}
-	//nolint:errcheck
 	e.CollectAnnotations()
 
 	return e
@@ -85,11 +84,6 @@ func (e *EvaluationResult) SetEvaluationPath(evaluationPath string) *EvaluationR
 	e.EvaluationPath = evaluationPath
 
 	return e
-}
-
-// Error returns a string representation of the evaluation failure.
-func (e *EvaluationResult) Error() string {
-	return "evaluation failed"
 }
 
 // SetSchemaLocation sets the schema location for this result

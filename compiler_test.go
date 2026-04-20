@@ -239,7 +239,7 @@ func TestRegisterLoader(t *testing.T) {
 func createTestSchemaJSON(id string, properties map[string]string, required []string) string {
 	propsStr := ""
 	for propName, propType := range properties {
-		propsStr += fmt.Sprintf(`"%s": {"type": "%s"},`, propName, propType)
+		propsStr += fmt.Sprintf(`%q: {"type": %q},`, propName, propType)
 	}
 	if len(propsStr) > 0 {
 		propsStr = propsStr[:len(propsStr)-1] // Remove the trailing comma
@@ -247,7 +247,7 @@ func createTestSchemaJSON(id string, properties map[string]string, required []st
 
 	reqStr := "["
 	for _, req := range required {
-		reqStr += fmt.Sprintf(`"%s",`, req)
+		reqStr += fmt.Sprintf(`%q,`, req)
 	}
 	if len(reqStr) > 1 {
 		reqStr = reqStr[:len(reqStr)-1] // Remove the trailing comma

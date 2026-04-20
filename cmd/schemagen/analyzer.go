@@ -44,6 +44,7 @@ func NewStructAnalyzer() (*StructAnalyzer, error) {
 // AnalyzePackage analyzes all Go files in a package directory
 func (a *StructAnalyzer) AnalyzePackage(pkgPath string) ([]*GenerationInfo, error) {
 	// Parse all Go files in the package
+	//nolint:staticcheck // schemagen parses source by directory and does not need build-tag aware package loading here.
 	astPkgs, err := parser.ParseDir(a.fset, pkgPath, nil, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse package %s: %w", pkgPath, err)
@@ -323,7 +324,8 @@ func isOptionalType(typeName string) bool {
 // NeedsGeneration checks if a struct needs code generation
 func (a *StructAnalyzer) NeedsGeneration(info *GenerationInfo) bool {
 	// Check if struct has fields with validation rules
-	for _, field := range info.Fields {
+	for i := range info.Fields {
+		field := &info.Fields[i]
 		if len(field.Rules) > 0 || field.Required {
 			return true
 		}

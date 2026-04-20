@@ -103,8 +103,8 @@ func (ra *ReferenceAnalyzer) analyzeStructDependencies(structInfo *GenerationInf
 	}
 
 	// Analyze each field for struct references
-	for _, field := range structInfo.Fields {
-		deps := ra.extractFieldDependencies(field)
+	for i := range structInfo.Fields {
+		deps := ra.extractFieldDependencies(&structInfo.Fields[i])
 		node.Fields = append(node.Fields, deps...)
 
 		// Add edges to dependency graph
@@ -122,7 +122,7 @@ func (ra *ReferenceAnalyzer) analyzeStructDependencies(structInfo *GenerationInf
 }
 
 // extractFieldDependencies extracts struct dependencies from a single field
-func (ra *ReferenceAnalyzer) extractFieldDependencies(field tagparser.FieldInfo) []FieldDependency {
+func (ra *ReferenceAnalyzer) extractFieldDependencies(field *tagparser.FieldInfo) []FieldDependency {
 	var dependencies []FieldDependency
 
 	// Use TypeName for analysis when Type is not available (e.g., in tests)
