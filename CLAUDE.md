@@ -1,124 +1,145 @@
-# CLAUDE.md
+# jsonschema
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+High-performance JSON Schema Draft 2020-12 validation for Go. The package combines a compiler, a direct validation API for JSON/maps/structs, default-aware unmarshaling, a fluent constructor API, and struct-tag-driven schema generation.
 
-## Project Overview
+For end-user installation and usage examples, see [README.md](README.md) and the guides in [docs/](docs/).
 
-This is a high-performance JSON Schema validator for Go that implements the JSON Schema Draft 2020-12 specification. The library provides direct struct validation, smart unmarshaling with defaults, and a separated validation workflow.
+## Commands
 
-## Key Architecture Components
+Run commands from this directory.
 
-### Core Components
+```bash
+task help          # Show available task targets
+task test          # Run all tests with the race detector
+task lint          # Run golangci-lint and go mod tidy checks
+task bench         # Run benchmarks
+task verify        # Run deps, fmt, vet, lint, test, and govulncheck
+```
 
-- **Compiler** (`compiler.go`): Central component for schema compilation and management. Handles schema caching, references, custom formats, and default functions.
-- **Schema** (`schema.go`): Represents compiled JSON Schema instances with all validation properties and metadata.
-- **Validator methods**: Type-specific validation methods (`ValidateJSON`, `ValidateStruct`, `ValidateMap`, `Validate`)
-- **Unmarshaler** (`unmarshal.go`): Handles data unmarshaling with default value application
+## Architecture
 
-### Code Generation Tool
+```text
+jsonschema/
+├── *.go                    # Core compiler, schema model, validators, constructor API, and unmarshal logic
+├── cmd/schemagen/          # Code generator for struct-tag-driven schemas
+├── docs/                   # Human-facing guides for API, validation, unmarshal, formats, and tags
+├── examples/               # Runnable examples for the major workflows
+├── pkg/tagparser/          # Shared struct-tag parsing used by runtime generation and schemagen
+├── tests/                  # Integration tests and official JSON Schema suite coverage
+└── testdata/               # Test fixtures and external suite data
+```
 
-- **schemagen** (`cmd/schemagen/`): Command-line tool for generating Schema methods from Go structs with jsonschema tags
-- **Generator** (`cmd/schemagen/generator.go`): Core generation logic
-- **Analyzer** (`cmd/schemagen/analyzer.go`): Struct analysis and tag parsing
+Key entry points:
 
-### Validation Keywords
+- `Compiler` in `compiler.go` — compiles schemas, manages references, loaders, formats, and default functions.
+- `Schema` in `schema.go` — holds the compiled schema graph and schema metadata.
+- Validation methods in `validate.go` — `Validate`, `ValidateJSON`, `ValidateStruct`, `ValidateMap`.
+- Unmarshal support in `unmarshal.go` — applies defaults without performing validation.
+- Constructor API in `constructor.go` and `keywords.go` — builds schemas directly in Go.
+- Struct-tag generation in `struct_tags.go` — generates schemas from Go types at runtime.
 
-Individual files implement JSON Schema validation keywords (e.g., `properties.go`, `required.go`, `type.go`, `format.go`, etc.)
+## Design Philosophy
 
-### Supporting Components
+- **KISS** — Model JSON Schema keywords directly on `Schema` and keep the public surface centered on compiler, schema, constructor, and struct-tag workflows.
+- **DRY** — Keep runtime validation, constructor keywords, struct-tag generation, and `cmd/schemagen` aligned to the same schema semantics instead of inventing parallel rule systems.
+- **YAGNI** — Prefer one clear API per workflow over layered convenience wrappers that duplicate behavior.
+- **APIs as language** — Constructor helpers should read like schema text: `Object`, `Prop`, `Required`, `If(...).Then(...).Else(...)`.
+- **Errors as teachers** — Return structured errors with keyword, field, and location context so callers can diagnose invalid schemas and payloads quickly.
+- **Never:** accidental complexity, feature gravity, abstraction theater, configurability cope.
 
-- **Struct Tags** (`struct_tags.go`): Parse jsonschema struct tags for validation rules
-- **Internationalization** (`i18n.go`, `locales/`): Multi-language error messages
-- **Custom Formats** (`format.go`, `formats.go`): Built-in and custom format validators
-- **Default Functions** (`default_funcs.go`): Dynamic default value generation
+## API Design Principles
 
-## Build and Development Commands
+- **Progressive Disclosure** — Keep `schema.Validate(...)` convenient, while exposing `ValidateJSON`, `ValidateStruct`, `ValidateMap`, compiler hooks, and constructor APIs for advanced cases.
 
-### Basic Commands
+## Coding Rules
 
-- `task test` - Run all tests with race detection
-- `task lint` - Run all linters (golangci-lint + go mod tidy check)
-- `task bench` - Run benchmarks
-- `task verify` - Run complete verification (deps + fmt + vet + lint + test)
+### Must Follow
 
-### Test Commands
+- Go 1.26.2 — use the modern features already present in this repository when they simplify code.
+- Keep validation and unmarshaling separate. `Schema.Unmarshal` applies defaults but must not silently become a validator.
+- Keep validation entry points behaviorally aligned. When a change affects validation semantics, add coverage for the relevant combination of `Validate`, `ValidateJSON`, `ValidateStruct`, and `ValidateMap`.
+- Preserve JSON Schema Draft 2020-12 semantics. `format` remains annotation-only unless the caller opts in with `Compiler.SetAssertFormat(true)`.
+- Keep constructor helpers chainable and close to JSON Schema vocabulary.
+- Preserve deterministic generated schema output unless an option explicitly allows otherwise, such as `RequiredSortNone`.
+- Reuse the modern stdlib/tooling patterns already in the codebase: `slices`, `maps`, `for range N`, and `testing.B.Loop()`.
+- Follow [Google Go Best Practices](https://google.github.io/go-style/best-practices).
+- Follow [Google Go Style Decisions](https://google.github.io/go-style/decisions).
 
-- `task test-unit` - Run unit tests only
-- `task test-coverage` - Generate coverage report (creates coverage.html)
-- `task test-verbose` - Run tests with verbose output
+### Forbidden
 
-### Code Quality
+- No `panic` in library code — return errors and wrap with context.
+- No silent behavior changes to `required`, `omitempty`, or `omitzero` semantics without targeted tests.
+- No duplicate validation logic paths that drift between JSON, map, and struct workflows.
+- No premature abstraction — three similar lines are better than a helper used once.
+- No feature creep — add only behavior the package needs today.
+- No working around dependency bugs — if a dependency is broken, report it instead of reimplementing it inline.
 
-- `task fmt` - Format Go code
-- `task vet` - Run go vet
-- `task clean` - Clean build artifacts and caches
-- `task deps` - Download and tidy Go module dependencies
+## Dependency Issue Reporting
 
-### Code Generation
+When you encounter a bug, limitation, or unexpected behavior in a dependency library:
 
-- `go install github.com/kaptinlin/jsonschema/cmd/schemagen@latest` - Install schemagen tool
-- `schemagen` - Generate schema methods for structs in current package
-- `schemagen [packages...]` - Generate for specific packages
+1. Do **not** work around it by reimplementing the dependency's functionality.
+2. Do **not** skip the dependency and write a private replacement inline.
+3. Create a report file at `reports/<dependency-name>.md`.
+4. Include the dependency name and version, the trigger scenario, expected vs actual behavior, relevant errors, and any non-code workaround suggestion.
+5. Continue with tasks that do not depend on the broken behavior.
 
-## Testing Structure
+## Testing
 
-- **Unit Tests**: Each validation keyword has corresponding test files (e.g., `required_test.go`)
-- **Integration Tests**: Located in `tests/` directory with comprehensive test cases
-- **Official Test Suite**: Uses JSON Schema Test Suite in `testdata/JSON-Schema-Test-Suite/`
-- **Benchmarks**: Performance tests using `go test -bench=.`
+- Tests use the standard `testing` package plus `testify` assertions.
+- Keep validation changes covered by targeted unit tests near the affected keyword or workflow.
+- Integration coverage lives in `tests/`, including the JSON Schema Test Suite fixtures under `tests/testdata/JSON-Schema-Test-Suite/`.
+- Keep examples under `examples/` runnable when public workflows change.
+- Benchmarks use `testing.B.Loop()` and live alongside the relevant implementation.
 
-## Key Patterns
-
-### Schema Compilation Pattern
-
-1. Create Compiler instance with `NewCompiler()`
-2. Register custom formats/functions if needed
-3. Compile schema with `compiler.Compile(schemaJSON)`
-4. Use compiled schema for validation/unmarshaling
-
-### Validation Workflow
-
-1. Validate data first using appropriate method (`ValidateJSON`, `ValidateStruct`, etc.)
-2. Check `result.IsValid()`
-3. If valid, unmarshal with `schema.Unmarshal()` to apply defaults
-
-### Error Handling
-
-- All validation errors implement detailed error information with field paths
-- Errors support internationalization through locale files
-- Use `result.Errors` map or `result.ToList()` for error processing
-
-## Configuration Files
-
-- `go.mod` - Go module definition (requires Go 1.26)
-- `Taskfile.yml` - Build automation and development commands
-- `.golangci.version` - Required golangci-lint version for consistent linting
-- `locales/*.json` - Translation files for error messages
+```bash
+task test                            # Full test suite
+go test -race ./tests/...           # Integration and official suite coverage
+go test -race -run TestName ./...   # Focused test execution
+task bench                           # Package benchmarks
+```
 
 ## Dependencies
 
-- `github.com/go-json-experiment/json` - Experimental JSON library for Go
-- `github.com/kaptinlin/go-i18n` - Internationalization support
-- `github.com/stretchr/testify` - Testing utilities
-- `github.com/goccy/go-yaml` - YAML support
+| Dependency | Purpose |
+|------------|---------|
+| `github.com/go-json-experiment/json` | Primary JSON encoder/decoder backend and streaming support. |
+| `github.com/kaptinlin/jsonpointer` | JSON Pointer parsing and reference resolution. |
+| `github.com/kaptinlin/go-i18n` | Localized validation messages and result rendering. |
+| `github.com/goccy/go-yaml` | YAML decoding support for content-related workflows. |
 
-## Common Development Tasks
+## Error Handling
 
-Run tests before committing:
+- Sentinel errors live in `errors.go`; prefer `errors.Is` and `errors.As` in tests and callers.
+- Preserve typed errors that add context: `RegexPatternError`, `StructTagError`, and `UnmarshalError`.
+- Wrap lower-level failures with `fmt.Errorf("...: %w", err)` so callers can recover root causes.
 
-```bash
-task verify
-```
+## Performance
 
-Generate schemas from struct tags:
+- Prefer type-specific validation methods when performance matters: `ValidateJSON`, `ValidateStruct`, and `ValidateMap` avoid extra dispatch or conversions.
+- Benchmark hot paths before changing allocation-sensitive code such as unique item handling, schema compilation, or struct validation.
+- Keep benchmark coverage close to the implementation (`validate_bench_test.go`, `performance_bench_test.go`, `unique_items_bench_test.go`).
 
-```bash
-schemagen
-```
+## Linting
 
-Run specific test suites:
+- `golangci-lint` v2 is configured in `.golangci.yml`.
+- `task lint` also enforces tidy `go.mod` and `go.sum`.
+- Keep touched Markdown files markdownlint-clean when updating documentation.
 
-```bash
-go test ./tests/ -v
-go test ./cmd/schemagen/ -v
-```
+## CI
+
+GitHub Actions in `.github/workflows/ci.yml` run:
+
+- `task test` on pushes and pull requests to `main`
+- `task lint` on pushes and pull requests to `main`
+- `govulncheck ./...` in a dedicated security job
+
+## Agent Skills
+
+Repo-local agent assets:
+
+| Asset | When to Use |
+|-------|-------------|
+| [`.claude/agents/code-simplifier.md`](.claude/agents/code-simplifier.md) | Review recently modified code for clarity and consistency after an implementation pass. |
+
+The `.claude/skills` path is externally managed in this checkout. Verify that it resolves before relying on repo-local shared skill paths.
