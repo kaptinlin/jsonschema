@@ -1,6 +1,3 @@
-// Package main - Reference analysis and dependency graph functionality.
-// This module analyzes struct dependencies and detects circular references
-// to enable proper $ref and $defs generation.
 package main
 
 import (

@@ -1,13 +1,9 @@
 package jsonschema
 
-// Keyword represents a schema keyword that can be applied to any schema
+// Keyword applies a JSON Schema keyword to a schema built with the constructor API.
 type Keyword func(*Schema)
 
-// ===============================
-// String keywords
-// ===============================
-
-// MinLength sets the minLength keyword
+// MinLength sets `minLength`.
 func MinLength(minLen int) Keyword {
 	return func(s *Schema) {
 		f := float64(minLen)
@@ -15,7 +11,7 @@ func MinLength(minLen int) Keyword {
 	}
 }
 
-// MaxLength sets the maxLength keyword
+// MaxLength sets `maxLength`.
 func MaxLength(maxLen int) Keyword {
 	return func(s *Schema) {
 		f := float64(maxLen)
@@ -23,71 +19,63 @@ func MaxLength(maxLen int) Keyword {
 	}
 }
 
-// Pattern sets the pattern keyword
+// Pattern sets `pattern`.
 func Pattern(pattern string) Keyword {
 	return func(s *Schema) {
 		s.Pattern = &pattern
 	}
 }
 
-// Format sets the format keyword
+// Format sets `format`.
 func Format(format string) Keyword {
 	return func(s *Schema) {
 		s.Format = &format
 	}
 }
 
-// ===============================
-// Number keywords
-// ===============================
-
-// Min sets the minimum keyword
+// Min sets `minimum`.
 func Min(minVal float64) Keyword {
 	return func(s *Schema) {
 		s.Minimum = NewRat(minVal)
 	}
 }
 
-// Max sets the maximum keyword
+// Max sets `maximum`.
 func Max(maxVal float64) Keyword {
 	return func(s *Schema) {
 		s.Maximum = NewRat(maxVal)
 	}
 }
 
-// ExclusiveMin sets the exclusiveMinimum keyword
+// ExclusiveMin sets `exclusiveMinimum`.
 func ExclusiveMin(minVal float64) Keyword {
 	return func(s *Schema) {
 		s.ExclusiveMinimum = NewRat(minVal)
 	}
 }
 
-// ExclusiveMax sets the exclusiveMaximum keyword
+// ExclusiveMax sets `exclusiveMaximum`.
 func ExclusiveMax(maxVal float64) Keyword {
 	return func(s *Schema) {
 		s.ExclusiveMaximum = NewRat(maxVal)
 	}
 }
 
-// MultipleOf sets the multipleOf keyword
+// MultipleOf sets `multipleOf`.
 func MultipleOf(multiple float64) Keyword {
 	return func(s *Schema) {
 		s.MultipleOf = NewRat(multiple)
 	}
 }
 
-// ===============================
-// Array keywords
-// ===============================
-
-// Items sets the items keyword
+// Items sets `items`.
 func Items(itemSchema *Schema) Keyword {
 	return func(s *Schema) {
 		s.Items = itemSchema
 	}
 }
 
-// MinItems sets the minItems keyword
+// MinItems sets `minItems`.
 func MinItems(minItems int) Keyword {
 	return func(s *Schema) {
 		f := float64(minItems)
@@ -95,7 +83,7 @@ func MinItems(minItems int) Keyword {
 	}
 }
 
-// MaxItems sets the maxItems keyword
+// MaxItems sets `maxItems`.
 func MaxItems(maxItems int) Keyword {
 	return func(s *Schema) {
 		f := float64(maxItems)
@@ -103,21 +91,21 @@ func MaxItems(maxItems int) Keyword {
 	}
 }
 
-// UniqueItems sets the uniqueItems keyword
+// UniqueItems sets `uniqueItems`.
 func UniqueItems(unique bool) Keyword {
 	return func(s *Schema) {
 		s.UniqueItems = &unique
 	}
 }
 
-// Contains sets the contains keyword
+// Contains sets `contains`.
 func Contains(schema *Schema) Keyword {
 	return func(s *Schema) {
 		s.Contains = schema
 	}
 }
 
-// MinContains sets the minContains keyword
+// MinContains sets `minContains`.
 func MinContains(minContains int) Keyword {
 	return func(s *Schema) {
 		f := float64(minContains)
@@ -125,7 +113,7 @@ func MinContains(minContains int) Keyword {
 	}
 }
 
-// MaxContains sets the maxContains keyword
+// MaxContains sets `maxContains`.
 func MaxContains(maxContains int) Keyword {
 	return func(s *Schema) {
 		f := float64(maxContains)
@@ -133,46 +121,42 @@ func MaxContains(maxContains int) Keyword {
 	}
 }
 
-// PrefixItems sets the prefixItems keyword
+// PrefixItems sets `prefixItems`.
 func PrefixItems(schemas ...*Schema) Keyword {
 	return func(s *Schema) {
 		s.PrefixItems = schemas
 	}
 }
 
-// UnevaluatedItems sets the unevaluatedItems keyword
+// UnevaluatedItems sets `unevaluatedItems`.
 func UnevaluatedItems(schema *Schema) Keyword {
 	return func(s *Schema) {
 		s.UnevaluatedItems = schema
 	}
 }
 
-// ===============================
-// Object keywords
-// ===============================
-
-// Required sets the required keyword
+// Required sets `required`.
 func Required(fields ...string) Keyword {
 	return func(s *Schema) {
 		s.Required = fields
 	}
 }
 
-// AdditionalProps sets the additionalProperties keyword
+// AdditionalProps sets `additionalProperties` to a boolean schema.
 func AdditionalProps(allowed bool) Keyword {
 	return func(s *Schema) {
 		s.AdditionalProperties = &Schema{Boolean: &allowed}
 	}
 }
 
-// AdditionalPropsSchema sets the additionalProperties keyword with a schema
+// AdditionalPropsSchema sets `additionalProperties` to a schema.
 func AdditionalPropsSchema(schema *Schema) Keyword {
 	return func(s *Schema) {
 		s.AdditionalProperties = schema
 	}
 }
 
-// MinProps sets the minProperties keyword
+// MinProps sets `minProperties`.
 func MinProps(minProps int) Keyword {
 	return func(s *Schema) {
 		f := float64(minProps)
@@ -180,7 +164,7 @@ func MinProps(minProps int) Keyword {
 	}
 }
 
-// MaxProps sets the maxProperties keyword
+// MaxProps sets `maxProperties`.
 func MaxProps(maxProps int) Keyword {
 	return func(s *Schema) {
 		f := float64(maxProps)
@@ -188,7 +172,7 @@ func MaxProps(maxProps int) Keyword {
 	}
 }
 
-// PatternProps sets the patternProperties keyword
+// PatternProps sets `patternProperties`.
 func PatternProps(patterns map[string]*Schema) Keyword {
 	return func(s *Schema) {
 		schemaMap := SchemaMap(patterns)
@@ -196,313 +180,292 @@ func PatternProps(patterns map[string]*Schema) Keyword {
 	}
 }
 
-// PropertyNames sets the propertyNames keyword
+// PropertyNames sets `propertyNames`.
 func PropertyNames(schema *Schema) Keyword {
 	return func(s *Schema) {
 		s.PropertyNames = schema
 	}
 }
 
-// UnevaluatedProps sets the unevaluatedProperties keyword
+// UnevaluatedProps sets `unevaluatedProperties`.
 func UnevaluatedProps(schema *Schema) Keyword {
 	return func(s *Schema) {
 		s.UnevaluatedProperties = schema
 	}
 }
 
-// DependentRequired sets the dependentRequired keyword
+// DependentRequired sets `dependentRequired`.
 func DependentRequired(dependencies map[string][]string) Keyword {
 	return func(s *Schema) {
 		s.DependentRequired = dependencies
 	}
 }
 
-// DependentSchemas sets the dependentSchemas keyword
+// DependentSchemas sets `dependentSchemas`.
 func DependentSchemas(dependencies map[string]*Schema) Keyword {
 	return func(s *Schema) {
 		s.DependentSchemas = dependencies
 	}
 }
 
-// ===============================
-// Annotation keywords
-// ===============================
-
-// Title sets the title keyword
+// Title sets `title`.
 func Title(title string) Keyword {
 	return func(s *Schema) {
 		s.Title = &title
 	}
 }
 
-// Description sets the description keyword
+// Description sets `description`.
 func Description(desc string) Keyword {
 	return func(s *Schema) {
 		s.Description = &desc
 	}
 }
 
-// Default sets the default keyword
+// Default sets `default`.
 func Default(value any) Keyword {
 	return func(s *Schema) {
 		s.Default = value
 	}
 }
 
-// Examples sets the examples keyword
+// Examples sets `examples`.
 func Examples(examples ...any) Keyword {
 	return func(s *Schema) {
 		s.Examples = examples
 	}
 }
 
-// Deprecated sets the deprecated keyword
+// Deprecated sets `deprecated`.
 func Deprecated(deprecated bool) Keyword {
 	return func(s *Schema) {
 		s.Deprecated = &deprecated
 	}
 }
 
-// ReadOnly sets the readOnly keyword
+// ReadOnly sets `readOnly`.
 func ReadOnly(readOnly bool) Keyword {
 	return func(s *Schema) {
 		s.ReadOnly = &readOnly
 	}
 }
 
-// WriteOnly sets the writeOnly keyword
+// WriteOnly sets `writeOnly`.
 func WriteOnly(writeOnly bool) Keyword {
 	return func(s *Schema) {
 		s.WriteOnly = &writeOnly
 	}
 }
 
-// ===============================
-// Content keywords
-// ===============================
-
-// ContentEncoding sets the contentEncoding keyword
+// ContentEncoding sets `contentEncoding`.
 func ContentEncoding(encoding string) Keyword {
 	return func(s *Schema) {
 		s.ContentEncoding = &encoding
 	}
 }
 
-// ContentMediaType sets the contentMediaType keyword
+// ContentMediaType sets `contentMediaType`.
 func ContentMediaType(mediaType string) Keyword {
 	return func(s *Schema) {
 		s.ContentMediaType = &mediaType
 	}
 }
 
-// ContentSchema sets the contentSchema keyword
+// ContentSchema sets `contentSchema`.
 func ContentSchema(schema *Schema) Keyword {
 	return func(s *Schema) {
 		s.ContentSchema = schema
 	}
 }
 
-// ===============================
-// Core identifier keywords
-// ===============================
-
-// ID sets the $id keyword
+// ID sets `$id`.
 func ID(id string) Keyword {
 	return func(s *Schema) {
 		s.ID = id
 	}
 }
 
-// SchemaURI sets the $schema keyword
+// SchemaURI sets `$schema`.
 func SchemaURI(schemaURI string) Keyword {
 	return func(s *Schema) {
 		s.Schema = schemaURI
 	}
 }
 
-// Anchor sets the $anchor keyword
+// Anchor sets `$anchor`.
 func Anchor(anchor string) Keyword {
 	return func(s *Schema) {
 		s.Anchor = anchor
 	}
 }
 
-// DynamicAnchor sets the $dynamicAnchor keyword
+// DynamicAnchor sets `$dynamicAnchor`.
 func DynamicAnchor(anchor string) Keyword {
 	return func(s *Schema) {
 		s.DynamicAnchor = anchor
 	}
 }
 
-// Defs sets the $defs keyword
+// Defs sets `$defs`.
 func Defs(defs map[string]*Schema) Keyword {
 	return func(s *Schema) {
 		s.Defs = defs
 	}
 }
 
-// ===============================
-// Format constants
-// ===============================
-
-// Format validation constants define the standard format names
-// from JSON Schema Draft 2020-12.
+// Standard JSON Schema format names from Draft 2020-12.
 const (
-	// FormatEmail represents the email format validation.
+	// FormatEmail is the `email` format.
 	FormatEmail = "email"
-	// FormatDateTime represents the date-time format (RFC 3339).
+	// FormatDateTime is the `date-time` format (RFC 3339).
 	FormatDateTime = "date-time"
-	// FormatDate represents the date format (RFC 3339 full-date).
+	// FormatDate is the `date` format (RFC 3339 full-date).
 	FormatDate = "date"
-	// FormatTime represents the time format (RFC 3339 full-time).
+	// FormatTime is the `time` format (RFC 3339 full-time).
 	FormatTime = "time"
-	// FormatURI represents the URI format (RFC 3986).
+	// FormatURI is the `uri` format (RFC 3986).
 	FormatURI = "uri"
-	// FormatURIRef represents the URI-reference format (RFC 3986).
+	// FormatURIRef is the `uri-reference` format (RFC 3986).
 	FormatURIRef = "uri-reference"
-	// FormatUUID represents the UUID format (RFC 4122).
+	// FormatUUID is the `uuid` format (RFC 4122).
 	FormatUUID = "uuid"
-	// FormatHostname represents the hostname format (RFC 1123).
+	// FormatHostname is the `hostname` format (RFC 1123).
 	FormatHostname = "hostname"
-	// FormatIPv4 represents the IPv4 address format (RFC 2673).
+	// FormatIPv4 is the `ipv4` format (RFC 2673).
 	FormatIPv4 = "ipv4"
-	// FormatIPv6 represents the IPv6 address format (RFC 4291).
+	// FormatIPv6 is the `ipv6` format (RFC 4291).
 	FormatIPv6 = "ipv6"
-	// FormatRegex represents the ECMA-262 regular expression format.
+	// FormatRegex is the ECMA-262 regular expression format.
 	FormatRegex = "regex"
-	// FormatIdnEmail represents the internationalized email format (RFC 6531).
+	// FormatIdnEmail is the `idn-email` format (RFC 6531).
 	FormatIdnEmail = "idn-email"
-	// FormatIdnHostname represents the internationalized hostname format (RFC 5890).
+	// FormatIdnHostname is the `idn-hostname` format (RFC 5890).
 	FormatIdnHostname = "idn-hostname"
-	// FormatIRI represents the IRI format (RFC 3987).
+	// FormatIRI is the `iri` format (RFC 3987).
 	FormatIRI = "iri"
-	// FormatIRIRef represents the IRI-reference format (RFC 3987).
+	// FormatIRIRef is the `iri-reference` format (RFC 3987).
 	FormatIRIRef = "iri-reference"
-	// FormatURITemplate represents the URI template format (RFC 6570).
+	// FormatURITemplate is the `uri-template` format (RFC 6570).
 	FormatURITemplate = "uri-template"
-	// FormatJSONPointer represents the JSON Pointer format (RFC 6901).
+	// FormatJSONPointer is the `json-pointer` format (RFC 6901).
 	FormatJSONPointer = "json-pointer"
-	// FormatRelativeJSONPointer represents the relative JSON Pointer format.
+	// FormatRelativeJSONPointer is the `relative-json-pointer` format.
 	FormatRelativeJSONPointer = "relative-json-pointer"
-	// FormatDuration represents the duration format (RFC 3339 appendix A / ISO 8601).
+	// FormatDuration is the `duration` format (RFC 3339 appendix A / ISO 8601).
 	FormatDuration = "duration"
 )
 
-// ===============================
-// Convenience schema functions
-// ===============================
-
-// Email creates an email format string schema
+// Email returns a string schema with the `email` format.
 func Email() *Schema {
 	return String(Format(FormatEmail))
 }
 
-// DateTime creates a date-time format string schema
+// DateTime returns a string schema with the `date-time` format.
 func DateTime() *Schema {
 	return String(Format(FormatDateTime))
 }
 
-// Date creates a date format string schema
+// Date returns a string schema with the `date` format.
 func Date() *Schema {
 	return String(Format(FormatDate))
 }
 
-// Time creates a time format string schema
+// Time returns a string schema with the `time` format.
 func Time() *Schema {
 	return String(Format(FormatTime))
 }
 
-// URI creates a URI format string schema
+// URI returns a string schema with the `uri` format.
 func URI() *Schema {
 	return String(Format(FormatURI))
 }
 
-// URIRef creates a URI reference format string schema
+// URIRef returns a string schema with the `uri-reference` format.
 func URIRef() *Schema {
 	return String(Format(FormatURIRef))
 }
 
-// UUID creates a UUID format string schema
+// UUID returns a string schema with the `uuid` format.
 func UUID() *Schema {
 	return String(Format(FormatUUID))
 }
 
-// Hostname creates a hostname format string schema
+// Hostname returns a string schema with the `hostname` format.
 func Hostname() *Schema {
 	return String(Format(FormatHostname))
 }
 
-// IPv4 creates an IPv4 format string schema
+// IPv4 returns a string schema with the `ipv4` format.
 func IPv4() *Schema {
 	return String(Format(FormatIPv4))
 }
 
-// IPv6 creates an IPv6 format string schema
+// IPv6 returns a string schema with the `ipv6` format.
 func IPv6() *Schema {
 	return String(Format(FormatIPv6))
 }
 
-// IdnEmail creates an internationalized email format string schema
+// IdnEmail returns a string schema with the `idn-email` format.
 func IdnEmail() *Schema {
 	return String(Format(FormatIdnEmail))
 }
 
-// IdnHostname creates an internationalized hostname format string schema
+// IdnHostname returns a string schema with the `idn-hostname` format.
 func IdnHostname() *Schema {
 	return String(Format(FormatIdnHostname))
 }
 
-// IRI creates an IRI format string schema
+// IRI returns a string schema with the `iri` format.
 func IRI() *Schema {
 	return String(Format(FormatIRI))
 }
 
-// IRIRef creates an IRI reference format string schema
+// IRIRef returns a string schema with the `iri-reference` format.
 func IRIRef() *Schema {
 	return String(Format(FormatIRIRef))
 }
 
-// URITemplate creates a URI template format string schema
+// URITemplate returns a string schema with the `uri-template` format.
 func URITemplate() *Schema {
 	return String(Format(FormatURITemplate))
 }
 
-// JSONPointer creates a JSON pointer format string schema
+// JSONPointer returns a string schema with the `json-pointer` format.
 func JSONPointer() *Schema {
 	return String(Format(FormatJSONPointer))
 }
 
-// RelativeJSONPointer creates a relative JSON pointer format string schema
+// RelativeJSONPointer returns a string schema with the `relative-json-pointer` format.
 func RelativeJSONPointer() *Schema {
 	return String(Format(FormatRelativeJSONPointer))
 }
 
-// Duration creates a duration format string schema
+// Duration returns a string schema with the `duration` format.
 func Duration() *Schema {
 	return String(Format(FormatDuration))
 }
 
-// Regex creates a regex format string schema
+// Regex returns a string schema with the `regex` format.
 func Regex() *Schema {
 	return String(Format(FormatRegex))
 }
 
-// PositiveInt creates a positive integer schema
+// PositiveInt returns an integer schema with `minimum` set to 1.
 func PositiveInt() *Schema {
 	return Integer(Min(1))
 }
 
-// NonNegativeInt creates a non-negative integer schema
+// NonNegativeInt returns an integer schema with `minimum` set to 0.
 func NonNegativeInt() *Schema {
 	return Integer(Min(0))
 }
 
-// NegativeInt creates a negative integer schema
+// NegativeInt returns an integer schema with `maximum` set to -1.
 func NegativeInt() *Schema {
 	return Integer(Max(-1))
 }
 
-// NonPositiveInt creates a non-positive integer schema
+// NonPositiveInt returns an integer schema with `maximum` set to 0.
 func NonPositiveInt() *Schema {
 	return Integer(Max(0))
 }

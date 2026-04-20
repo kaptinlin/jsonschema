@@ -1,6 +1,3 @@
-// Package main - Code generation functionality for schemagen.
-// This module generates Go code that creates JSON Schema definitions
-// from struct tag information.
 package main
 
 import (

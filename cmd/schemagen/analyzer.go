@@ -1,6 +1,3 @@
-// Package main - AST analysis functionality for schemagen.
-// This module analyzes Go source files to identify structs that require
-// code generation and extracts their field information.
 package main
 
 import (

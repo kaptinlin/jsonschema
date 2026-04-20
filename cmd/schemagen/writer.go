@@ -1,5 +1,3 @@
-// Package main - File writing functionality for schemagen.
-// This module handles writing generated Go code to files with proper formatting.
 package main
 
 import (
