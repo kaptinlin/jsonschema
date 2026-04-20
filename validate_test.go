@@ -227,6 +227,40 @@ func TestValidateRequiredPropertyWithDefault(t *testing.T) {
 	})
 }
 
+func TestEvaluatePatternCachesCompiledPattern(t *testing.T) {
+	schema := &Schema{Pattern: new("^[A-Za-z]+$")}
+
+	err := evaluatePattern(schema, "Alice")
+	require.Nil(t, err)
+	require.NotNil(t, schema.compiledStringPattern)
+
+	compiled := schema.compiledStringPattern
+
+	err = evaluatePattern(schema, "Bob")
+	require.Nil(t, err)
+	assert.Same(t, compiled, schema.compiledStringPattern)
+
+	err = evaluatePattern(schema, "Bob123")
+	require.Error(t, err)
+	assert.Equal(t, "pattern", err.Keyword)
+	assert.Equal(t, "pattern_mismatch", err.Code)
+	assert.Equal(t, map[string]any{
+		"pattern": "^[A-Za-z]+$",
+		"value":   "Bob123",
+	}, err.Params)
+}
+
+func TestEvaluatePatternInvalidPattern(t *testing.T) {
+	schema := &Schema{Pattern: new("(")}
+
+	err := evaluatePattern(schema, "value")
+	require.Error(t, err)
+	assert.Equal(t, "pattern", err.Keyword)
+	assert.Equal(t, "invalid_pattern", err.Code)
+	assert.Equal(t, map[string]any{"pattern": "("}, err.Params)
+	assert.Nil(t, schema.compiledStringPattern)
+}
+
 func TestValidateTypeConstraints(t *testing.T) {
 	t.Run("NumericValidation", func(t *testing.T) {
 		schema := `{
