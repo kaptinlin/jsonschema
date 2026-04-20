@@ -16,6 +16,26 @@ const (
 	remoteSchemaURL = "https://json-schema.org/draft/2020-12/schema"
 )
 
+func TestRegisterAndUnregisterFormat(t *testing.T) {
+	compiler := NewCompiler()
+	validator := func(v any) bool { return v == "ok" }
+
+	assert.Same(t, compiler, compiler.RegisterFormat("status", validator, "string"))
+	require.Contains(t, compiler.customFormats, "status")
+	assert.Equal(t, "string", compiler.customFormats["status"].Type)
+	assert.NotNil(t, compiler.customFormats["status"].Validate)
+
+	assert.Same(t, compiler, compiler.UnregisterFormat("status"))
+	assert.NotContains(t, compiler.customFormats, "status")
+}
+
+func TestSetPreserveExtra(t *testing.T) {
+	compiler := NewCompiler()
+	assert.False(t, compiler.PreserveExtra)
+	assert.Same(t, compiler, compiler.SetPreserveExtra(true))
+	assert.True(t, compiler.PreserveExtra)
+}
+
 func TestCompileWithID(t *testing.T) {
 	compiler := NewCompiler()
 	schemaJSON := createTestSchemaJSON("http://example.com/schema", map[string]string{"name": "string"}, []string{"name"})

@@ -773,4 +773,204 @@ func TestCircularReferenceValidationPerformance(t *testing.T) {
 	}
 }
 
+func TestDynamicScopeHelpers(t *testing.T) {
+	scope := NewDynamicScope()
+	assert.True(t, scope.IsEmpty())
+	assert.Nil(t, scope.Peek())
+	assert.Nil(t, scope.Pop())
+	assert.Zero(t, scope.Size())
+
+	anchored := &Schema{}
+	withAnchor := &Schema{dynamicAnchors: map[string]*Schema{"node": anchored}}
+	other := &Schema{}
+
+	scope.Push(withAnchor)
+	scope.Push(other)
+
+	assert.False(t, scope.IsEmpty())
+	assert.Equal(t, 2, scope.Size())
+	assert.Same(t, other, scope.Peek())
+	assert.True(t, scope.Contains(withAnchor))
+	assert.Same(t, anchored, scope.LookupDynamicAnchor("node"))
+	assert.Nil(t, scope.LookupDynamicAnchor("missing"))
+	assert.Same(t, other, scope.Pop())
+	assert.Same(t, withAnchor, scope.Peek())
+}
+
+func TestProcessJSONBytes(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{"type":"object"}`))
+	require.NoError(t, err)
+
+	parsed, err := schema.processJSONBytes([]byte(`{"name":"alice"}`))
+	require.NoError(t, err)
+	assert.IsType(t, map[string]any{}, parsed)
+
+	raw, err := schema.processJSONBytes([]byte("plain-text"))
+	require.NoError(t, err)
+	assert.Equal(t, []byte("plain-text"), raw)
+
+	_, err = schema.processJSONBytes([]byte(`{invalid json}`))
+	require.Error(t, err)
+}
+
+func TestConvertStringMap(t *testing.T) {
+	converted := convertStringMap(map[string]int{"count": 3})
+	assert.Equal(t, map[string]any{"count": 3}, converted)
+}
+
+func TestContentValidation(t *testing.T) {
+	contentSchema := &Schema{Type: SchemaType{"object"}, Required: []string{"name"}}
+
+	tests := []struct {
+		name           string
+		schemaJSON     string
+		instance       string
+		contentSchema  *Schema
+		wantValid      bool
+		wantErrorKey   string
+		wantDetailPath string
+	}{
+		{
+			name:         "unsupported encoding",
+			schemaJSON:   `{"type":"string","contentEncoding":"rot13"}`,
+			instance:     "hello",
+			wantValid:    false,
+			wantErrorKey: "contentEncoding",
+		},
+		{
+			name:         "unsupported media type",
+			schemaJSON:   `{"type":"string","contentMediaType":"application/unknown"}`,
+			instance:     "hello",
+			wantValid:    false,
+			wantErrorKey: "contentMediaType",
+		},
+		{
+			name:          "content schema mismatch",
+			schemaJSON:    `{"type":"string","contentEncoding":"base64","contentMediaType":"application/json"}`,
+			instance:      "e30=",
+			contentSchema: contentSchema,
+			wantValid:     false,
+			wantErrorKey:  "contentSchema",
+		},
+		{
+			name:           "content schema valid",
+			schemaJSON:     `{"type":"string","contentEncoding":"base64","contentMediaType":"application/json"}`,
+			instance:       "eyJuYW1lIjoiYWxpY2UifQ==",
+			contentSchema:  contentSchema,
+			wantValid:      true,
+			wantDetailPath: "/contentSchema",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			schema, err := compiler.Compile([]byte(tt.schemaJSON))
+			require.NoError(t, err)
+			schema.ContentSchema = tt.contentSchema
+
+			result := schema.Validate(tt.instance)
+			assert.Equal(t, tt.wantValid, result.IsValid())
+			if tt.wantErrorKey != "" {
+				assert.Contains(t, result.Errors, tt.wantErrorKey)
+			}
+			if tt.wantDetailPath != "" {
+				require.Len(t, result.Details, 1)
+				assert.Equal(t, tt.wantDetailPath, result.Details[0].EvaluationPath)
+			}
+		})
+	}
+}
+
+func TestFormatTypeMatching(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.SetAssertFormat(true)
+	compiler.RegisterFormat("whole-number", func(v any) bool {
+		switch n := v.(type) {
+		case int:
+			return n%2 == 0
+		case float64:
+			return n == float64(int64(n)) && int64(n)%2 == 0
+		default:
+			return false
+		}
+	}, "number")
+
+	schema, err := compiler.Compile([]byte(`{"properties":{"count":{"type":"integer","format":"whole-number"},"name":{"type":"string","format":"whole-number"}}}`))
+	require.NoError(t, err)
+
+	assert.True(t, schema.ValidateMap(map[string]any{"count": 4, "name": "skip validation"}).IsValid())
+	assert.False(t, schema.ValidateMap(map[string]any{"count": 3, "name": "skip validation"}).IsValid())
+}
+
+func TestObjectValidationHelpers(t *testing.T) {
+	tests := []struct {
+		name         string
+		schemaJSON   string
+		instance     map[string]any
+		wantErrorKey string
+		wantDetails  map[string]string
+	}{
+		{
+			name:         "property names",
+			schemaJSON:   `{"type":"object","propertyNames":{"pattern":"^[a-z]+$"}}`,
+			instance:     map[string]any{"BadKey": 1},
+			wantErrorKey: "propertyNames",
+			wantDetails:  map[string]string{"/propertyNames/BadKey": "/BadKey"},
+		},
+		{
+			name:         "dependent schemas",
+			schemaJSON:   `{"type":"object","dependentSchemas":{"credit_card":{"required":["billing_address"]}}}`,
+			instance:     map[string]any{"credit_card": "1234"},
+			wantErrorKey: "dependentSchemas",
+			wantDetails:  map[string]string{"/dependentSchemas/credit_card": "/credit_card"},
+		},
+		{
+			name:         "dependent required",
+			schemaJSON:   `{"type":"object","dependentRequired":{"credit_card":["billing_address"]}}`,
+			instance:     map[string]any{"credit_card": "1234"},
+			wantErrorKey: "dependentRequired",
+		},
+		{
+			name:         "unevaluated properties",
+			schemaJSON:   `{"type":"object","properties":{"known":{"type":"integer"}},"unevaluatedProperties":false}`,
+			instance:     map[string]any{"known": 1, "extra": 2},
+			wantErrorKey: "properties",
+			wantDetails:  map[string]string{"/unevaluatedProperties": "/extra"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			schema, err := compiler.Compile([]byte(tt.schemaJSON))
+			require.NoError(t, err)
+
+			result := schema.ValidateMap(tt.instance)
+			assert.False(t, result.IsValid())
+			assert.Contains(t, result.Errors, tt.wantErrorKey)
+			for evaluationPath, instanceLocation := range tt.wantDetails {
+				found := false
+				for _, detail := range result.Details {
+					if detail.EvaluationPath == evaluationPath && detail.InstanceLocation == instanceLocation {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "missing detail %s -> %s", evaluationPath, instanceLocation)
+			}
+		})
+	}
+}
+
+func TestUniqueItemsWithTypedValues(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{"type":"array","uniqueItems":true}`))
+	require.NoError(t, err)
+
+	assert.False(t, schema.ValidateJSON([]byte(`[1,2,1]`)).IsValid())
+	assert.False(t, schema.ValidateJSON([]byte(`[{"a":1},{"a":1}]`)).IsValid())
+}
+
 // Helper functions

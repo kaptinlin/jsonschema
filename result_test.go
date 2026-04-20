@@ -467,3 +467,36 @@ func TestLogicalValidatorPaths(t *testing.T) {
 
 	assert.True(t, oneOfFound, "Expected oneOf error at '/setting/oneOf'")
 }
+
+func TestEvaluationResultHelpers(t *testing.T) {
+	title := "user schema"
+	description := "validates user payloads"
+	deprecated := true
+	readOnly := true
+	writeOnly := false
+	examples := []any{"alice@example.com"}
+
+	result := NewEvaluationResult(&Schema{
+		Title:       &title,
+		Description: &description,
+		Default:     "guest",
+		Deprecated:  &deprecated,
+		ReadOnly:    &readOnly,
+		WriteOnly:   &writeOnly,
+		Examples:    examples,
+	})
+
+	assert.True(t, result.IsValid())
+	assert.Same(t, result, result.AddAnnotation("x-extra", 42))
+	assert.Same(t, result, result.SetInvalid())
+	assert.False(t, result.IsValid())
+
+	assert.Equal(t, &title, result.Annotations["title"])
+	assert.Equal(t, &description, result.Annotations["description"])
+	assert.Equal(t, "guest", result.Annotations["default"])
+	assert.Equal(t, &deprecated, result.Annotations["deprecated"])
+	assert.Equal(t, &readOnly, result.Annotations["readOnly"])
+	assert.Equal(t, &writeOnly, result.Annotations["writeOnly"])
+	assert.Equal(t, examples, result.Annotations["examples"])
+	assert.Equal(t, 42, result.Annotations["x-extra"])
+}

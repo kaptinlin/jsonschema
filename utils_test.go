@@ -155,3 +155,59 @@ func TestIsJSONPointer(t *testing.T) {
 		})
 	}
 }
+
+func TestPublicFormatHelpers(t *testing.T) {
+	tests := []struct {
+		name     string
+		validate func(any) bool
+		input    any
+		want     bool
+	}{
+		{name: "duration date and time", validate: IsDuration, input: "P1DT2H", want: true},
+		{name: "duration week only", validate: IsDuration, input: "P2W", want: true},
+		{name: "duration missing prefix", validate: IsDuration, input: "1DT2H", want: false},
+		{name: "duration invalid unit order", validate: IsDuration, input: "P1D2Y", want: false},
+		{name: "duration non string ignored", validate: IsDuration, input: 42, want: true},
+		{name: "period datetime slash duration", validate: IsPeriod, input: "2025-01-01T00:00:00Z/P1D", want: true},
+		{name: "period duration slash datetime", validate: IsPeriod, input: "P1D/2025-01-02T00:00:00Z", want: true},
+		{name: "period missing slash", validate: IsPeriod, input: "P1D", want: false},
+		{name: "json pointer empty document", validate: IsJSONPointer, input: "", want: true},
+		{name: "json pointer property", validate: IsJSONPointer, input: "/items/0", want: true},
+		{name: "json pointer fragment rejected", validate: IsJSONPointer, input: "#/items/0", want: false},
+		{name: "relative json pointer hash", validate: IsRelativeJSONPointer, input: "0#", want: true},
+		{name: "relative json pointer path", validate: IsRelativeJSONPointer, input: "1/foo", want: true},
+		{name: "relative json pointer invalid", validate: IsRelativeJSONPointer, input: "foo", want: false},
+		{name: "regex valid", validate: IsRegex, input: "^[a-z]+$", want: true},
+		{name: "regex invalid", validate: IsRegex, input: "[a-z", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.validate(tt.input))
+		})
+	}
+}
+
+func TestIPAndURIHelpers(t *testing.T) {
+	tests := []struct {
+		name     string
+		validate func(any) bool
+		input    any
+		want     bool
+	}{
+		{name: "ipv4 valid", validate: IsIPV4, input: "192.168.0.1", want: true},
+		{name: "ipv4 leading zero", validate: IsIPV4, input: "192.168.00.1", want: false},
+		{name: "ipv6 valid", validate: IsIPV6, input: "2001:db8::1", want: true},
+		{name: "ipv6 missing colon", validate: IsIPV6, input: "2001db81", want: false},
+		{name: "uri reference relative", validate: IsURIReference, input: "/relative/path", want: true},
+		{name: "uri reference backslash rejected", validate: IsURIReference, input: `https://example.com\\path`, want: false},
+		{name: "uri template valid", validate: IsURITemplate, input: "https://example.com/{id}", want: true},
+		{name: "uri template unbalanced braces", validate: IsURITemplate, input: "https://example.com/{id", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.validate(tt.input))
+		})
+	}
+}

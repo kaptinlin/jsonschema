@@ -377,6 +377,62 @@ func TestUnmarshalErrorCases(t *testing.T) {
 	}
 }
 
+func TestUnmarshalErrorUnwrapsSentinels(t *testing.T) {
+	tests := []struct {
+		name       string
+		dst        any
+		src        any
+		wantTarget error
+		wantReason string
+	}{
+		{
+			name:       "nil destination",
+			dst:        nil,
+			src:        []byte(`{"id": 1}`),
+			wantTarget: ErrNilDestination,
+			wantReason: ErrNilDestination.Error(),
+		},
+		{
+			name:       "non pointer destination",
+			dst:        User{},
+			src:        []byte(`{"id": 1}`),
+			wantTarget: ErrNotPointer,
+			wantReason: ErrNotPointer.Error(),
+		},
+		{
+			name:       "nil pointer destination",
+			dst:        (*User)(nil),
+			src:        []byte(`{"id": 1}`),
+			wantTarget: ErrNilPointer,
+			wantReason: ErrNilPointer.Error(),
+		},
+		{
+			name:       "invalid JSON source",
+			dst:        &User{},
+			src:        []byte(`{invalid json}`),
+			wantTarget: ErrJSONDecode,
+			wantReason: "failed to convert source",
+		},
+	}
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{"type":"object","properties":{"id":{"type":"integer"}}}`))
+	require.NoError(t, err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := schema.Unmarshal(tt.dst, tt.src)
+			require.Error(t, err)
+			require.ErrorIs(t, err, tt.wantTarget)
+
+			var unmarshalErr *UnmarshalError
+			require.ErrorAs(t, err, &unmarshalErr)
+			assert.Contains(t, unmarshalErr.Error(), tt.wantReason)
+			require.ErrorIs(t, unmarshalErr.Unwrap(), tt.wantTarget)
+		})
+	}
+}
+
 // TestUnmarshalTimeHandling tests time parsing
 func TestUnmarshalTimeHandling(t *testing.T) {
 	schemaJSON := `{

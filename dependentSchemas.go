@@ -39,6 +39,8 @@ func evaluateDependentSchemas(
 						SetInstanceLocation(fmt.Sprintf("/%s", propName))
 				}
 
+				results = append(results, result)
+
 				if result.IsValid() {
 					// Merge maps only if dependent schema validation is successful
 					mergeStringMaps(evaluatedProps, schemaEvaluatedProps)

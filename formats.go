@@ -370,7 +370,7 @@ func IsIPV4(v any) bool {
 		if n < 0 || n > 255 {
 			return false
 		}
-		if n != 0 && group[0] == '0' {
+		if len(group) > 1 && group[0] == '0' {
 			return false // leading zeroes should be rejected, as they are treated as octals
 		}
 	}
