@@ -34,7 +34,7 @@ func evaluateProperties(
 		var result *EvaluationResult
 		if exists {
 			result, _, _ = propSchema.evaluate(propValue, dynamicScope)
-		} else if isRequired(schema, propName) && !defaultIsSpecified(propSchema) {
+		} else if slices.Contains(schema.Required, propName) && (propSchema == nil || propSchema.Default == nil) {
 			result, _, _ = propSchema.evaluate(nil, dynamicScope)
 		}
 
@@ -72,14 +72,4 @@ func evaluateProperties(
 	}
 
 	return results, nil
-}
-
-// isRequired checks if a property is required.
-func isRequired(schema *Schema, propName string) bool {
-	return slices.Contains(schema.Required, propName)
-}
-
-// defaultIsSpecified checks if a default value is specified for a property schema.
-func defaultIsSpecified(propSchema *Schema) bool {
-	return propSchema != nil && propSchema.Default != nil
 }

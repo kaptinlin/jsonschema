@@ -30,6 +30,7 @@ package jsonschema
 import (
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -364,7 +365,7 @@ func evaluatePropertiesStruct(schema *Schema, structValue reflect.Value, fieldCa
 		fieldInfo, exists := fieldCache.FieldsByName[propName]
 		if !exists {
 			// Field doesn't exist in struct, only validate as nil if required and no default
-			if isRequired(schema, propName) && !defaultIsSpecified(propSchema) {
+			if slices.Contains(schema.Required, propName) && (propSchema == nil || propSchema.Default == nil) {
 				result, _, _ := propSchema.evaluate(nil, dynamicScope)
 				appendValidationResult(&results, &invalidProperties, propName, result)
 			}

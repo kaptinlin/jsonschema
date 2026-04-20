@@ -197,6 +197,36 @@ func TestValidateMap(t *testing.T) {
 }
 
 // TestValidateTypeConstraints tests numeric and string validation
+func TestValidateRequiredPropertyWithDefault(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string", "default": "guest"}
+		},
+		"required": ["name"]
+	}`))
+	require.NoError(t, err)
+
+	t.Run("map input", func(t *testing.T) {
+		result := schema.ValidateMap(map[string]any{})
+		assert.False(t, result.IsValid())
+		assert.Contains(t, result.Errors, "required")
+		assert.NotContains(t, result.Errors, "properties")
+	})
+
+	t.Run("struct input", func(t *testing.T) {
+		type Person struct {
+			Age int `json:"age,omitempty"`
+		}
+
+		result := schema.ValidateStruct(Person{})
+		assert.False(t, result.IsValid())
+		assert.Contains(t, result.Errors, "required")
+		assert.NotContains(t, result.Errors, "properties")
+	})
+}
+
 func TestValidateTypeConstraints(t *testing.T) {
 	t.Run("NumericValidation", func(t *testing.T) {
 		schema := `{
