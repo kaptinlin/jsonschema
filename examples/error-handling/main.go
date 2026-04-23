@@ -99,9 +99,8 @@ func main() {
 	if err != nil {
 		fmt.Printf("   Unmarshal failed: %v\n", err)
 
-		// Check if it's an UnmarshalError using errors.As
-		var unmarshalErr *jsonschema.UnmarshalError
-		if errors.As(err, &unmarshalErr) {
+		// Check if it's an UnmarshalError.
+		if unmarshalErr, ok := errors.AsType[*jsonschema.UnmarshalError](err); ok {
 			fmt.Printf("   Error type: %s\n", unmarshalErr.Type)
 		}
 	}
@@ -120,8 +119,7 @@ func main() {
 	err = schema.Unmarshal(user2, validData) // not a pointer
 	if err != nil {
 		fmt.Printf("   Unmarshal failed: %v\n", err)
-		var unmarshalErr *jsonschema.UnmarshalError
-		if errors.As(err, &unmarshalErr) {
+		if unmarshalErr, ok := errors.AsType[*jsonschema.UnmarshalError](err); ok {
 			fmt.Printf("   Error type: %s\n", unmarshalErr.Type)
 		}
 	}
@@ -133,8 +131,7 @@ func main() {
 	err = schema.Unmarshal(nilUser, validData)
 	if err != nil {
 		fmt.Printf("   Unmarshal failed: %v\n", err)
-		var unmarshalErr *jsonschema.UnmarshalError
-		if errors.As(err, &unmarshalErr) {
+		if unmarshalErr, ok := errors.AsType[*jsonschema.UnmarshalError](err); ok {
 			fmt.Printf("   Error type: %s\n", unmarshalErr.Type)
 		}
 	}

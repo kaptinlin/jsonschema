@@ -1005,6 +1005,8 @@ func TestUniqueItemsWithTypedValues(t *testing.T) {
 
 	assert.False(t, schema.ValidateJSON([]byte(`[1,2,1]`)).IsValid())
 	assert.False(t, schema.ValidateJSON([]byte(`[{"a":1},{"a":1}]`)).IsValid())
+	assert.False(t, schema.Validate([]any{1, 2, 1}).IsValid())
+	assert.False(t, schema.Validate([]any{[]any{"a"}, []any{"a"}}).IsValid())
 }
 
 // Helper functions

@@ -718,9 +718,10 @@ func (s *Schema) collectExtraFields(raw []byte) error {
 	}
 
 	// Remove all known schema fields
-	for key := range knownSchemaFields {
-		delete(allFields, key)
-	}
+	maps.DeleteFunc(allFields, func(key string, _ any) bool {
+		_, ok := knownSchemaFields[key]
+		return ok
+	})
 
 	if len(allFields) > 0 {
 		s.Extra = allFields

@@ -46,7 +46,7 @@ func evaluateUniqueItems(schema *Schema, data []any) *EvaluationError {
 	hashes := make(map[uint64][]int, maxLength) // hash -> indices
 	seed := maphash.MakeSeed()
 
-	for i := 0; i < maxLength; i++ {
+	for i := range maxLength {
 		item := data[i]
 		var h maphash.Hash
 		h.SetSeed(seed)
@@ -170,7 +170,7 @@ func hashJSONValueReflect(h *maphash.Hash, rv reflect.Value) {
 		var buf [8]byte
 		binary.BigEndian.PutUint64(buf[:], uint64(rv.Len())) //nolint:gosec // Overflow is acceptable for hashing
 		_, _ = h.Write(buf[:])
-		for i := 0; i < rv.Len(); i++ {
+		for i := range rv.Len() {
 			hashJSONValueReflect(h, rv.Index(i))
 		}
 
@@ -293,7 +293,7 @@ func deepEqualJSONReflect(a, b reflect.Value) bool {
 		if a.Len() != b.Len() {
 			return false
 		}
-		for i := 0; i < a.Len(); i++ {
+		for i := range a.Len() {
 			if !deepEqualJSONReflect(a.Index(i), b.Index(i)) {
 				return false
 			}

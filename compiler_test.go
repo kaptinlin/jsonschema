@@ -124,6 +124,21 @@ func TestResolveReferences(t *testing.T) {
 	require.NoError(t, err, "Failed to resolve reference")
 }
 
+func TestCompileClonesWaitingSchemasBeforeClearingQueue(t *testing.T) {
+	compiler := NewCompiler()
+
+	waiting := []*Schema{{ID: "one"}, {ID: "two"}}
+	compiler.unresolvedRefs["http://example.com/base"] = waiting
+
+	_, err := compiler.Compile([]byte(`{"$id":"http://example.com/base","type":"object"}`))
+	require.NoError(t, err)
+
+	require.Empty(t, compiler.unresolvedRefs["http://example.com/base"])
+	require.Len(t, waiting, 2)
+	assert.Equal(t, "one", waiting[0].ID)
+	assert.Equal(t, "two", waiting[1].ID)
+}
+
 func TestResolveReferencesCorrectly(t *testing.T) {
 	compiler := NewCompiler()
 

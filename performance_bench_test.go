@@ -17,7 +17,7 @@ func BenchmarkValidateSimpleObject(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = s.ValidateJSON([]byte(data))
 	}
 }
@@ -40,7 +40,7 @@ func BenchmarkValidateUniqueItems(b *testing.B) {
 			}
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_ = s.ValidateStruct(items)
 			}
 		})
@@ -65,7 +65,7 @@ func BenchmarkValidateUniqueItemsWithDuplicates(b *testing.B) {
 			}
 
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_ = s.ValidateStruct(items)
 			}
 		})
@@ -98,7 +98,7 @@ func BenchmarkValidateStruct(b *testing.B) {
 	person := Person{Name: "John", Age: 30, Email: "john@example.com"}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = s.ValidateStruct(person)
 	}
 }
@@ -130,7 +130,7 @@ func BenchmarkValidateStructRepeated(b *testing.B) {
 	person := Person{Name: "John", Age: 30, Email: "john@example.com"}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = s.ValidateStruct(person)
 	}
 }
@@ -148,7 +148,7 @@ func BenchmarkCompileSchema(b *testing.B) {
 	}`
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		compiler := NewCompiler()
 		_, err := compiler.Compile([]byte(schema))
 		if err != nil {
@@ -173,7 +173,7 @@ func BenchmarkValidateNumberConstraints(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = s.ValidateStruct(50.0)
 	}
 }
@@ -189,7 +189,7 @@ func BenchmarkValidateNumberNoConstraints(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = s.ValidateStruct(50.0)
 	}
 }
@@ -232,7 +232,7 @@ func BenchmarkValidateComplexObject(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = s.ValidateJSON([]byte(data))
 	}
 }

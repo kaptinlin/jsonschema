@@ -129,8 +129,7 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 	var schemasToResolve []*Schema
 	if schema.uri != "" {
 		if waitingSchemas, exists := c.unresolvedRefs[schema.uri]; exists {
-			schemasToResolve = make([]*Schema, len(waitingSchemas))
-			copy(schemasToResolve, waitingSchemas)
+			schemasToResolve = slices.Clone(waitingSchemas)
 			delete(c.unresolvedRefs, schema.uri) // Clear the waiting list
 		}
 	}
