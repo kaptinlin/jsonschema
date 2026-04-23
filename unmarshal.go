@@ -264,11 +264,7 @@ func (s *Schema) evaluateDefaultValue(defaultValue any) (any, error) {
 	}
 
 	// Try to parse as function call
-	call, err := parseFunctionCall(defaultStr)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFunctionCallParsing, err)
-	}
-
+	call := parseFunctionCall(defaultStr)
 	if call == nil {
 		// Not a function call, use literal value
 		return defaultStr, nil

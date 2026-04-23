@@ -34,7 +34,7 @@ func evaluateFormat(schema *Schema, value any) *EvaluationError {
 		// Found in custom formats
 		if formatDef.Type != "" {
 			valueType := getDataType(value)
-			if !matchesType(valueType, formatDef.Type) {
+			if valueType != formatDef.Type && (formatDef.Type != "number" || valueType != "integer") {
 				return nil // Type doesn't match, so skip validation
 			}
 		}
@@ -60,20 +60,4 @@ func evaluateFormat(schema *Schema, value any) *EvaluationError {
 	}
 
 	return nil // Default behavior: ignore unknown formats
-}
-
-// matchesType checks if a value type matches the required type.
-// It returns true if there's no type restriction or if the types match.
-// Special case: integer values are considered valid for number types.
-func matchesType(valueType, requiredType string) bool {
-	if requiredType == "" {
-		return true // No type restriction
-	}
-
-	// Special handling: integer is also considered number
-	if requiredType == "number" && valueType == "integer" {
-		return true
-	}
-
-	return valueType == requiredType
 }

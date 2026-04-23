@@ -164,6 +164,39 @@ func TestTagParser_ParseStructTags(t *testing.T) {
 	}
 }
 
+func TestTagParser_ParseStructTags_RequiredPointerField(t *testing.T) {
+	parser := New()
+
+	type TestStruct struct {
+		Optional *string `json:"optional"`
+		Required *string `json:"required" jsonschema:"required"`
+	}
+
+	fields, err := parser.ParseStructTags(reflect.TypeFor[TestStruct]())
+	if err != nil {
+		t.Fatalf("ParseStructTags() error = %v", err)
+	}
+
+	optionalField := findField(fields, "Optional")
+	if optionalField == nil {
+		t.Fatal("Optional field not found")
+	}
+	if !optionalField.Optional {
+		t.Error("Optional field should be optional")
+	}
+
+	requiredField := findField(fields, "Required")
+	if requiredField == nil {
+		t.Fatal("Required field not found")
+	}
+	if !requiredField.Required {
+		t.Error("Required field should be required")
+	}
+	if requiredField.Optional {
+		t.Error("Required pointer field should not be optional")
+	}
+}
+
 func TestTagParser_ParseComplexParameters(t *testing.T) {
 	parser := New()
 

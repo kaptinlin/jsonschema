@@ -12,23 +12,21 @@ type FunctionCall struct {
 	Args []any
 }
 
-// parseFunctionCall parses a string to determine if it's a function call
-// Returns nil if the string is not a function call format
-func parseFunctionCall(input string) (*FunctionCall, error) {
-	// Check if it's in function call format: functionName()
+// parseFunctionCall parses a string to determine if it's a function call.
+// It returns nil when the input is not in function-call form.
+func parseFunctionCall(input string) *FunctionCall {
 	if len(input) < 3 || !strings.HasSuffix(input, ")") {
-		return nil, nil // Not a function call
+		return nil
 	}
 
 	parenIndex := strings.IndexByte(input, '(')
 	if parenIndex <= 0 {
-		return nil, nil // Not a function call
+		return nil
 	}
 
 	name := strings.TrimSpace(input[:parenIndex])
 	rawArgs := strings.TrimSpace(input[parenIndex+1 : len(input)-1])
 
-	// Parse arguments
 	var args []any
 	if rawArgs != "" {
 		args = parseArgs(rawArgs)
@@ -37,7 +35,7 @@ func parseFunctionCall(input string) (*FunctionCall, error) {
 	return &FunctionCall{
 		Name: name,
 		Args: args,
-	}, nil
+	}
 }
 
 // parseArgs parses function arguments from a string

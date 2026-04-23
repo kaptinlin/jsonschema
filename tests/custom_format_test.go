@@ -90,6 +90,27 @@ func TestTypeSpecificFormats(t *testing.T) {
 	assert.False(t, schema.Validate(map[string]any{"score": 150.0, "name": "test"}).IsValid())
 }
 
+func TestTypeSpecificNumberFormatAcceptsIntegerValues(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+	compiler.SetAssertFormat(true)
+	compiler.RegisterFormat("whole-number", func(v any) bool {
+		switch value := v.(type) {
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+			return true
+		case float64:
+			return value == math.Trunc(value)
+		default:
+			return false
+		}
+	}, "number")
+
+	schema, err := compiler.Compile([]byte(`{"properties": {"count": {"type": "integer", "format": "whole-number"}, "name": {"type": "string", "format": "whole-number"}}}`))
+	require.NoError(t, err)
+
+	assert.True(t, schema.Validate(map[string]any{"count": 42, "name": "value"}).IsValid())
+	assert.False(t, schema.Validate(map[string]any{"count": 42.5, "name": "value"}).IsValid())
+}
+
 func TestCustomFormatOverridesGlobal(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.SetAssertFormat(true)

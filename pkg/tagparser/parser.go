@@ -148,11 +148,12 @@ func (p *TagParser) parseRegularField(field *reflect.StructField, depth int) *Fi
 	fieldInfo := FieldInfo{
 		Name:           field.Name,
 		Type:           field.Type,
-		TypeName:       getFieldTypeName(field.Type),
+		TypeName:       typeToString(field.Type),
 		JSONName:       getJSONFieldName(field),
 		Tag:            jsonschemaTag,
 		EmbeddingDepth: depth,
 		IsPromoted:     depth > 0,
+		Optional:       field.Type.Kind() == reflect.Pointer,
 	}
 
 	// Parse validation rules from tag
@@ -163,12 +164,14 @@ func (p *TagParser) parseRegularField(field *reflect.StructField, depth int) *Fi
 		}
 		fieldInfo.Rules = rules
 
-		// Check for special rules
-		fieldInfo.Required = hasRule(rules, "required")
+		for _, rule := range rules {
+			if rule.Name == "required" {
+				fieldInfo.Required = true
+				fieldInfo.Optional = false
+				break
+			}
+		}
 	}
-
-	// Determine if field should be optional
-	fieldInfo.Optional = shouldBeOptional(field, fieldInfo.Required)
 
 	return &fieldInfo
 }
@@ -476,37 +479,6 @@ func getJSONFieldName(field *reflect.StructField) string {
 	}
 
 	return field.Name
-}
-
-// hasRule checks if a rule with given name exists in rules slice
-func hasRule(rules []TagRule, name string) bool {
-	for _, rule := range rules {
-		if rule.Name == name {
-			return true
-		}
-	}
-	return false
-}
-
-// shouldBeOptional determines if a field should be optional based on type and rules
-func shouldBeOptional(field *reflect.StructField, required bool) bool {
-	// If explicitly required, not optional
-	if required {
-		return false
-	}
-
-	// Pointer types are optional by default (unless required)
-	if field.Type.Kind() == reflect.Pointer {
-		return true
-	}
-
-	// Non-pointer types are not optional by default
-	return false
-}
-
-// getFieldTypeName converts a reflect.Type to a string representation for code generation
-func getFieldTypeName(fieldType reflect.Type) string {
-	return typeToString(fieldType)
 }
 
 // typeToString converts a reflect.Type to its string representation

@@ -47,10 +47,9 @@ func TestDefaultFunc_DefaultNowFunc(t *testing.T) {
 
 func TestParseFunctionCall(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
-		want    *FunctionCall
-		wantErr bool
+		name  string
+		input string
+		want  *FunctionCall
 	}{
 		{
 			name:  "simple function no args",
@@ -86,11 +85,7 @@ func TestParseFunctionCall(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseFunctionCall(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseFunctionCall() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			got := parseFunctionCall(tt.input)
 
 			if tt.want == nil {
 				if got != nil {
