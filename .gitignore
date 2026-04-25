@@ -55,12 +55,16 @@ TODO*.md
 cmd/schemagen/jshcemagen
 debug/
 
-# Scratch/planning docs
+# Scratch/planning artifacts
+/.workspace
+/task.md
+/.cov.before
+/.cov.after
+/.fix.before*
+/.fix.after*
 .plans/
-.plans/*
 .plan/*.md
 reports/
-reports/*
 PLAN*.md
 plan*.md
 IMPROVE.md
