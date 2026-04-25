@@ -327,7 +327,7 @@ func evaluateObjectStruct(schema *Schema, structValue reflect.Value, evaluatedPr
 // evaluateObjectReflectMap handles validation for reflect map types
 func evaluateObjectReflectMap(schema *Schema, mapValue reflect.Value, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
 	// Convert reflect map to map[string]any and use existing logic
-	object := make(map[string]any)
+	object := make(map[string]any, mapValue.Len())
 
 	for _, key := range mapValue.MapKeys() {
 		if key.Kind() == reflect.String {

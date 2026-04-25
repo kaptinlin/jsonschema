@@ -19,7 +19,7 @@ func evaluateDependentRequired(schema *Schema, object map[string]any) *Evaluatio
 		return nil // No dependent required properties defined, nothing to do.
 	}
 
-	dependentMissingProps := make(map[string][]string)
+	dependentMissingProps := make(map[string][]string, len(schema.DependentRequired))
 
 	for key, requiredProps := range schema.DependentRequired {
 		if _, keyExists := object[key]; keyExists {

@@ -348,7 +348,7 @@ func (c *Compiler) setupLoaders() {
 // until all schemas are compiled. This is the most efficient approach when you have
 // many schemas with interdependencies.
 func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, error) {
-	compiledSchemas := make(map[string]*Schema)
+	compiledSchemas := make(map[string]*Schema, len(schemas))
 
 	// First pass: compile all schemas without resolving references
 	for id, schemaBytes := range schemas {

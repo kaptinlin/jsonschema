@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/kaptinlin/jsonschema"
 )
@@ -161,13 +162,5 @@ func categorizeErrorsInChinese(errors map[string]string) {
 }
 
 func contains(s, substr string) bool {
-	if len(s) < len(substr) {
-		return false
-	}
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(s, substr)
 }
