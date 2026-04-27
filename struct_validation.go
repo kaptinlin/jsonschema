@@ -74,9 +74,7 @@ func parseStructType(structType reflect.Type) *FieldCache {
 		FieldsByName: make(map[string]FieldInfo),
 	}
 
-	for i := range structType.NumField() {
-		field := structType.Field(i)
-
+	for field := range structType.Fields() {
 		// Skip unexported fields
 		if !field.IsExported() {
 			continue
@@ -88,7 +86,7 @@ func parseStructType(structType reflect.Type) *FieldCache {
 		}
 
 		cache.FieldsByName[jsonName] = FieldInfo{
-			Index:     i,
+			Index:     field.Index[0],
 			JSONName:  jsonName,
 			Omitempty: omitempty,
 			Omitzero:  omitzero,

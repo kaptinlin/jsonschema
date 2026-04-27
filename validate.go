@@ -832,17 +832,12 @@ func (s *Schema) processObjectValidationWithoutRefs(instance any, result *Evalua
 
 	// Convert struct to map for constraint validation
 	objectMap := make(map[string]any, rv.NumField())
-	structType := rv.Type()
-	for i := range rv.NumField() {
-		field := structType.Field(i)
-		if !field.IsExported() {
+	for field, fieldValue := range rv.Fields() {
+		if !field.IsExported() || !fieldValue.CanInterface() {
 			continue
 		}
-		fieldValue := rv.Field(i)
-		if fieldValue.CanInterface() {
-			objectMap[field.Name] = fieldValue.Interface()
-			evaluatedProps[field.Name] = true
-		}
+		objectMap[field.Name] = fieldValue.Interface()
+		evaluatedProps[field.Name] = true
 	}
 
 	errors := validateObjectConstraints(s, objectMap)
