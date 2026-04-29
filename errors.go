@@ -256,6 +256,9 @@ var (
 	// ErrDefaultEvaluation reports a default evaluation failure.
 	ErrDefaultEvaluation = errors.New("default evaluation failed")
 
+	// ErrDefaultReferenceLoop reports an infinite default expansion caused by recursive references.
+	ErrDefaultReferenceLoop = errors.New("default reference expansion loop detected")
+
 	// ErrArrayDefaultApplication reports an array default application failure.
 	ErrArrayDefaultApplication = errors.New("array default application failed")
 

@@ -693,6 +693,329 @@ func TestUnmarshalDefaults(t *testing.T) {
 	}
 }
 
+func TestUnmarshalDefaultsResolveRef(t *testing.T) {
+	schemaJSON := `{
+		"type": "object",
+		"$defs": {
+			"profile": {
+				"type": "object",
+				"properties": {
+					"country": {"type": "string", "default": "US"},
+					"active": {"type": "boolean", "default": true}
+				}
+			}
+		},
+		"properties": {
+			"profile": {
+				"$ref": "#/$defs/profile"
+			}
+		}
+	}`
+
+	type ProfileWithDefaults struct {
+		Country string `json:"country"`
+		Active  bool   `json:"active"`
+	}
+
+	type UserWithProfile struct {
+		Profile ProfileWithDefaults `json:"profile"`
+	}
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	var result UserWithProfile
+	err = schema.Unmarshal(&result, []byte(`{}`))
+	require.NoError(t, err)
+	assert.Equal(t, "US", result.Profile.Country)
+	assert.True(t, result.Profile.Active)
+}
+
+func TestUnmarshalRecursiveRefWithoutObjectDefaults(t *testing.T) {
+	schemaJSON := `{
+		"$defs": {
+			"node": {
+				"type": "object",
+				"properties": {
+					"label": {"type": "string", "default": "root"},
+					"next": {"$ref": "#/$defs/node"}
+				}
+			}
+		},
+		"$ref": "#/$defs/node"
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	var result map[string]any
+	err = schema.Unmarshal(&result, []byte(`{}`))
+	require.NoError(t, err)
+	assert.Equal(t, "root", result["label"])
+	_, hasNext := result["next"]
+	assert.False(t, hasNext)
+}
+
+func TestUnmarshalRefDefaultExpansionLoopDetection(t *testing.T) {
+	schemaJSON := `{
+		"$defs": {
+			"node": {
+				"type": "object",
+				"default": {},
+				"properties": {
+					"next": {"$ref": "#/$defs/node"}
+				}
+			}
+		},
+		"$ref": "#/$defs/node"
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	var result map[string]any
+	err = schema.Unmarshal(&result, []byte(`{}`))
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrDefaultReferenceLoop)
+
+	var unmarshalErr *UnmarshalError
+	require.ErrorAs(t, err, &unmarshalErr)
+	assert.Equal(t, "defaults", unmarshalErr.Type)
+}
+
+func TestUnmarshalRefParityStaticStructWithoutObjectDefault(t *testing.T) {
+	inlineSchemaJSON := `{
+		"type": "object",
+		"properties": {
+			"profile": {
+				"type": "object",
+				"properties": {
+					"country": {"type": "string", "default": "US"},
+					"active": {"type": "boolean", "default": true}
+				}
+			}
+		}
+	}`
+
+	refSchemaJSON := `{
+		"type": "object",
+		"$defs": {
+			"profile": {
+				"type": "object",
+				"properties": {
+					"country": {"type": "string", "default": "US"},
+					"active": {"type": "boolean", "default": true}
+				}
+			}
+		},
+		"properties": {
+			"profile": {"$ref": "#/$defs/profile"}
+		}
+	}`
+
+	type profile struct {
+		Country string `json:"country"`
+		Active  bool   `json:"active"`
+	}
+	type payload struct {
+		Profile profile `json:"profile"`
+	}
+
+	compiler := NewCompiler()
+	inlineSchema, err := compiler.Compile([]byte(inlineSchemaJSON))
+	require.NoError(t, err)
+	refSchema, err := compiler.Compile([]byte(refSchemaJSON))
+	require.NoError(t, err)
+
+	var inlineResult payload
+	err = inlineSchema.Unmarshal(&inlineResult, []byte(`{}`))
+	require.NoError(t, err)
+
+	var refResult payload
+	err = refSchema.Unmarshal(&refResult, []byte(`{}`))
+	require.NoError(t, err)
+
+	assert.Equal(t, inlineResult, refResult)
+	assert.Equal(t, "US", refResult.Profile.Country)
+	assert.True(t, refResult.Profile.Active)
+}
+
+func TestUnmarshalAnyDestinationObjectDefaultMatrix(t *testing.T) {
+	tests := []struct {
+		name        string
+		schemaJSON  string
+		wantProfile bool
+	}{
+		{
+			name: "inline without object default",
+			schemaJSON: `{
+				"type": "object",
+				"properties": {
+					"profile": {
+						"type": "object",
+						"properties": {
+							"country": {"type": "string", "default": "US"},
+							"active": {"type": "boolean", "default": true}
+						}
+					}
+				}
+			}`,
+			wantProfile: false,
+		},
+		{
+			name: "inline with object default",
+			schemaJSON: `{
+				"type": "object",
+				"properties": {
+					"profile": {
+						"type": "object",
+						"default": {},
+						"properties": {
+							"country": {"type": "string", "default": "US"},
+							"active": {"type": "boolean", "default": true}
+						}
+					}
+				}
+			}`,
+			wantProfile: true,
+		},
+		{
+			name: "ref without object default",
+			schemaJSON: `{
+				"type": "object",
+				"$defs": {
+					"profile": {
+						"type": "object",
+						"properties": {
+							"country": {"type": "string", "default": "US"},
+							"active": {"type": "boolean", "default": true}
+						}
+					}
+				},
+				"properties": {
+					"profile": {"$ref": "#/$defs/profile"}
+				}
+			}`,
+			wantProfile: false,
+		},
+		{
+			name: "ref with object default",
+			schemaJSON: `{
+				"type": "object",
+				"$defs": {
+					"profile": {
+						"type": "object",
+						"properties": {
+							"country": {"type": "string", "default": "US"},
+							"active": {"type": "boolean", "default": true}
+						}
+					}
+				},
+				"properties": {
+					"profile": {
+						"$ref": "#/$defs/profile",
+						"default": {}
+					}
+				}
+			}`,
+			wantProfile: true,
+		},
+		{
+			name: "ref with object default on target",
+			schemaJSON: `{
+				"type": "object",
+				"$defs": {
+					"profile": {
+						"type": "object",
+						"default": {},
+						"properties": {
+							"country": {"type": "string", "default": "US"},
+							"active": {"type": "boolean", "default": true}
+						}
+					}
+				},
+				"properties": {
+					"profile": {"$ref": "#/$defs/profile"}
+				}
+			}`,
+			wantProfile: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			schema, err := compiler.Compile([]byte(tt.schemaJSON))
+			require.NoError(t, err)
+
+			var result any
+			err = schema.Unmarshal(&result, []byte(`{}`))
+			require.NoError(t, err)
+
+			obj, ok := result.(map[string]any)
+			require.True(t, ok, "expected object-like any destination")
+
+			profileValue, exists := obj["profile"]
+			assert.Equal(t, tt.wantProfile, exists)
+			if !tt.wantProfile {
+				return
+			}
+
+			profileMap, ok := profileValue.(map[string]any)
+			require.True(t, ok, "expected profile to be map when default expanded")
+			assert.Equal(t, "US", profileMap["country"])
+			assert.Equal(t, true, profileMap["active"])
+		})
+	}
+}
+
+func TestUnmarshalRefDefaultExpansionNonLoopingRecursive(t *testing.T) {
+	schemaJSON := `{
+		"type": "object",
+		"$defs": {
+			"meta": {
+				"type": "object",
+				"properties": {
+					"enabled": {"type": "boolean", "default": true}
+				}
+			},
+			"node": {
+				"type": "object",
+				"properties": {
+					"label": {"type": "string", "default": "root"},
+					"meta": {"$ref": "#/$defs/meta", "default": {}},
+					"next": {"$ref": "#/$defs/node"}
+				}
+			}
+		},
+		"properties": {
+			"head": {"$ref": "#/$defs/node", "default": {}}
+		}
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	var result map[string]any
+	err = schema.Unmarshal(&result, []byte(`{}`))
+	require.NoError(t, err)
+
+	head, ok := result["head"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "root", head["label"])
+
+	meta, ok := head["meta"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, true, meta["enabled"])
+
+	_, hasNext := head["next"]
+	assert.False(t, hasNext)
+}
+
 // BenchmarkUnmarshal tests performance
 func BenchmarkUnmarshal(b *testing.B) {
 	schemaJSON := `{

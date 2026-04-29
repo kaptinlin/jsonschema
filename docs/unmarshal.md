@@ -44,6 +44,7 @@ if result.IsValid() {
 
 ### ✅ What Unmarshal Does
 - **Applies default values** from schema
+- **Follows `$ref` while applying defaults** (including nested `$defs` reuse)
 - **Converts data types** to match Go struct fields
 - **Handles multiple input types** (JSON bytes, maps, structs)
 - **Unmarshals to destination** (structs, maps, slices)
@@ -141,6 +142,8 @@ schema := `{
 //   "settings": {"theme": "light", "notifications": true}
 // }
 ```
+
+If recursive `$ref` expansion would keep creating new default objects forever, `Unmarshal` returns an error instead of recursing indefinitely.
 
 ## Dynamic Default Values
 
