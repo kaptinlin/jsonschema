@@ -292,24 +292,19 @@ func parseTagParts(tag string) []string {
 				shouldSeparate := true
 
 				if inParameterValue {
-					// Look for rule name at the beginning of current string
 					if before, _, ok := strings.Cut(current.String(), "="); ok {
 						ruleName := strings.TrimSpace(before)
 						if needsCommaSeparation(ruleName) {
-							shouldSeparate = false
 							remaining := tag[i+1:]
 							nextCommaIdx := strings.Index(remaining, ",")
 							nextEqualIdx := strings.Index(remaining, "=")
-							if nextEqualIdx != -1 && (nextCommaIdx == -1 || nextEqualIdx < nextCommaIdx) {
-								potentialRuleName := strings.TrimSpace(remaining[:nextEqualIdx])
-								shouldSeparate = isValidRuleName(potentialRuleName)
-							}
+							shouldSeparate = nextEqualIdx != -1 && (nextCommaIdx == -1 || nextEqualIdx < nextCommaIdx) &&
+								isValidRuleName(strings.TrimSpace(remaining[:nextEqualIdx]))
 						}
 					}
 				}
 
 				if shouldSeparate {
-					// Unescaped comma outside quotes and brackets - end current part
 					parts = append(parts, current.String())
 					current.Reset()
 					inParameterValue = false
