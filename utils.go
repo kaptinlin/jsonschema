@@ -175,9 +175,9 @@ func getBaseURI(id string) string {
 
 // splitRef separates a URI into its base URI and anchor parts.
 func splitRef(ref string) (baseURI string, anchor string) {
-	parts := strings.SplitN(ref, "#", 2)
-	if len(parts) == 2 {
-		return parts[0], parts[1]
+	baseURI, anchor, found := strings.Cut(ref, "#")
+	if found {
+		return baseURI, anchor
 	}
 	return ref, ""
 }

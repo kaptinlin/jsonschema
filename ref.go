@@ -14,8 +14,8 @@ func (s *Schema) resolveRef(ref string) (*Schema, error) {
 		return s.rootSchema(), nil
 	}
 
-	if strings.HasPrefix(ref, "#") {
-		return s.resolveAnchor(ref[1:])
+	if anchor, ok := strings.CutPrefix(ref, "#"); ok {
+		return s.resolveAnchor(anchor)
 	}
 
 	// Resolve the full URL if ref is a relative URL

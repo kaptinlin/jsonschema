@@ -4,8 +4,10 @@
 package tagparser
 
 import (
+	"cmp"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -79,17 +81,16 @@ func (p *TagParser) parseFields(structType reflect.Type, seenTypes map[string]in
 			continue
 		}
 
-		currentField := field
-		if currentField.Anonymous {
+		if field.Anonymous {
 			// Handle embedded struct
-			embeddedFields, err := p.parseEmbeddedField(&currentField, seenTypes, depth)
+			embeddedFields, err := p.parseEmbeddedField(&field, seenTypes, depth)
 			if err != nil {
 				continue // Skip problematic embedded types gracefully
 			}
 			allFields = append(allFields, embeddedFields...)
 		} else {
 			// Handle regular field
-			fieldInfo := p.parseRegularField(&currentField, depth)
+			fieldInfo := p.parseRegularField(&field, depth)
 			if fieldInfo != nil {
 				allFields = append(allFields, *fieldInfo)
 			}
@@ -195,14 +196,10 @@ func (p *TagParser) resolveFieldConflicts(fields []FieldInfo) []FieldInfo {
 		// Apply Go's field promotion rules:
 		// 1. Shallowest depth wins
 		// 2. Among same depth, first declared wins
-		winner := &candidates[0]
-		for i := 1; i < len(candidates); i++ {
-			candidate := &candidates[i]
-			if candidate.EmbeddingDepth < winner.EmbeddingDepth {
-				winner = candidate
-			}
-		}
-		resolved = append(resolved, *winner)
+		winner := slices.MinFunc(candidates, func(a, b FieldInfo) int {
+			return cmp.Compare(a.EmbeddingDepth, b.EmbeddingDepth)
+		})
+		resolved = append(resolved, winner)
 	}
 
 	return resolved
