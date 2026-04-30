@@ -4,6 +4,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -106,6 +107,42 @@ func TestFileWriter_WriteToFileRejectsParentTraversal(t *testing.T) {
 
 	err = writer.writeToFile("../escape.go", "package main\n")
 	require.ErrorIs(t, err, jsonschema.ErrInvalidFilenamePath)
+}
+
+func TestCodeGenerator_ProcessPackageWithNoGeneratedStructs(t *testing.T) {
+	// No t.Parallel(): captures process-wide stdout.
+	dir := t.TempDir()
+	err := os.WriteFile(filepath.Join(dir, "models.go"), []byte(`package sample
+
+type plain struct {
+	name string
+}
+`), 0o600)
+	require.NoError(t, err)
+
+	generator, err := NewCodeGenerator(&GeneratorConfig{
+		OutputSuffix: "_schema.go",
+		DryRun:       true,
+		Verbose:      true,
+	})
+	require.NoError(t, err)
+
+	out := testutil.CaptureStdout(t, func() {
+		require.NoError(t, generator.ProcessPackage(dir))
+	})
+
+	assert.Contains(t, out, "No structs found requiring code generation")
+}
+
+func TestFileWriter_WriteGeneratedCodeReportsFormattingErrors(t *testing.T) {
+	writer, err := NewFileWriter("_schema.go", "sample", true, false)
+	require.NoError(t, err)
+
+	err = writer.WriteGeneratedCode("bad.go", "sample", []MethodData{{
+		Receiver:   "s Bad)",
+		StructName: "Bad",
+	}})
+	require.ErrorIs(t, err, jsonschema.ErrCodeFormatting)
 }
 
 func TestShowHelp_PrintsUsage(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/kaptinlin/jsonschema"
 	"github.com/kaptinlin/jsonschema/pkg/tagparser"
 )
 
@@ -42,6 +43,79 @@ func newVerboseTestGenerator(t *testing.T) *CodeGenerator {
 	require.NotNil(t, generator, "generator should not be nil")
 
 	return generator
+}
+
+func TestNewCodeGeneratorRejectsNilConfig(t *testing.T) {
+	generator, err := NewCodeGenerator(nil)
+
+	assert.Nil(t, generator)
+	require.ErrorIs(t, err, jsonschema.ErrNilConfig)
+}
+
+func TestCodeGenerator_GenerateFieldPropertySpecialBaseSchemas(t *testing.T) {
+	generator := newTestGenerator(t)
+
+	tests := []struct {
+		name     string
+		field    tagparser.FieldInfo
+		expected string
+	}{
+		{
+			name: "const string",
+			field: tagparser.FieldInfo{
+				Name:     "Kind",
+				TypeName: "string",
+				JSONName: "kind",
+				Rules:    []tagparser.TagRule{{Name: "const", Params: []string{"user"}}},
+			},
+			expected: `jsonschema.Prop("kind", jsonschema.Const("user"))`,
+		},
+		{
+			name: "dynamic ref with validator",
+			field: tagparser.FieldInfo{
+				Name:     "Node",
+				TypeName: "any",
+				JSONName: "node",
+				Rules: []tagparser.TagRule{
+					{Name: "dynamicRef", Params: []string{"#node"}},
+					{Name: "description", Params: []string{"recursive node"}},
+				},
+			},
+			expected: "dynamic-ref",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			property, err := generator.generateFieldProperty(&tt.field)
+			require.NoError(t, err)
+			if tt.expected == "dynamic-ref" {
+				assert.Contains(t, property, `jsonschema.AllOf(&jsonschema.Schema{DynamicRef: "#node"}`)
+				assert.Contains(t, property, `jsonschema.Object(`)
+				assert.Contains(t, property, `jsonschema.Description("recursive node")`)
+				return
+			}
+			assert.Equal(t, tt.expected, property)
+		})
+	}
+}
+
+func TestCodeGenerator_GenerateFieldSchemaRejectsUnsupportedType(t *testing.T) {
+	generator := newTestGenerator(t)
+
+	schema, err := generator.generateFieldSchema(&tagparser.FieldInfo{
+		Name:     "Channel",
+		TypeName: "chan string",
+		JSONName: "channel",
+	})
+
+	assert.Empty(t, schema)
+	require.ErrorIs(t, err, jsonschema.ErrUnsupportedGenerationType)
+}
+
+func TestCodeGenerator_ExtractPatternFromJSON(t *testing.T) {
+	assert.Equal(t, "^[a-z]+$", extractPatternFromJSON(`{"pattern":"^[a-z]+$"}`))
+	assert.Empty(t, extractPatternFromJSON(`{"type":"string"}`))
 }
 
 // Basic Generator Tests

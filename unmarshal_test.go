@@ -104,6 +104,57 @@ func TestUnmarshalBasicTypes(t *testing.T) {
 	}
 }
 
+func TestUnmarshalAppliesDefaultsInsideArrayItems(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"items": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"name": {"type": "string"},
+						"status": {"type": "string", "default": "new"},
+						"metadata": {
+							"type": "object",
+							"default": {"labels": ["fresh"]},
+							"properties": {
+								"owner": {"type": "string", "default": "system"}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`))
+	require.NoError(t, err)
+
+	input := map[string]any{
+		"items": []any{
+			map[string]any{"name": "first"},
+			map[string]any{"name": "second", "status": "done", "metadata": map[string]any{}},
+		},
+	}
+	var result map[string]any
+	err = schema.Unmarshal(&result, input)
+	require.NoError(t, err)
+
+	items, ok := result["items"].([]any)
+	require.True(t, ok)
+	require.Len(t, items, 2)
+
+	first, ok := items[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "new", first["status"])
+	assert.Equal(t, map[string]any{"labels": []any{"fresh"}, "owner": "system"}, first["metadata"])
+
+	second, ok := items[1].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "done", second["status"])
+	assert.Equal(t, map[string]any{"owner": "system"}, second["metadata"])
+}
+
 // TestUnmarshalPointerFields tests pointer field handling
 func TestUnmarshalPointerFields(t *testing.T) {
 	schemaJSON := `{

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,6 +9,65 @@ import (
 
 	"github.com/kaptinlin/jsonschema/pkg/tagparser"
 )
+
+func TestReferenceAnalyzer_AnalyzePackageDependenciesFromReflectTypes(t *testing.T) {
+	type Address struct {
+		Street string
+	}
+	type Profile struct {
+		Address Address
+	}
+
+	analyzer := NewReferenceAnalyzer()
+	infos := []*GenerationInfo{
+		{
+			Name:    "User",
+			Package: "sample",
+			Fields: []tagparser.FieldInfo{
+				{Name: "Address", Type: reflect.TypeFor[Address]()},
+				{Name: "Profile", Type: reflect.TypeFor[*Profile]()},
+				{Name: "History", Type: reflect.TypeFor[[]Address]()},
+				{Name: "Lookup", Type: reflect.TypeFor[map[string]*Profile]()},
+			},
+		},
+		{Name: "Address", Package: "sample"},
+		{Name: "Profile", Package: "sample"},
+	}
+
+	err := analyzer.AnalyzePackageDependencies(infos)
+	require.NoError(t, err)
+
+	graph := analyzer.DependencyGraph()
+	assert.Contains(t, graph.edges["User"], "Address")
+	assert.Contains(t, graph.edges["User"], "Profile")
+
+	userNode := graph.nodes["User"]
+	require.NotNil(t, userNode)
+	require.Len(t, userNode.Fields, 4)
+	assert.False(t, userNode.Fields[0].IsPointer)
+	assert.True(t, userNode.Fields[1].IsPointer)
+	assert.True(t, userNode.Fields[2].IsSlice)
+	assert.True(t, userNode.Fields[3].IsMap)
+	assert.Equal(t, "Profile", userNode.Fields[3].MapValueType)
+}
+
+func TestReferenceAnalyzer_DetectsCyclesFromTypeNames(t *testing.T) {
+	analyzer := NewReferenceAnalyzer()
+	infos := []*GenerationInfo{
+		{
+			Name:    "Node",
+			Package: "sample",
+			Fields:  []tagparser.FieldInfo{{Name: "Children", TypeName: "[]Node"}},
+		},
+	}
+
+	err := analyzer.AnalyzePackageDependencies(infos)
+	require.NoError(t, err)
+
+	assert.True(t, analyzer.HasCycles())
+	assert.True(t, analyzer.NeedsRefGeneration("Node"))
+	assert.Contains(t, analyzer.DependencyGraph().edges["Node"], "Node")
+}
 
 // Basic Reference Tests
 func TestCodeGenerator_BasicReferences(t *testing.T) {

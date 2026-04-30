@@ -261,6 +261,25 @@ func TestEvaluatePatternInvalidPattern(t *testing.T) {
 	assert.Nil(t, schema.compiledStringPattern)
 }
 
+func TestValidateStructHandlesTypedStringMap(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"age": {"type": "integer", "minimum": 18},
+			"score": {"type": "integer", "maximum": 100}
+		},
+		"required": ["age"]
+	}`))
+	require.NoError(t, err)
+
+	result := schema.ValidateStruct(map[string]int{"age": 21, "score": 99})
+	assert.True(t, result.IsValid(), "typed map should validate through the struct path: %v", result.Errors)
+
+	result = schema.ValidateStruct(map[string]int{"age": 16, "score": 101})
+	assert.False(t, result.IsValid())
+}
+
 func TestValidateTypeConstraints(t *testing.T) {
 	t.Run("NumericValidation", func(t *testing.T) {
 		schema := `{
