@@ -60,10 +60,12 @@ func TestStructAnalyzer_AnalyzePackageCapturesASTTypeShapes(t *testing.T) {
 		"\tEmbedded\n"+
 		"\tAddress *Address `json:\"address\" jsonschema:\"required\"`\n"+
 		"\tTags []string `json:\"tags\" jsonschema:\"items=string\"`\n"+
+		"\tHistory [3]Address `json:\"history\"`\n"+
 		"\tLookup map[string]Address `json:\"lookup\"`\n"+
 		"\tWhen time.Time `json:\"when\"`\n"+
 		"\tMeta any `json:\"meta\"`\n"+
 		"\tReader interface{ Read([]byte) (int, error) } `json:\"reader\"`\n"+
+		"\tRaw func() `json:\"raw\"`\n"+
 		"}\n")
 
 	infos, err := analyzer.AnalyzePackage(dir)
@@ -79,10 +81,12 @@ func TestStructAnalyzer_AnalyzePackageCapturesASTTypeShapes(t *testing.T) {
 
 	assert.Equal(t, "*Address", fields["address"])
 	assert.Equal(t, "[]string", fields["tags"])
+	assert.Equal(t, "[]Address", fields["history"])
 	assert.Equal(t, "map[string]Address", fields["lookup"])
 	assert.Equal(t, "time.Time", fields["when"])
 	assert.Equal(t, "any", fields["meta"])
 	assert.Equal(t, "interface{...}", fields["reader"])
+	assert.Equal(t, "unknown", fields["raw"])
 }
 
 func TestStructAnalyzer_AnalyzePackageReportsParseErrors(t *testing.T) {

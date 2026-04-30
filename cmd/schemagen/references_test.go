@@ -27,6 +27,7 @@ func TestReferenceAnalyzer_AnalyzePackageDependenciesFromReflectTypes(t *testing
 				{Name: "Address", Type: reflect.TypeFor[Address]()},
 				{Name: "Profile", Type: reflect.TypeFor[*Profile]()},
 				{Name: "History", Type: reflect.TypeFor[[]Address]()},
+				{Name: "PointerHistory", Type: reflect.TypeFor[[]*Profile]()},
 				{Name: "Lookup", Type: reflect.TypeFor[map[string]*Profile]()},
 			},
 		},
@@ -43,12 +44,14 @@ func TestReferenceAnalyzer_AnalyzePackageDependenciesFromReflectTypes(t *testing
 
 	userNode := graph.nodes["User"]
 	require.NotNil(t, userNode)
-	require.Len(t, userNode.Fields, 4)
+	require.Len(t, userNode.Fields, 5)
 	assert.False(t, userNode.Fields[0].IsPointer)
 	assert.True(t, userNode.Fields[1].IsPointer)
 	assert.True(t, userNode.Fields[2].IsSlice)
-	assert.True(t, userNode.Fields[3].IsMap)
-	assert.Equal(t, "Profile", userNode.Fields[3].MapValueType)
+	assert.True(t, userNode.Fields[3].IsPointer)
+	assert.True(t, userNode.Fields[3].IsSlice)
+	assert.True(t, userNode.Fields[4].IsMap)
+	assert.Equal(t, "Profile", userNode.Fields[4].MapValueType)
 }
 
 func TestReferenceAnalyzer_DetectsCyclesFromTypeNames(t *testing.T) {

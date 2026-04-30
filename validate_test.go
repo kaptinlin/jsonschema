@@ -280,6 +280,27 @@ func TestValidateStructHandlesTypedStringMap(t *testing.T) {
 	assert.False(t, result.IsValid())
 }
 
+func TestValidateStructHandlesAliasStringMap(t *testing.T) {
+	type Scores map[string]uint16
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"age": {"type": "integer", "minimum": 18},
+			"score": {"type": "integer", "maximum": 100}
+		},
+		"required": ["age"]
+	}`))
+	require.NoError(t, err)
+
+	assert.True(t, schema.ValidateStruct(Scores{"age": 21, "score": 99}).IsValid())
+
+	result := schema.ValidateStruct(Scores{"age": 16, "score": 101})
+	assert.False(t, result.IsValid())
+	assert.Contains(t, result.Errors, "properties")
+}
+
 func TestValidateTypeConstraints(t *testing.T) {
 	t.Run("NumericValidation", func(t *testing.T) {
 		schema := `{
@@ -816,6 +837,103 @@ func TestCircularReferenceValidationPerformance(t *testing.T) {
 	}
 }
 
+func TestDynamicRefValidatesAgainstResolvedDynamicAnchor(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"$dynamicAnchor": "node",
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"child": {"$dynamicRef": "#node"}
+		},
+		"required": ["name"]
+	}`))
+	require.NoError(t, err)
+
+	assert.True(t, schema.Validate(map[string]any{
+		"name":  "root",
+		"child": map[string]any{"name": "leaf"},
+	}).IsValid())
+
+	result := schema.Validate(map[string]any{
+		"name":  "root",
+		"child": map[string]any{},
+	})
+	assert.False(t, result.IsValid())
+}
+
+func TestConditionalThenAndElseBranchesReportMismatches(t *testing.T) {
+	schema := If(Object(Prop("kind", Const("premium")))).Then(
+		Object(Prop("features", Array(MinItems(2)))),
+	).Else(
+		Object(Prop("features", Array(MaxItems(1)))),
+	)
+
+	assert.True(t, schema.Validate(map[string]any{
+		"kind":     "premium",
+		"features": []any{"analytics", "support"},
+	}).IsValid())
+	assert.True(t, schema.Validate(map[string]any{
+		"kind":     "basic",
+		"features": []any{"support"},
+	}).IsValid())
+
+	thenResult := schema.Validate(map[string]any{
+		"kind":     "premium",
+		"features": []any{"support"},
+	})
+	assert.False(t, thenResult.IsValid())
+	assert.Contains(t, thenResult.Errors, "then")
+
+	elseResult := schema.Validate(map[string]any{
+		"kind":     "basic",
+		"features": []any{"analytics", "support"},
+	})
+	assert.False(t, elseResult.IsValid())
+	assert.Contains(t, elseResult.Errors, "else")
+}
+
+func TestCircularReferenceFallbackValidatesObjectAndArrayConstraints(t *testing.T) {
+	objectSchema := &Schema{
+		Type:     SchemaType{"object"},
+		Required: []string{"name"},
+		Properties: &SchemaMap{
+			"name": {Type: SchemaType{"string"}},
+		},
+		AdditionalProperties: &Schema{Boolean: new(bool)},
+	}
+
+	objectResult := NewEvaluationResult(objectSchema)
+	objectEvaluatedProps := map[string]bool{}
+	objectSchema.processBasicValidationWithoutRefs(
+		map[string]any{"extra": true},
+		objectResult,
+		objectEvaluatedProps,
+		map[int]bool{},
+	)
+	assert.False(t, objectResult.IsValid())
+	assert.Contains(t, objectResult.Errors, "required")
+	assert.Contains(t, objectResult.Errors, "additionalProperties")
+
+	arraySchema := &Schema{
+		Type:     SchemaType{"array"},
+		MinItems: new(float64),
+	}
+	*arraySchema.MinItems = 2
+
+	arrayResult := NewEvaluationResult(arraySchema)
+	arrayEvaluatedItems := map[int]bool{}
+	arraySchema.processBasicValidationWithoutRefs(
+		[]any{"only-one"},
+		arrayResult,
+		map[string]bool{},
+		arrayEvaluatedItems,
+	)
+	assert.False(t, arrayResult.IsValid())
+	assert.Contains(t, arrayResult.Errors, "minItems")
+	assert.Equal(t, map[int]bool{0: true}, arrayEvaluatedItems)
+}
+
 func TestDynamicScopeHelpers(t *testing.T) {
 	scope := NewDynamicScope()
 	assert.True(t, scope.IsEmpty())
@@ -1008,6 +1126,9 @@ func TestObjectValidationHelpers(t *testing.T) {
 }
 
 func TestUniqueItemsWithTypedValues(t *testing.T) {
+	type NamedInts []int
+	type NamedObject map[string]uint8
+
 	compiler := NewCompiler()
 	schema, err := compiler.Compile([]byte(`{"type":"array","uniqueItems":true}`))
 	require.NoError(t, err)
@@ -1016,6 +1137,74 @@ func TestUniqueItemsWithTypedValues(t *testing.T) {
 	assert.False(t, schema.ValidateJSON([]byte(`[{"a":1},{"a":1}]`)).IsValid())
 	assert.False(t, schema.Validate([]any{1, 2, 1}).IsValid())
 	assert.False(t, schema.Validate([]any{[]any{"a"}, []any{"a"}}).IsValid())
+	assert.False(t, schema.Validate([]any{NamedInts{1, 2}, NamedInts{1, 2}}).IsValid())
+	assert.False(t, schema.Validate([]any{NamedObject{"a": 1}, NamedObject{"a": 1}}).IsValid())
+}
+
+func TestBooleanSchemasEvaluateObjectAndArrayInputs(t *testing.T) {
+	allow := &Schema{Boolean: new(bool)}
+	*allow.Boolean = true
+	allow.initializeSchema(nil, nil)
+
+	assert.True(t, allow.Validate(map[string]any{"name": "alice"}).IsValid())
+	assert.True(t, allow.Validate([]any{"first", "second"}).IsValid())
+
+	deny := &Schema{Boolean: new(bool)}
+	deny.initializeSchema(nil, nil)
+	assert.False(t, deny.Validate("anything").IsValid())
+}
+
+func TestEnumAndConstCompareNumericTypes(t *testing.T) {
+	assert.True(t, Enum(
+		int8(-2), int16(-3), int32(-4), int64(-5),
+		uint(6), uint8(7), uint16(8), uint32(9), uint64(10),
+		float32(4.5), float64(11.5),
+	).Validate(4.5).IsValid())
+	assert.True(t, Enum(
+		int8(-2), int16(-3), int32(-4), int64(-5),
+		uint(6), uint8(7), uint16(8), uint32(9), uint64(10),
+		float32(4.5), float64(11.5),
+	).Validate(10).IsValid())
+	assert.False(t, Enum(uint8(3), float32(4.5)).Validate("3").IsValid())
+
+	assert.True(t, Const(float64(3)).Validate(3).IsValid())
+	assert.False(t, Const(float64(3)).Validate(4).IsValid())
+	assert.True(t, Const(nil).Validate(nil).IsValid())
+	assert.False(t, Const(nil).Validate("not null").IsValid())
+}
+
+func TestFormatValidatorsEdgeCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		validate  func(any) bool
+		valid     any
+		invalid   any
+		nonString any
+	}{
+		{name: "date time", validate: IsDateTime, valid: "2024-02-29T23:59:60Z", invalid: "2024-02-29 23:59:59Z", nonString: 42},
+		{name: "time", validate: IsTime, valid: "23:59:60Z", invalid: "22:59:60Z", nonString: 42},
+		{name: "duration", validate: IsDuration, valid: "P1Y2M3DT4H5M6S", invalid: "P1D2Y", nonString: 42},
+		{name: "period", validate: IsPeriod, valid: "2024-01-01T00:00:00Z/P1D", invalid: "P1D/P2D", nonString: 42},
+		{name: "hostname", validate: IsHostname, valid: "example.com.", invalid: "-bad.example", nonString: 42},
+		{name: "email", validate: IsEmail, valid: "user@example.com", invalid: "user@-bad.example", nonString: 42},
+		{name: "ipv4", validate: IsIPV4, valid: "192.168.0.1", invalid: "192.168.001.1", nonString: 42},
+		{name: "ipv6", validate: IsIPV6, valid: "2001:db8::1", invalid: "127.0.0.1", nonString: 42},
+		{name: "uri", validate: IsURI, valid: "https://example.com/path", invalid: "relative/path", nonString: 42},
+		{name: "uri reference", validate: IsURIReference, valid: "relative/path", invalid: `relative\path`, nonString: 42},
+		{name: "uri template", validate: IsURITemplate, valid: "https://example.com/{id}", invalid: "https://example.com/{{id}}", nonString: 42},
+		{name: "json pointer", validate: IsJSONPointer, valid: "/items/0", invalid: "items/0", nonString: 42},
+		{name: "relative json pointer", validate: IsRelativeJSONPointer, valid: "1/name", invalid: "01/name", nonString: 42},
+		{name: "uuid", validate: IsUUID, valid: "550e8400-e29b-41d4-a716-446655440000", invalid: "550e8400-e29b", nonString: 42},
+		{name: "regex", validate: IsRegex, valid: "^[a-z]+$", invalid: "(", nonString: 42},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.True(t, tt.validate(tt.valid))
+			assert.False(t, tt.validate(tt.invalid))
+			assert.True(t, tt.validate(tt.nonString))
+		})
+	}
 }
 
 // Helper functions

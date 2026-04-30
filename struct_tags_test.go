@@ -294,6 +294,37 @@ func TestLogicalCombinationValidators(t *testing.T) {
 	}
 }
 
+func TestCreateSchemaFromParamThroughStructTags(t *testing.T) {
+	type Related struct {
+		ID string `jsonschema:"required"`
+	}
+	var _ Related
+	type ParamTest struct {
+		Primitive   any    `jsonschema:"oneOf=string,integer,number,boolean,null,object,array"`
+		BooleanTrue bool   `jsonschema:"const=true"`
+		Integer     int64  `jsonschema:"const=42"`
+		Number      any    `jsonschema:"const=4.5"`
+		Custom      any    `jsonschema:"not=Related"`
+		External    any    `jsonschema:"contentSchema=external.Widget"`
+		Literal     string `jsonschema:"const=literal"`
+	}
+
+	schema, err := FromStruct[ParamTest]()
+	require.NoError(t, err)
+
+	props := *schema.Properties
+	require.Len(t, props["Primitive"].OneOf, 7)
+	assert.True(t, props["BooleanTrue"].Const.IsSet)
+	assert.Equal(t, true, props["BooleanTrue"].Const.Value)
+	assert.Equal(t, 42, props["Integer"].Const.Value)
+	assert.Equal(t, "4.5", props["Number"].Const.Value)
+	require.NotNil(t, props["Custom"].Not.Description)
+	assert.Equal(t, "Related", *props["Custom"].Not.Description)
+	require.NotNil(t, props["External"].ContentSchema.Description)
+	assert.Equal(t, "external.Widget", *props["External"].ContentSchema.Description)
+	assert.Equal(t, "literal", props["Literal"].Const.Value)
+}
+
 func TestArrayAdvancedValidators(t *testing.T) {
 	type ArrayTest struct {
 		// Contains validators
@@ -1738,6 +1769,11 @@ func TestFromStruct_CombinedSchemaProperties(t *testing.T) {
 			"description":          "Schema for user data",
 			"minProperties":        1,
 			"maxProperties":        10,
+			"default":              map[string]any{"active": true},
+			"examples":             []any{map[string]any{"name": "Alice"}},
+			"deprecated":           true,
+			"readOnly":             true,
+			"writeOnly":            true,
 		},
 	}
 	schema, err := FromStructWithOptions[TestUser](options)
@@ -1758,6 +1794,14 @@ func TestFromStruct_CombinedSchemaProperties(t *testing.T) {
 	if schema.MaxProperties == nil || *schema.MaxProperties != 10.0 {
 		assert.Fail(t, "Expected maxProperties to be 10")
 	}
+	assert.Equal(t, map[string]any{"active": true}, schema.Default)
+	assert.Equal(t, []any{map[string]any{"name": "Alice"}}, schema.Examples)
+	assert.NotNil(t, schema.Deprecated)
+	assert.True(t, *schema.Deprecated)
+	assert.NotNil(t, schema.ReadOnly)
+	assert.True(t, *schema.ReadOnly)
+	assert.NotNil(t, schema.WriteOnly)
+	assert.True(t, *schema.WriteOnly)
 }
 
 // TestFromStructDeterministicSerialization tests that generated schemas serialize deterministically

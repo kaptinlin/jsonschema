@@ -2,12 +2,14 @@ package jsonschema
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/go-json-experiment/json"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,6 +17,29 @@ import (
 const (
 	remoteSchemaURL = "https://json-schema.org/draft/2020-12/schema"
 )
+
+func TestDefaultMediaTypeHandlersDecodeAndWrapErrors(t *testing.T) {
+	compiler := NewCompiler()
+
+	jsonValue, err := compiler.MediaTypes["application/json"]([]byte(`{"name":"alice"}`))
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"name": "alice"}, jsonValue)
+
+	_, err = compiler.MediaTypes["application/json"]([]byte(`{`))
+	require.ErrorIs(t, err, ErrJSONUnmarshal)
+
+	yamlValue, err := compiler.MediaTypes["application/yaml"]([]byte("name: alice\n"))
+	require.NoError(t, err)
+	var expectedYAML any
+	require.NoError(t, yaml.Unmarshal([]byte("name: alice\n"), &expectedYAML))
+	assert.Equal(t, expectedYAML, yamlValue)
+
+	_, err = compiler.MediaTypes["application/yaml"]([]byte("name: [\n"))
+	require.ErrorIs(t, err, ErrYAMLUnmarshal)
+
+	_, err = compiler.MediaTypes["application/xml"]([]byte(`<root>`))
+	require.ErrorIs(t, err, ErrXMLUnmarshal)
+}
 
 func TestRegisterAndUnregisterFormat(t *testing.T) {
 	compiler := NewCompiler()
@@ -235,6 +260,25 @@ func TestCompileInvalidPatternFails(t *testing.T) {
 	assert.Equal(t, "pattern", regexErr.Keyword)
 	assert.Equal(t, "#/properties/name/pattern", regexErr.Location)
 	assert.Equal(t, "^(?!x).*$", regexErr.Pattern)
+	assert.Contains(t, regexErr.Error(), `keyword=pattern`)
+	assert.Contains(t, regexErr.Error(), `location=#/properties/name/pattern`)
+	assert.Contains(t, regexErr.Error(), `pattern="^(?!x).*$"`)
+	assert.True(t, errors.Is(regexErr, regexErr.Err))
+}
+
+func TestDefaultCompilerControlsConstructorSchemas(t *testing.T) {
+	original := DefaultCompiler()
+	t.Cleanup(func() {
+		SetDefaultCompiler(original)
+	})
+
+	compiler := NewCompiler().SetAssertFormat(true)
+	SetDefaultCompiler(compiler)
+
+	schema := String(Format("email"))
+	assert.Same(t, compiler, DefaultCompiler())
+	assert.Same(t, compiler, schema.Compiler())
+	assert.False(t, schema.Validate("not-an-email").IsValid())
 }
 
 func TestRegisterDecoder(t *testing.T) {
@@ -799,6 +843,46 @@ func TestNestedRegexValidation(t *testing.T) {
 		require.ErrorAs(t, err, &regexErr)
 		assert.Contains(t, []string{"(?!a).*", "(?!b).*"}, regexErr.Pattern, "Should report one of the invalid patterns")
 	})
+}
+
+func TestJSONPointerReferencesResolveNestedSchemaSegments(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"$defs": {
+			"positive": {"type": "integer", "minimum": 1}
+		},
+		"type": "object",
+		"properties": {
+			"name": {"type": "string", "minLength": 2},
+			"values": {"type": "array", "items": {"type": "integer"}},
+			"tuple": {"type": "array", "prefixItems": [{"type": "string"}, {"type": "boolean"}]},
+			"copyName": {"$ref": "#/properties/name"},
+			"copyValue": {"$ref": "#/properties/values/items"},
+			"copyTupleFlag": {"$ref": "#/properties/tuple/prefixItems/1"},
+			"copyDef": {"$ref": "#/$defs/positive"}
+		}
+	}`))
+	require.NoError(t, err)
+
+	valid := map[string]any{
+		"name":          "alice",
+		"values":        []any{1, 2},
+		"tuple":         []any{"ok", true},
+		"copyName":      "bob",
+		"copyValue":     3,
+		"copyTupleFlag": false,
+		"copyDef":       1,
+	}
+	assert.True(t, schema.Validate(valid).IsValid())
+
+	invalid := map[string]any{
+		"name":          "alice",
+		"copyName":      "b",
+		"copyValue":     "3",
+		"copyTupleFlag": "false",
+		"copyDef":       0,
+	}
+	assert.False(t, schema.Validate(invalid).IsValid())
 }
 
 // TestInvalidRegexInPatternProperties tests invalid regex in patternProperties
