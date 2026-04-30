@@ -40,7 +40,6 @@ func NewStructAnalyzer() (*StructAnalyzer, error) {
 
 // AnalyzePackage analyzes all Go files in a package directory
 func (a *StructAnalyzer) AnalyzePackage(pkgPath string) ([]*GenerationInfo, error) {
-	// Parse all Go files in the package
 	//nolint:staticcheck // schemagen parses source by directory and does not need build-tag aware package loading here.
 	astPkgs, err := parser.ParseDir(a.fset, pkgPath, nil, parser.ParseComments)
 	if err != nil {

@@ -7,14 +7,12 @@ import (
 	"strings"
 )
 
-// Initialize or Load Schema
 func (s *Schema) compilePatterns() {
 	if s.PatternProperties == nil {
-		return // No patterns to compile if the map is nil
+		return
 	}
 
 	s.compiledPatterns = make(map[string]*regexp.Regexp)
-	// Since s.PatternProperties is a pointer to a SchemaMap, we dereference it here
 	for pattern := range *s.PatternProperties {
 		regex, err := regexp.Compile(pattern)
 		if err == nil {
@@ -43,9 +41,7 @@ func evaluatePatternProperties(
 	var invalidProperties []string
 	var results []*EvaluationResult
 
-	// Loop over each pattern in the PatternProperties map.
 	for patternKey, patternSchema := range *schema.PatternProperties {
-		// Get from the compiled patterns map, if not found, compile the pattern
 		regex, ok := schema.compiledPatterns[patternKey]
 		if !ok {
 			var err error
@@ -59,12 +55,10 @@ func evaluatePatternProperties(
 			schema.compiledPatterns[patternKey] = regex
 		}
 
-		// Check each property in the object against the compiled regex.
 		for propName, propValue := range object {
 			if regex.MatchString(propName) {
 				evaluatedProps[propName] = true
 
-				// Evaluate the property value directly using the associated schema or boolean.
 				result, _, _ := patternSchema.evaluate(propValue, dynamicScope)
 				if result != nil {
 					result.SetEvaluationPath(fmt.Sprintf("/patternProperties/%s", propName)).

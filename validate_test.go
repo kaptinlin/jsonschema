@@ -563,61 +563,51 @@ func TestJSONRawMessageValidation(t *testing.T) {
 // TestByteSliceHelperFunctions tests the helper functions for []byte type detection
 func TestByteSliceHelperFunctions(t *testing.T) {
 	tests := []struct {
-		name           string
-		data           any
-		expectedIsByte bool
-		expectedBytes  []byte
-		expectedOk     bool
+		name          string
+		data          any
+		expectedBytes []byte
+		expectedOk    bool
 	}{
 		{
-			name:           "jsontext.Value",
-			data:           jsontext.Value(`{"test": "value"}`),
-			expectedIsByte: true,
-			expectedBytes:  []byte(`{"test": "value"}`),
-			expectedOk:     true,
+			name:          "jsontext.Value",
+			data:          jsontext.Value(`{"test": "value"}`),
+			expectedBytes: []byte(`{"test": "value"}`),
+			expectedOk:    true,
 		},
 		{
-			name:           "custom []byte type",
-			data:           customByteSlice(`hello world`),
-			expectedIsByte: true,
-			expectedBytes:  []byte(`hello world`),
-			expectedOk:     true,
+			name:          "custom []byte type",
+			data:          customByteSlice(`hello world`),
+			expectedBytes: []byte(`hello world`),
+			expectedOk:    true,
 		},
 		{
-			name:           "regular []byte",
-			data:           []byte(`test`),
-			expectedIsByte: true,
-			expectedBytes:  []byte(`test`),
-			expectedOk:     true,
+			name:          "regular []byte",
+			data:          []byte(`test`),
+			expectedBytes: []byte(`test`),
+			expectedOk:    true,
 		},
 		{
-			name:           "string should not match",
-			data:           "test string",
-			expectedIsByte: false,
-			expectedBytes:  nil,
-			expectedOk:     false,
+			name:          "string should not match",
+			data:          "test string",
+			expectedBytes: nil,
+			expectedOk:    false,
 		},
 		{
-			name:           "[]int should not match",
-			data:           []int{1, 2, 3},
-			expectedIsByte: false,
-			expectedBytes:  nil,
-			expectedOk:     false,
+			name:          "[]int should not match",
+			data:          []int{1, 2, 3},
+			expectedBytes: nil,
+			expectedOk:    false,
 		},
 		{
-			name:           "map should not match",
-			data:           map[string]any{"test": "value"},
-			expectedIsByte: false,
-			expectedBytes:  nil,
-			expectedOk:     false,
+			name:          "map should not match",
+			data:          map[string]any{"test": "value"},
+			expectedBytes: nil,
+			expectedOk:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isByte := isByteSlice(tt.data)
-			assert.Equal(t, tt.expectedIsByte, isByte, "isByteSlice result mismatch")
-
 			bytes, ok := convertToByteSlice(tt.data)
 			assert.Equal(t, tt.expectedOk, ok, "convertToByteSlice ok result mismatch")
 			if tt.expectedOk {
