@@ -38,7 +38,6 @@ func evaluateAdditionalProperties(
 		}
 	}
 
-	// Evaluate additional properties
 	if schema.AdditionalProperties != nil {
 		for propName, propValue := range object {
 			if !properties[propName] {

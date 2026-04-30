@@ -25,26 +25,23 @@ func evaluateAnyOf(
 	var results []*EvaluationResult
 
 	for i, subSchema := range schema.AnyOf {
-		if subSchema != nil {
-			skipEval := false
-			if subSchema.Boolean != nil && *subSchema.Boolean {
-				// If the schema is `true`, skip updating evaluated properties and items.
-				skipEval = true
-			}
-			result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(data, dynamicScope)
+		if subSchema == nil {
+			continue
+		}
 
-			if result != nil {
-				results = append(results, result.SetEvaluationPath(fmt.Sprintf("/anyOf/%d", i)).
-					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/anyOf/%d", i))),
-				)
+		skipEval := subSchema.Boolean != nil && *subSchema.Boolean
+		result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(data, dynamicScope)
 
-				if result.IsValid() {
-					valid = true
-					// Merge maps only if the evaluation is successful
-					if !skipEval {
-						mergeStringMaps(evaluatedProps, schemaEvaluatedProps)
-						mergeIntMaps(evaluatedItems, schemaEvaluatedItems)
-					}
+		if result != nil {
+			results = append(results, result.SetEvaluationPath(fmt.Sprintf("/anyOf/%d", i)).
+				SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/anyOf/%d", i))),
+			)
+
+			if result.IsValid() {
+				valid = true
+				if !skipEval {
+					mergeStringMaps(evaluatedProps, schemaEvaluatedProps)
+					mergeIntMaps(evaluatedItems, schemaEvaluatedItems)
 				}
 			}
 		}

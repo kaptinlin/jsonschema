@@ -82,18 +82,17 @@ func (p *TagParser) parseFields(structType reflect.Type, seenTypes map[string]in
 		}
 
 		if field.Anonymous {
-			// Handle embedded struct
 			embeddedFields, err := p.parseEmbeddedField(&field, seenTypes, depth)
 			if err != nil {
 				continue // Skip problematic embedded types gracefully
 			}
 			allFields = append(allFields, embeddedFields...)
-		} else {
-			// Handle regular field
-			fieldInfo := p.parseRegularField(&field, depth)
-			if fieldInfo != nil {
-				allFields = append(allFields, *fieldInfo)
-			}
+			continue
+		}
+
+		fieldInfo := p.parseRegularField(&field, depth)
+		if fieldInfo != nil {
+			allFields = append(allFields, *fieldInfo)
 		}
 	}
 
@@ -290,32 +289,20 @@ func parseTagParts(tag string) []string {
 			escaped = false
 		case ',':
 			if !escaped && !inQuotes && bracketDepth == 0 && braceDepth == 0 {
-				// Check if we should treat this comma as a rule separator
-				currentStr := current.String()
 				shouldSeparate := true
 
 				if inParameterValue {
 					// Look for rule name at the beginning of current string
-					if before, _, ok := strings.Cut(currentStr, "="); ok {
+					if before, _, ok := strings.Cut(current.String(), "="); ok {
 						ruleName := strings.TrimSpace(before)
 						if needsCommaSeparation(ruleName) {
-							// Check if the next part after comma looks like a new rule (contains =)
-							// Look ahead to see if this might be a new rule starting
+							shouldSeparate = false
 							remaining := tag[i+1:]
 							nextCommaIdx := strings.Index(remaining, ",")
 							nextEqualIdx := strings.Index(remaining, "=")
-
-							// If there's an = before the next comma (or no comma), this might be a new rule
 							if nextEqualIdx != -1 && (nextCommaIdx == -1 || nextEqualIdx < nextCommaIdx) {
-								// Check if the part before = looks like a rule name
 								potentialRuleName := strings.TrimSpace(remaining[:nextEqualIdx])
-								if isValidRuleName(potentialRuleName) {
-									shouldSeparate = true // This comma separates rules
-								} else {
-									shouldSeparate = false // This comma is within parameters
-								}
-							} else {
-								shouldSeparate = false // This comma is within parameters
+								shouldSeparate = isValidRuleName(potentialRuleName)
 							}
 						}
 					}

@@ -27,27 +27,24 @@ func evaluateAllOf(
 	var results []*EvaluationResult
 
 	for i, subSchema := range schema.AllOf {
-		if subSchema != nil {
-			skipEval := false
-			if subSchema.Boolean != nil && *subSchema.Boolean {
-				// If the schema is `true`, skip updating evaluated properties and items.
-				skipEval = true
-			}
+		if subSchema == nil {
+			continue
+		}
 
-			result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(instance, dynamicScope)
-			if !skipEval {
-				mergeStringMaps(evaluatedProps, schemaEvaluatedProps)
-				mergeIntMaps(evaluatedItems, schemaEvaluatedItems)
-			}
+		skipEval := subSchema.Boolean != nil && *subSchema.Boolean
+		result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(instance, dynamicScope)
+		if !skipEval {
+			mergeStringMaps(evaluatedProps, schemaEvaluatedProps)
+			mergeIntMaps(evaluatedItems, schemaEvaluatedItems)
+		}
 
-			if result != nil {
-				results = append(results, result.SetEvaluationPath(fmt.Sprintf("/allOf/%d", i)).
-					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/allOf/%d", i))),
-				)
+		if result != nil {
+			results = append(results, result.SetEvaluationPath(fmt.Sprintf("/allOf/%d", i)).
+				SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/allOf/%d", i))),
+			)
 
-				if !result.IsValid() {
-					invalidIndexes = append(invalidIndexes, strconv.Itoa(i))
-				}
+			if !result.IsValid() {
+				invalidIndexes = append(invalidIndexes, strconv.Itoa(i))
 			}
 		}
 	}

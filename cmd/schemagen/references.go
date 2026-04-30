@@ -120,27 +120,23 @@ func (ra *ReferenceAnalyzer) analyzeStructDependencies(structInfo *GenerationInf
 
 // extractFieldDependencies extracts struct dependencies from a single field
 func (ra *ReferenceAnalyzer) extractFieldDependencies(field *tagparser.FieldInfo) []FieldDependency {
-	var dependencies []FieldDependency
-
-	// Use TypeName for analysis when Type is not available (e.g., in tests)
 	if field.Type != nil {
-		fieldType := field.Type
-		fieldName := field.Name
-
-		// Analyze the field type for struct references
-		dep := ra.analyzeType(fieldName, fieldType)
-		if dep != nil {
-			dependencies = append(dependencies, *dep)
+		dep := ra.analyzeType(field.Name, field.Type)
+		if dep == nil {
+			return nil
 		}
-	} else if field.TypeName != "" {
-		// Fallback to string-based analysis for testing
-		dep := ra.analyzeTypeString(field.Name, field.TypeName)
-		if dep != nil {
-			dependencies = append(dependencies, *dep)
-		}
+		return []FieldDependency{*dep}
 	}
 
-	return dependencies
+	if field.TypeName == "" {
+		return nil
+	}
+
+	dep := ra.analyzeTypeString(field.Name, field.TypeName)
+	if dep == nil {
+		return nil
+	}
+	return []FieldDependency{*dep}
 }
 
 // analyzeTypeString analyzes a type name string to find struct references (for testing)

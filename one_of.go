@@ -29,18 +29,20 @@ func evaluateOneOf(
 	var tempEvaluatedItems map[int]bool
 
 	for i, subSchema := range schema.OneOf {
-		if subSchema != nil {
-			result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(instance, dynamicScope)
-			if result != nil {
-				results = append(results, result.SetEvaluationPath(fmt.Sprintf("/oneOf/%d", i)).
-					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/oneOf/%d", i))),
-				)
+		if subSchema == nil {
+			continue
+		}
 
-				if result.IsValid() {
-					validIndexes = append(validIndexes, strconv.Itoa(i))
-					tempEvaluatedProps = schemaEvaluatedProps
-					tempEvaluatedItems = schemaEvaluatedItems
-				}
+		result, schemaEvaluatedProps, schemaEvaluatedItems := subSchema.evaluate(instance, dynamicScope)
+		if result != nil {
+			results = append(results, result.SetEvaluationPath(fmt.Sprintf("/oneOf/%d", i)).
+				SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/oneOf/%d", i))),
+			)
+
+			if result.IsValid() {
+				validIndexes = append(validIndexes, strconv.Itoa(i))
+				tempEvaluatedProps = schemaEvaluatedProps
+				tempEvaluatedItems = schemaEvaluatedItems
 			}
 		}
 	}

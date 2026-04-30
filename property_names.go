@@ -25,21 +25,19 @@ func evaluatePropertyNames(schema *Schema, object map[string]any, _ map[string]b
 	var invalidProperties []string
 	var results []*EvaluationResult
 
-	if schema.PropertyNames != nil {
-		for propName := range object {
-			result, _, _ := schema.PropertyNames.evaluate(propName, dynamicScope)
+	for propName := range object {
+		result, _, _ := schema.PropertyNames.evaluate(propName, dynamicScope)
 
-			if result != nil {
-				result.SetEvaluationPath(fmt.Sprintf("/propertyNames/%s", propName)).
-					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/propertyNames/%s", propName))).
-					SetInstanceLocation(fmt.Sprintf("/%s", propName))
-			}
+		if result != nil {
+			result.SetEvaluationPath(fmt.Sprintf("/propertyNames/%s", propName)).
+				SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/propertyNames/%s", propName))).
+				SetInstanceLocation(fmt.Sprintf("/%s", propName))
+		}
 
-			results = append(results, result)
+		results = append(results, result)
 
-			if !result.IsValid() {
-				invalidProperties = append(invalidProperties, propName)
-			}
+		if !result.IsValid() {
+			invalidProperties = append(invalidProperties, propName)
 		}
 	}
 
