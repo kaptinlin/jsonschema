@@ -102,7 +102,7 @@ func (s *Schema) unmarshalObject(dst, intermediate any) error {
 		return &UnmarshalError{Type: "source", Reason: "expected object but got different type"}
 	}
 
-	s.seedMissingStaticStructObjects(dst, objData, s)
+	s.prepareStructFieldsForDefaults(dst, objData)
 
 	// Apply default values
 	if err := s.applyDefaults(objData, s); err != nil {
@@ -189,64 +189,59 @@ func (s *Schema) convertGenericSource(src any) (any, bool, error) {
 	return parsed, false, nil
 }
 
-type structObjectSeedFrame struct {
+type structDefaultFrame struct {
 	schema     *Schema
 	structType reflect.Type
 	dataPtr    uintptr
 }
 
-func (s *Schema) seedMissingStaticStructObjects(dst any, data map[string]any, schema *Schema) {
-	structType, ok := destinationStructType(dst)
+func (s *Schema) prepareStructFieldsForDefaults(dst any, data map[string]any) {
+	structType, ok := structTypeForDefaults(dst)
 	if !ok {
 		return
 	}
 
-	visited := make(map[structObjectSeedFrame]struct{})
-	s.seedMissingStaticStructObjectsWithType(data, schema, structType, visited)
+	seen := make(map[structDefaultFrame]struct{})
+	s.prepareStructObjectForDefaults(data, s, structType, seen)
 }
 
-func destinationStructType(dst any) (reflect.Type, bool) {
+func structTypeForDefaults(dst any) (reflect.Type, bool) {
 	dstType := reflect.TypeOf(dst)
 	if dstType == nil || dstType.Kind() != reflect.Pointer {
 		return nil, false
 	}
 
-	current := dstType.Elem()
-	for current.Kind() == reflect.Pointer {
-		current = current.Elem()
+	structType := dstType.Elem()
+	for structType.Kind() == reflect.Pointer {
+		structType = structType.Elem()
 	}
 
-	if current.Kind() != reflect.Struct {
+	if structType.Kind() != reflect.Struct {
 		return nil, false
 	}
 
-	return current, true
+	return structType, true
 }
 
-func (s *Schema) seedMissingStaticStructObjectsWithType(
-	data map[string]any,
-	schema *Schema,
-	structType reflect.Type,
-	visited map[structObjectSeedFrame]struct{},
-) {
+func (s *Schema) prepareStructObjectForDefaults(data map[string]any, schema *Schema, structType reflect.Type, seen map[structDefaultFrame]struct{}) {
 	if schema == nil || structType.Kind() != reflect.Struct {
 		return
 	}
 
-	frame := structObjectSeedFrame{
+	frame := structDefaultFrame{
 		schema:     schema,
 		structType: structType,
 		dataPtr:    reflect.ValueOf(data).Pointer(),
 	}
 
-	if _, exists := visited[frame]; exists {
+	if _, ok := seen[frame]; ok {
 		return
 	}
-	visited[frame] = struct{}{}
-	defer delete(visited, frame)
+	seen[frame] = struct{}{}
+	defer delete(seen, frame)
 
 	if schema.ResolvedRef != nil {
-		s.seedMissingStaticStructObjectsWithType(data, schema.ResolvedRef, structType, visited)
+		s.prepareStructObjectForDefaults(data, schema.ResolvedRef, structType, seen)
 	}
 
 	if schema.Properties == nil {
@@ -255,25 +250,24 @@ func (s *Schema) seedMissingStaticStructObjectsWithType(
 
 	fieldCache := getFieldCache(structType)
 	for propName, propSchema := range *schema.Properties {
-		fieldInfo, exists := fieldCache.FieldsByName[propName]
-		if !exists {
-			continue
-		}
-
-		nestedType, ok := staticStructFieldType(fieldInfo.Type)
+		fieldInfo, ok := fieldCache.FieldsByName[propName]
 		if !ok {
 			continue
 		}
 
-		if !schemaHasNestedDefaults(propSchema, map[*Schema]struct{}{}) {
+		fieldType, ok := structFieldTypeForDefaults(fieldInfo.Type)
+		if !ok {
 			continue
 		}
 
 		propData, exists := data[propName]
 		if !exists {
-			emptyObject := map[string]any{}
-			data[propName] = emptyObject
-			propData = emptyObject
+			if schemaHasOwnDefault(propSchema, map[*Schema]struct{}{}) || !schemaHasNestedDefault(propSchema, map[*Schema]struct{}{}) {
+				continue
+			}
+
+			propData = map[string]any{}
+			data[propName] = propData
 		}
 
 		propObject, ok := propData.(map[string]any)
@@ -281,50 +275,73 @@ func (s *Schema) seedMissingStaticStructObjectsWithType(
 			continue
 		}
 
-		s.seedMissingStaticStructObjectsWithType(propObject, propSchema, nestedType, visited)
+		s.prepareStructObjectForDefaults(propObject, propSchema, fieldType, seen)
 	}
 }
 
-func staticStructFieldType(fieldType reflect.Type) (reflect.Type, bool) {
-	if fieldType.Kind() != reflect.Struct {
-		return nil, false
-	}
-
-	if fieldType == reflect.TypeFor[time.Time]() {
+func structFieldTypeForDefaults(fieldType reflect.Type) (reflect.Type, bool) {
+	if fieldType.Kind() != reflect.Struct || fieldType == reflect.TypeFor[time.Time]() {
 		return nil, false
 	}
 
 	return fieldType, true
 }
 
-func schemaHasNestedDefaults(schema *Schema, visited map[*Schema]struct{}) bool {
+func schemaHasOwnDefault(schema *Schema, seen map[*Schema]struct{}) bool {
 	if schema == nil {
 		return false
 	}
-	if _, exists := visited[schema]; exists {
+	if _, ok := seen[schema]; ok {
 		return false
 	}
-	visited[schema] = struct{}{}
+	seen[schema] = struct{}{}
 
 	if schema.Default != nil {
 		return true
 	}
 
-	if schema.ResolvedRef != nil && schemaHasNestedDefaults(schema.ResolvedRef, visited) {
+	if schema.ResolvedRef != nil && schemaHasOwnDefault(schema.ResolvedRef, seen) {
 		return true
 	}
 
 	for _, subSchema := range schema.AnyOf {
-		if schemaHasNestedDefaults(subSchema, visited) {
+		if schemaHasOwnDefault(subSchema, seen) {
 			return true
 		}
 	}
 
-	if schema.Properties != nil {
-		for _, propSchema := range *schema.Properties {
-			if schemaHasNestedDefaults(propSchema, visited) {
-				return true
-			}
+	return false
+}
+
+func schemaHasNestedDefault(schema *Schema, seen map[*Schema]struct{}) bool {
+	if schema == nil {
+		return false
+	}
+	if _, ok := seen[schema]; ok {
+		return false
+	}
+	seen[schema] = struct{}{}
+
+	if schema.ResolvedRef != nil && schemaHasNestedDefault(schema.ResolvedRef, seen) {
+		return true
+	}
+
+	for _, subSchema := range schema.AnyOf {
+		if schemaHasNestedDefault(subSchema, seen) {
+			return true
+		}
+	}
+
+	if schema.Properties == nil {
+		return false
+	}
+
+	for _, propSchema := range *schema.Properties {
+		if schemaHasOwnDefault(propSchema, make(map[*Schema]struct{})) {
+			return true
+		}
+		if schemaHasNestedDefault(propSchema, seen) {
+			return true
 		}
 	}
 
@@ -377,7 +394,7 @@ func (s *defaultApplicationState) leave(schema *Schema, data map[string]any) {
 	delete(s.activeFrames, frame)
 }
 
-func (s *defaultApplicationState) pushExpansionEdge(parent *Schema, propName string, target *Schema) bool {
+func (s *defaultApplicationState) enterDefaultExpansion(parent *Schema, propName string, target *Schema) bool {
 	edge := defaultExpansionEdge{
 		schema:   parent,
 		property: propName,
@@ -388,7 +405,7 @@ func (s *defaultApplicationState) pushExpansionEdge(parent *Schema, propName str
 	return s.expansionEdges[edge] == 1
 }
 
-func (s *defaultApplicationState) popExpansionEdge(parent *Schema, propName string, target *Schema) {
+func (s *defaultApplicationState) leaveDefaultExpansion(parent *Schema, propName string, target *Schema) {
 	edge := defaultExpansionEdge{
 		schema:   parent,
 		property: propName,
@@ -489,12 +506,12 @@ func (s *Schema) applyPropertyDefaults(data map[string]any, parentSchema *Schema
 	// Recursively apply defaults for nested objects
 	if objData, ok := propData.(map[string]any); ok {
 		if defaultCreatedObject {
-			if !state.pushExpansionEdge(parentSchema, propName, propSchema) {
+			if !state.enterDefaultExpansion(parentSchema, propName, propSchema) {
 				return fmt.Errorf("%w: property '%s' expansion loop detected", ErrDefaultReferenceLoop, propName)
 			}
 
 			err := s.applyDefaultsWithState(objData, propSchema, state)
-			state.popExpansionEdge(parentSchema, propName, propSchema)
+			state.leaveDefaultExpansion(parentSchema, propName, propSchema)
 			return err
 		}
 
@@ -527,13 +544,57 @@ func (s *Schema) resolveDefaultValue(schema *Schema) (any, bool, error) {
 			if err != nil {
 				return nil, false, err
 			}
-			return defaultValue, true, nil
+			return cloneDefaultValue(defaultValue), true, nil
 		}
 
 		current = current.ResolvedRef
 	}
 
 	return nil, false, nil
+}
+
+func cloneDefaultValue(value any) any {
+	cloned := cloneDefaultValueReflect(reflect.ValueOf(value))
+	if !cloned.IsValid() {
+		return nil
+	}
+	return cloned.Interface()
+}
+
+func cloneDefaultValueReflect(value reflect.Value) reflect.Value {
+	if !value.IsValid() {
+		return value
+	}
+
+	switch value.Kind() {
+	case reflect.Interface:
+		if value.IsNil() {
+			return value
+		}
+		return cloneDefaultValueReflect(value.Elem())
+	case reflect.Map:
+		if value.IsNil() {
+			return value
+		}
+
+		clone := reflect.MakeMapWithSize(value.Type(), value.Len())
+		for _, key := range value.MapKeys() {
+			clone.SetMapIndex(key, cloneDefaultValueReflect(value.MapIndex(key)))
+		}
+		return clone
+	case reflect.Slice:
+		if value.IsNil() {
+			return value
+		}
+
+		clone := reflect.MakeSlice(value.Type(), value.Len(), value.Len())
+		for i := range value.Len() {
+			clone.Index(i).Set(cloneDefaultValueReflect(value.Index(i)))
+		}
+		return clone
+	default:
+		return value
+	}
 }
 
 // evaluateDefaultValue evaluates a default value, checking if it's a function call

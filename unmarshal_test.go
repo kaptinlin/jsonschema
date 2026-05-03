@@ -732,6 +732,186 @@ func TestUnmarshalDefaultsResolveRef(t *testing.T) {
 	assert.True(t, result.Profile.Active)
 }
 
+func TestUnmarshalFromStructResolveRefDefaults(t *testing.T) {
+	type inner struct {
+		B int `jsonschema:"default=2"`
+	}
+
+	type config struct {
+		A int `jsonschema:"default=1"`
+		C inner
+	}
+
+	schema, err := FromStructWithOptions[config](&StructTagOptions{AllowUntaggedFields: true})
+	require.NoError(t, err)
+
+	var result config
+	err = schema.Unmarshal(&result, []byte(`{}`))
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.A)
+	assert.Equal(t, 2, result.C.B)
+}
+
+func TestUnmarshalStructObjectDefaultPrecedence(t *testing.T) {
+	tests := []struct {
+		name       string
+		schemaJSON string
+	}{
+		{
+			name: "inline object default",
+			schemaJSON: `{
+				"type": "object",
+				"properties": {
+					"profile": {
+						"type": "object",
+						"default": {"country": "CA"},
+						"properties": {
+							"country": {"type": "string", "default": "US"},
+							"active": {"type": "boolean", "default": true}
+						}
+					}
+				}
+			}`,
+		},
+		{
+			name: "ref target object default",
+			schemaJSON: `{
+				"type": "object",
+				"$defs": {
+					"profile": {
+						"type": "object",
+						"default": {"country": "CA"},
+						"properties": {
+							"country": {"type": "string", "default": "US"},
+							"active": {"type": "boolean", "default": true}
+						}
+					}
+				},
+				"properties": {
+					"profile": {"$ref": "#/$defs/profile"}
+				}
+			}`,
+		},
+	}
+
+	type profile struct {
+		Country string `json:"country"`
+		Active  bool   `json:"active"`
+	}
+	type payload struct {
+		Profile profile `json:"profile"`
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			schema, err := compiler.Compile([]byte(tt.schemaJSON))
+			require.NoError(t, err)
+
+			var result payload
+			err = schema.Unmarshal(&result, []byte(`{}`))
+			require.NoError(t, err)
+			assert.Equal(t, "CA", result.Profile.Country)
+			assert.True(t, result.Profile.Active)
+		})
+	}
+}
+
+func TestUnmarshalArrayItemsResolveRefDefaults(t *testing.T) {
+	schemaJSON := `{
+		"type": "object",
+		"$defs": {
+			"item": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string", "default": "item"},
+					"enabled": {"type": "boolean", "default": true}
+				}
+			}
+		},
+		"properties": {
+			"items": {
+				"type": "array",
+				"items": {"$ref": "#/$defs/item"}
+			}
+		}
+	}`
+
+	type item struct {
+		Name    string `json:"name"`
+		Enabled bool   `json:"enabled"`
+	}
+	type payload struct {
+		Items []item `json:"items"`
+	}
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	var result payload
+	err = schema.Unmarshal(&result, []byte(`{"items": [{}]}`))
+	require.NoError(t, err)
+	require.Len(t, result.Items, 1)
+	assert.Equal(t, "item", result.Items[0].Name)
+	assert.True(t, result.Items[0].Enabled)
+}
+
+func TestUnmarshalRefObjectDefaultsDoNotShareMapInstances(t *testing.T) {
+	schemaJSON := `{
+		"type": "object",
+		"$defs": {
+			"profile": {
+				"type": "object",
+				"default": {"country": "CA"},
+				"properties": {
+					"country": {"type": "string", "default": "US"},
+					"active": {"type": "boolean", "default": true}
+				}
+			}
+		},
+		"properties": {
+			"primary": {"$ref": "#/$defs/profile"},
+			"secondary": {"$ref": "#/$defs/profile"}
+		}
+	}`
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(schemaJSON))
+	require.NoError(t, err)
+
+	var result map[string]any
+	err = schema.Unmarshal(&result, []byte(`{}`))
+	require.NoError(t, err)
+
+	primary, ok := result["primary"].(map[string]any)
+	require.True(t, ok)
+	secondary, ok := result["secondary"].(map[string]any)
+	require.True(t, ok)
+	primary["country"] = "US"
+	assert.Equal(t, "CA", secondary["country"])
+	assert.Equal(t, true, secondary["active"])
+}
+
+func TestUnmarshalConstructorDefaultsDoNotShareTypedMapAndSliceInstances(t *testing.T) {
+	schema := Object(
+		Prop("primary", Object(Default(map[string][]string{"labels": {"a"}}))),
+		Prop("secondary", Object(Default(map[string][]string{"labels": {"a"}}))),
+	)
+
+	var result map[string]any
+	err := schema.Unmarshal(&result, []byte(`{}`))
+	require.NoError(t, err)
+
+	primary, ok := result["primary"].(map[string][]string)
+	require.True(t, ok)
+	secondary, ok := result["secondary"].(map[string][]string)
+	require.True(t, ok)
+	primary["labels"][0] = "b"
+
+	assert.Equal(t, []string{"a"}, secondary["labels"])
+}
+
 func TestUnmarshalRecursiveRefWithoutObjectDefaults(t *testing.T) {
 	schemaJSON := `{
 		"$defs": {
@@ -848,6 +1028,7 @@ func TestUnmarshalAnyDestinationObjectDefaultMatrix(t *testing.T) {
 		name        string
 		schemaJSON  string
 		wantProfile bool
+		wantCountry string
 	}{
 		{
 			name: "inline without object default",
@@ -881,6 +1062,7 @@ func TestUnmarshalAnyDestinationObjectDefaultMatrix(t *testing.T) {
 				}
 			}`,
 			wantProfile: true,
+			wantCountry: "US",
 		},
 		{
 			name: "ref without object default",
@@ -922,6 +1104,7 @@ func TestUnmarshalAnyDestinationObjectDefaultMatrix(t *testing.T) {
 				}
 			}`,
 			wantProfile: true,
+			wantCountry: "US",
 		},
 		{
 			name: "ref with object default on target",
@@ -942,6 +1125,28 @@ func TestUnmarshalAnyDestinationObjectDefaultMatrix(t *testing.T) {
 				}
 			}`,
 			wantProfile: true,
+			wantCountry: "US",
+		},
+		{
+			name: "ref with non-empty object default on target",
+			schemaJSON: `{
+				"type": "object",
+				"$defs": {
+					"profile": {
+						"type": "object",
+						"default": {"country": "CA"},
+						"properties": {
+							"country": {"type": "string", "default": "US"},
+							"active": {"type": "boolean", "default": true}
+						}
+					}
+				},
+				"properties": {
+					"profile": {"$ref": "#/$defs/profile"}
+				}
+			}`,
+			wantProfile: true,
+			wantCountry: "CA",
 		},
 	}
 
@@ -966,7 +1171,7 @@ func TestUnmarshalAnyDestinationObjectDefaultMatrix(t *testing.T) {
 
 			profileMap, ok := profileValue.(map[string]any)
 			require.True(t, ok, "expected profile to be map when default expanded")
-			assert.Equal(t, "US", profileMap["country"])
+			assert.Equal(t, tt.wantCountry, profileMap["country"])
 			assert.Equal(t, true, profileMap["active"])
 		})
 	}
