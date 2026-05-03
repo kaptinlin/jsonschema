@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestTagParser_ParseTagString(t *testing.T) {
@@ -1097,6 +1098,71 @@ func TestTagParser_ParseStructTags_DepthLimit(t *testing.T) {
 	// Should have some fields but might not have all due to depth limit
 	if len(fields) == 0 {
 		t.Error("Expected at least some fields to be parsed despite deep nesting")
+	}
+}
+
+func TestTagParser_ParseStructTags_TypeNamesAndJSONFallbacks(t *testing.T) {
+	parser := New()
+
+	type namedString string
+	type Reader interface {
+		Read([]byte) (int, error)
+	}
+	type Shapes struct {
+		Anonymous struct{}      `json:"anonymous"`
+		Array     [2]int        `json:"array"`
+		Receive   <-chan string `json:"receive"`
+		Send      chan<- int    `json:"send"`
+		Both      chan bool     `json:"both"`
+		Func      func()        `json:"func"`
+		Reader    Reader        `json:"reader"`
+		Time      time.Time     `json:"time"`
+		Named     namedString   `json:"named"`
+		Dash      string        `json:"-"`
+		Options   string        `json:",omitempty"`
+	}
+
+	fields, err := parser.ParseStructTags(reflect.TypeFor[*Shapes]())
+	if err != nil {
+		t.Fatalf("ParseStructTags() error = %v", err)
+	}
+
+	fieldMap := make(map[string]FieldInfo)
+	for _, field := range fields {
+		fieldMap[field.Name] = field
+	}
+
+	tests := []struct {
+		name         string
+		wantJSONName string
+		wantTypeName string
+	}{
+		{name: "Anonymous", wantJSONName: "anonymous", wantTypeName: "struct{}"},
+		{name: "Array", wantJSONName: "array", wantTypeName: "[2]int"},
+		{name: "Receive", wantJSONName: "receive", wantTypeName: "<-chan string"},
+		{name: "Send", wantJSONName: "send", wantTypeName: "chan<- int"},
+		{name: "Both", wantJSONName: "both", wantTypeName: "chan bool"},
+		{name: "Func", wantJSONName: "func", wantTypeName: "func"},
+		{name: "Reader", wantJSONName: "reader", wantTypeName: "tagparser.Reader"},
+		{name: "Time", wantJSONName: "time", wantTypeName: "time.Time"},
+		{name: "Named", wantJSONName: "named", wantTypeName: "tagparser.namedString"},
+		{name: "Dash", wantJSONName: "Dash", wantTypeName: "string"},
+		{name: "Options", wantJSONName: "Options", wantTypeName: "string"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			field, ok := fieldMap[tt.name]
+			if !ok {
+				t.Fatalf("field %s not found", tt.name)
+			}
+			if field.JSONName != tt.wantJSONName {
+				t.Errorf("JSONName = %q, want %q", field.JSONName, tt.wantJSONName)
+			}
+			if field.TypeName != tt.wantTypeName {
+				t.Errorf("TypeName = %q, want %q", field.TypeName, tt.wantTypeName)
+			}
+		})
 	}
 }
 

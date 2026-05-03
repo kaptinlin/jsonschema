@@ -38,8 +38,6 @@ func parseFunctionCall(input string) *FunctionCall {
 	}
 }
 
-// parseArgs parses function arguments from a string
-// Simple implementation that handles basic types
 func parseArgs(raw string) []any {
 	parts := strings.Split(raw, ",")
 	args := make([]any, 0, len(parts))
@@ -50,19 +48,16 @@ func parseArgs(raw string) []any {
 			continue
 		}
 
-		// Try to parse as integer
 		if i, err := strconv.ParseInt(part, 10, 64); err == nil {
 			args = append(args, i)
 			continue
 		}
 
-		// Try to parse as float
 		if f, err := strconv.ParseFloat(part, 64); err == nil {
 			args = append(args, f)
 			continue
 		}
 
-		// Default to string
 		args = append(args, part)
 	}
 
@@ -72,7 +67,7 @@ func parseArgs(raw string) []any {
 // DefaultNowFunc generates current timestamp in various formats
 // This function must be manually registered by developers
 func DefaultNowFunc(args ...any) (any, error) {
-	format := time.RFC3339 // Default format
+	format := time.RFC3339
 
 	if len(args) > 0 {
 		if f, ok := args[0].(string); ok {

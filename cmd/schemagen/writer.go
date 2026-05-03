@@ -101,24 +101,20 @@ func NewFileWriter(outputSuffix, packageName string, dryRun, verbose bool) (*Fil
 
 // WriteGeneratedCode writes the generated schema code for a struct using templates
 func (w *FileWriter) WriteGeneratedCode(filePath, packageName string, methods []MethodData) error {
-	// Generate output file name
 	outputFile := w.generateOutputFileName(filePath)
 
-	// Prepare template data
 	templateData := TemplateData{
 		Package: w.getPackageName(packageName),
 		Imports: []string{"github.com/kaptinlin/jsonschema"},
 		Methods: methods,
 	}
 
-	// Execute template
 	var buf bytes.Buffer
 	err := w.templates.Execute(&buf, templateData)
 	if err != nil {
 		return fmt.Errorf("%w: %w", jsonschema.ErrTemplateExecution, err)
 	}
 
-	// Format the generated code
 	formattedCode, err := w.formatCode(buf.String())
 	if err != nil {
 		return fmt.Errorf("%w: %w", jsonschema.ErrCodeFormatting, err)
@@ -132,7 +128,6 @@ func (w *FileWriter) WriteGeneratedCode(filePath, packageName string, methods []
 		return nil
 	}
 
-	// Write to file
 	err = w.writeToFile(outputFile, formattedCode)
 	if err != nil {
 		return fmt.Errorf("%w: %w", jsonschema.ErrFileWrite, err)

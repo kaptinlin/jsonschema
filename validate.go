@@ -15,11 +15,8 @@ func (s *Schema) Validate(instance any) *EvaluationResult {
 	case map[string]any:
 		return s.ValidateMap(data)
 	default:
-		// Check if it's a []byte type definition (like json.RawMessage)
-		if isByteSlice(instance) {
-			if bytes, ok := convertToByteSlice(instance); ok {
-				return s.ValidateJSON(bytes)
-			}
+		if bytes, ok := convertToByteSlice(instance); ok {
+			return s.ValidateJSON(bytes)
 		}
 		return s.ValidateStruct(instance)
 	}
@@ -28,7 +25,8 @@ func (s *Schema) Validate(instance any) *EvaluationResult {
 // ValidateJSON validates JSON data provided as []byte.
 // The input is guaranteed to be treated as JSON data and parsed accordingly.
 func (s *Schema) ValidateJSON(data []byte) *EvaluationResult {
-	parsed, err := s.parseJSONData(data)
+	var parsed any
+	err := s.Compiler().jsonDecoder(data, &parsed)
 	if err != nil {
 		result := NewEvaluationResult(s)
 		result.AddError(NewEvaluationError("format", "invalid_json", "Invalid JSON format"))
@@ -54,13 +52,6 @@ func (s *Schema) ValidateMap(data map[string]any) *EvaluationResult {
 	dynamicScope := NewDynamicScope()
 	result, _, _ := s.evaluate(data, dynamicScope)
 	return result
-}
-
-// parseJSONData safely parses []byte data as JSON
-func (s *Schema) parseJSONData(data []byte) (any, error) {
-	var parsed any
-	err := s.Compiler().jsonDecoder(data, &parsed)
-	return parsed, err
 }
 
 // processJSONBytes handles []byte input with smart JSON parsing
@@ -476,7 +467,6 @@ func evaluateObject(schema *Schema, data any, evaluatedProps map[string]bool, ev
 		rv = rv.Elem()
 	}
 
-	//nolint:exhaustive,nolintlint // Only handling Struct and Map kinds - other types use default fallback
 	switch rv.Kind() {
 	case reflect.Struct:
 		return evaluateObjectStruct(schema, rv, evaluatedProps, evaluatedItems, dynamicScope)
@@ -792,13 +782,6 @@ func (ds *DynamicScope) Contains(schema *Schema) bool {
 	return slices.Contains(ds.schemas, schema)
 }
 
-// isByteSlice checks if the given value is a []byte type definition (like json.RawMessage)
-func isByteSlice(v any) bool {
-	rv := reflect.ValueOf(v)
-	return rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8
-}
-
-// convertToByteSlice converts a []byte type definition to []byte
 func convertToByteSlice(v any) ([]byte, bool) {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() == reflect.Slice && rv.Type().Elem().Kind() == reflect.Uint8 {

@@ -1,9 +1,11 @@
 package jsonschema
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -262,6 +264,42 @@ func TestDeterministicMarshal(t *testing.T) {
 	data, err = json.Marshal(schema)
 	require.NoError(t, err)
 	assert.Contains(t, string(data), `"type":"object"`)
+}
+
+func TestSchemaMarshalJSONToStreamsDeterministicSchema(t *testing.T) {
+	schema := &Schema{
+		Type:  SchemaType{"object"},
+		Const: &ConstValue{Value: nil, IsSet: true},
+		Properties: &SchemaMap{
+			"zeta":  {Type: SchemaType{"string"}},
+			"alpha": {Type: SchemaType{"integer"}},
+		},
+		Extra: map[string]any{"x-extension": "kept"},
+	}
+
+	var buf bytes.Buffer
+	err := schema.MarshalJSONTo(jsontext.NewEncoder(&buf), json.DefaultOptionsV2())
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `{"const":null,"properties":{"alpha":{"type":"integer"},"zeta":{"type":"string"}},"type":"object","x-extension":"kept"}`, buf.String())
+}
+
+func TestSchemaMapMarshalJSONToStreamsMapAndNil(t *testing.T) {
+	schemaMap := SchemaMap{
+		"beta":  {Type: SchemaType{"boolean"}},
+		"alpha": {Type: SchemaType{"string"}},
+	}
+
+	var buf bytes.Buffer
+	err := schemaMap.MarshalJSONTo(jsontext.NewEncoder(&buf), json.DefaultOptionsV2())
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"alpha":{"type":"string"},"beta":{"type":"boolean"}}`, buf.String())
+
+	buf.Reset()
+	var nilMap *SchemaMap
+	err = nilMap.MarshalJSONTo(jsontext.NewEncoder(&buf), json.DefaultOptionsV2())
+	require.NoError(t, err)
+	assert.JSONEq(t, `null`, buf.String())
 }
 
 func TestSchemaRoundTrip(t *testing.T) {

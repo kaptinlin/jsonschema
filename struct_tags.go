@@ -213,8 +213,7 @@ func FromStruct[T any]() (*Schema, error) {
 
 // FromStructWithOptions generates a JSON Schema from a struct type with custom options.
 func FromStructWithOptions[T any](options *StructTagOptions) (*Schema, error) {
-	var zero T
-	structType := reflect.TypeOf(zero)
+	structType := reflect.TypeFor[T]()
 
 	// Normalize options with defaults
 	options = normalizeOptions(options)

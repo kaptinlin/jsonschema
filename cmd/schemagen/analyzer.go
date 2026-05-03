@@ -40,8 +40,7 @@ func NewStructAnalyzer() (*StructAnalyzer, error) {
 
 // AnalyzePackage analyzes all Go files in a package directory
 func (a *StructAnalyzer) AnalyzePackage(pkgPath string) ([]*GenerationInfo, error) {
-	// Parse all Go files in the package
-	//nolint:staticcheck // schemagen parses source by directory and does not need build-tag aware package loading here.
+	//nolint:staticcheck,nolintlint // schemagen parses source by directory and does not need build-tag aware package loading here.
 	astPkgs, err := parser.ParseDir(a.fset, pkgPath, nil, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse package %s: %w", pkgPath, err)
@@ -81,29 +80,33 @@ func (a *StructAnalyzer) AnalyzePackage(pkgPath string) ([]*GenerationInfo, erro
 func (a *StructAnalyzer) analyzeFile(fileName string, file *ast.File, pkgName string) ([]*GenerationInfo, error) {
 	var structs []*GenerationInfo
 
-	// Walk through all declarations in the file
 	ast.Inspect(file, func(n ast.Node) bool {
-		if genDecl, ok := n.(*ast.GenDecl); ok {
-			// Process general declarations (type, var, const)
-			if genDecl.Tok == token.TYPE {
-				for _, spec := range genDecl.Specs {
-					if typeSpec, ok := spec.(*ast.TypeSpec); ok {
-						if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-							// Found a struct type declaration
-							structInfo, err := a.analyzeStruct(typeSpec, structType, pkgName, fileName)
-							if err != nil {
-								// Log error but continue processing other structs
-								continue
-							}
-							if structInfo != nil {
-								// Check if struct has //go:generate directive
-								structInfo.HasGenerate = a.hasGoGenerateDirective(genDecl.Doc)
-								structs = append(structs, structInfo)
-							}
-						}
-					}
-				}
+		genDecl, ok := n.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.TYPE {
+			return true
+		}
+
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
 			}
+
+			structType, ok := typeSpec.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+
+			structInfo, err := a.analyzeStruct(typeSpec, structType, pkgName, fileName)
+			if err != nil {
+				continue
+			}
+			if structInfo == nil {
+				continue
+			}
+
+			structInfo.HasGenerate = a.hasGoGenerateDirective(genDecl.Doc)
+			structs = append(structs, structInfo)
 		}
 		return true
 	})

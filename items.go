@@ -22,32 +22,26 @@ func evaluateItems(
 	evaluatedItems map[int]bool, dynamicScope *DynamicScope,
 ) ([]*EvaluationResult, *EvaluationError) {
 	if schema.Items == nil {
-		return nil, nil // // No 'items' constraints to validate against
+		return nil, nil
 	}
 
 	var invalidIndexes []string
 	var results []*EvaluationResult
-
-	// Number of prefix items to skip before regular item validation
 	startIndex := len(schema.PrefixItems)
 
-	// Check if the general 'items' schema is available and proceed with validation if it's not explicitly false
-	if schema.Items != nil {
-		// Ensure that we only access indices within the range of existing array elements
-		for i := startIndex; i < len(array); i++ {
-			item := array[i]
-			result, _, _ := schema.Items.evaluate(item, dynamicScope)
-			if result != nil {
-				result.SetEvaluationPath(fmt.Sprintf("/items/%d", i)).
-					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/items/%d", i))).
-					SetInstanceLocation(fmt.Sprintf("/%d", i))
+	for i := startIndex; i < len(array); i++ {
+		item := array[i]
+		result, _, _ := schema.Items.evaluate(item, dynamicScope)
+		if result != nil {
+			result.SetEvaluationPath(fmt.Sprintf("/items/%d", i)).
+				SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/items/%d", i))).
+				SetInstanceLocation(fmt.Sprintf("/%d", i))
 
-				if result.IsValid() {
-					evaluatedItems[i] = true // Mark the item as evaluated if it passes schema validation.
-				} else {
-					results = append(results, result)
-					invalidIndexes = append(invalidIndexes, strconv.Itoa(i))
-				}
+			if result.IsValid() {
+				evaluatedItems[i] = true
+			} else {
+				results = append(results, result)
+				invalidIndexes = append(invalidIndexes, strconv.Itoa(i))
 			}
 		}
 	}

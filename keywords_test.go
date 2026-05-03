@@ -447,3 +447,143 @@ func TestKeywordCombinations(t *testing.T) {
 	result = schema.Validate(invalidData)
 	assert.False(t, result.IsValid(), "Expected invalid data to fail validation")
 }
+
+func TestAdvancedConstructorKeywords(t *testing.T) {
+	tests := []struct {
+		name    string
+		schema  *jsonschema.Schema
+		valid   any
+		invalid any
+	}{
+		{
+			name: "contains bounds",
+			schema: jsonschema.Array(
+				jsonschema.Contains(jsonschema.Integer(jsonschema.Min(10))),
+				jsonschema.MinContains(2),
+				jsonschema.MaxContains(3),
+			),
+			valid:   []any{10, 12, 1},
+			invalid: []any{10, 1, 2},
+		},
+		{
+			name: "prefix items and unevaluated items",
+			schema: jsonschema.Array(
+				jsonschema.PrefixItems(jsonschema.String(), jsonschema.Integer()),
+				jsonschema.UnevaluatedItems(jsonschema.Boolean()),
+			),
+			valid:   []any{"id", 42, true},
+			invalid: []any{"id", 42, "extra"},
+		},
+		{
+			name: "pattern property names and unevaluated properties",
+			schema: jsonschema.Object(
+				jsonschema.PatternProps(map[string]*jsonschema.Schema{"^x-": jsonschema.String()}),
+				jsonschema.PropertyNames(jsonschema.String(jsonschema.Pattern("^[a-z-]+$"))),
+				jsonschema.UnevaluatedProps(jsonschema.Boolean()),
+			),
+			valid:   map[string]any{"x-name": "value", "enabled": true},
+			invalid: map[string]any{"BadName": true},
+		},
+		{
+			name: "dependent required",
+			schema: jsonschema.Object(
+				jsonschema.DependentRequired(map[string][]string{"credit_card": {"billing_address"}}),
+			),
+			valid:   map[string]any{"credit_card": "4111", "billing_address": "home"},
+			invalid: map[string]any{"credit_card": "4111"},
+		},
+		{
+			name: "dependent schemas",
+			schema: jsonschema.Object(
+				jsonschema.DependentSchemas(map[string]*jsonschema.Schema{
+					"country": jsonschema.Object(jsonschema.Prop("postal_code", jsonschema.String()), jsonschema.Required("postal_code")),
+				}),
+			),
+			valid:   map[string]any{"country": "US", "postal_code": "12345"},
+			invalid: map[string]any{"country": "US"},
+		},
+		{
+			name:    "not schema",
+			schema:  jsonschema.Not(jsonschema.Const("blocked")),
+			valid:   "allowed",
+			invalid: "blocked",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.schema.Validate(tt.valid)
+			assert.True(t, result.IsValid(), "expected valid data to pass validation, got errors: %v", result.Errors)
+
+			result = tt.schema.Validate(tt.invalid)
+			assert.False(t, result.IsValid(), "expected invalid data to fail validation")
+		})
+	}
+}
+
+func TestSchemaMetadataConstructorKeywordsMarshal(t *testing.T) {
+	schema := jsonschema.Object(
+		jsonschema.SchemaURI("https://json-schema.org/draft/2020-12/schema"),
+		jsonschema.ID("https://example.com/root"),
+		jsonschema.Anchor("root"),
+		jsonschema.DynamicAnchor("node"),
+		jsonschema.Defs(map[string]*jsonschema.Schema{"name": jsonschema.String()}),
+		jsonschema.ContentEncoding("base64"),
+		jsonschema.ContentMediaType("application/json"),
+		jsonschema.ContentSchema(jsonschema.Object(jsonschema.Prop("name", jsonschema.String()))),
+	)
+
+	data, err := schema.MarshalJSON()
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://example.com/root","$anchor":"root","$dynamicAnchor":"node","$defs":{"name":{"type":"string"}},"contentEncoding":"base64","contentMediaType":"application/json","contentSchema":{"properties":{"name":{"type":"string"}},"type":"object"},"type":"object"}`, string(data))
+}
+
+func TestFormatConvenienceConstructorsSetFormats(t *testing.T) {
+	tests := []struct {
+		name       string
+		schema     *jsonschema.Schema
+		wantFormat string
+	}{
+		{name: "date", schema: jsonschema.Date(), wantFormat: jsonschema.FormatDate},
+		{name: "time", schema: jsonschema.Time(), wantFormat: jsonschema.FormatTime},
+		{name: "uri ref", schema: jsonschema.URIRef(), wantFormat: jsonschema.FormatURIRef},
+		{name: "hostname", schema: jsonschema.Hostname(), wantFormat: jsonschema.FormatHostname},
+		{name: "ipv4", schema: jsonschema.IPv4(), wantFormat: jsonschema.FormatIPv4},
+		{name: "ipv6", schema: jsonschema.IPv6(), wantFormat: jsonschema.FormatIPv6},
+		{name: "idn email", schema: jsonschema.IdnEmail(), wantFormat: jsonschema.FormatIdnEmail},
+		{name: "idn hostname", schema: jsonschema.IdnHostname(), wantFormat: jsonschema.FormatIdnHostname},
+		{name: "iri", schema: jsonschema.IRI(), wantFormat: jsonschema.FormatIRI},
+		{name: "iri ref", schema: jsonschema.IRIRef(), wantFormat: jsonschema.FormatIRIRef},
+		{name: "uri template", schema: jsonschema.URITemplate(), wantFormat: jsonschema.FormatURITemplate},
+		{name: "json pointer", schema: jsonschema.JSONPointer(), wantFormat: jsonschema.FormatJSONPointer},
+		{name: "relative json pointer", schema: jsonschema.RelativeJSONPointer(), wantFormat: jsonschema.FormatRelativeJSONPointer},
+		{name: "duration", schema: jsonschema.Duration(), wantFormat: jsonschema.FormatDuration},
+		{name: "regex", schema: jsonschema.Regex(), wantFormat: jsonschema.FormatRegex},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.NotNil(t, tt.schema.Format)
+			assert.Equal(t, tt.wantFormat, *tt.schema.Format)
+		})
+	}
+}
+
+func TestIntegerConvenienceConstructors(t *testing.T) {
+	tests := []struct {
+		name    string
+		schema  *jsonschema.Schema
+		valid   int
+		invalid int
+	}{
+		{name: "negative", schema: jsonschema.NegativeInt(), valid: -1, invalid: 0},
+		{name: "non positive", schema: jsonschema.NonPositiveInt(), valid: 0, invalid: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.True(t, tt.schema.Validate(tt.valid).IsValid())
+			assert.False(t, tt.schema.Validate(tt.invalid).IsValid())
+		})
+	}
+}

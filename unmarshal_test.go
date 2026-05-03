@@ -1,6 +1,7 @@
 package jsonschema
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -102,6 +103,104 @@ func TestUnmarshalBasicTypes(t *testing.T) {
 			assert.True(t, tt.expected.CreatedAt.Equal(result.CreatedAt))
 		})
 	}
+}
+
+func TestUnmarshalAppliesDefaultsInsideArrayItems(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"items": {
+				"type": "array",
+				"items": {
+					"type": "object",
+					"properties": {
+						"name": {"type": "string"},
+						"status": {"type": "string", "default": "new"},
+						"metadata": {
+							"type": "object",
+							"default": {"labels": ["fresh"]},
+							"properties": {
+								"owner": {"type": "string", "default": "system"}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`))
+	require.NoError(t, err)
+
+	input := map[string]any{
+		"items": []any{
+			map[string]any{"name": "first"},
+			map[string]any{"name": "second", "status": "done", "metadata": map[string]any{}},
+		},
+	}
+	var result map[string]any
+	err = schema.Unmarshal(&result, input)
+	require.NoError(t, err)
+
+	items, ok := result["items"].([]any)
+	require.True(t, ok)
+	require.Len(t, items, 2)
+
+	first, ok := items[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "new", first["status"])
+	assert.Equal(t, map[string]any{"labels": []any{"fresh"}, "owner": "system"}, first["metadata"])
+
+	second, ok := items[1].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "done", second["status"])
+	assert.Equal(t, map[string]any{"owner": "system"}, second["metadata"])
+}
+
+func TestUnmarshalObjectFallsBackToJSONForAliasDestination(t *testing.T) {
+	type Alias map[string]any
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string", "default": "anonymous"},
+			"active": {"type": "boolean", "default": true}
+		}
+	}`))
+	require.NoError(t, err)
+
+	var result Alias
+	err = schema.Unmarshal(&result, map[string]any{})
+	require.NoError(t, err)
+	assert.Equal(t, Alias{"name": "anonymous", "active": true}, result)
+}
+
+func TestUnmarshalSetsTimeValuesFromTimeInstanceAndReportsInvalidTypes(t *testing.T) {
+	schema := Object()
+	fieldVal := reflect.ValueOf(&struct{ When time.Time }{}).Elem().Field(0)
+
+	now := time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, schema.setTimeValue(fieldVal, now))
+	assert.Equal(t, now, fieldVal.Interface())
+
+	err := schema.setTimeValue(fieldVal, 42)
+	require.ErrorIs(t, err, ErrTimeConversion)
+}
+
+func TestUnmarshalObjectUsesJSONFallbackForScalarDestination(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"count": {"type": "integer", "default": 7}
+		}
+	}`))
+	require.NoError(t, err)
+
+	var result string
+	err = schema.Unmarshal(&result, map[string]any{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unmarshal")
 }
 
 // TestUnmarshalPointerFields tests pointer field handling
