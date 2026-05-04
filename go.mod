@@ -19,7 +19,7 @@ require github.com/go-json-experiment/json v0.0.0-20260430182902-b6187a392ed4
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/kaptinlin/jsonpointer v0.4.20
+	github.com/kaptinlin/jsonpointer v0.4.21
 )
 
 require (
