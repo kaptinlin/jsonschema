@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kaptinlin/jsonschema/pkg/tagparser"
 )
 
 func writeAnalyzerPackage(t *testing.T, source string) string {
@@ -98,4 +100,16 @@ func TestStructAnalyzer_AnalyzePackageReportsParseErrors(t *testing.T) {
 	_, err = analyzer.AnalyzePackage(filepath.Join(t.TempDir(), "missing"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to parse package")
+}
+
+func TestHasRuleByName(t *testing.T) {
+	t.Parallel()
+
+	rules := []tagparser.TagRule{
+		{Name: "required"},
+		{Name: "minLength"},
+	}
+
+	assert.True(t, hasRuleByName(rules, "required"))
+	assert.False(t, hasRuleByName(rules, "format"))
 }

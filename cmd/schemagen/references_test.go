@@ -10,6 +10,22 @@ import (
 	"github.com/kaptinlin/jsonschema/pkg/tagparser"
 )
 
+func TestReferenceAnalyzer_AnalyzeTypeStringDetectsMapValueStruct(t *testing.T) {
+	t.Parallel()
+
+	analyzer := NewReferenceAnalyzer()
+
+	dep := analyzer.analyzeTypeString("Lookup", "map[string]*Profile")
+
+	require.NotNil(t, dep)
+	assert.Equal(t, "Lookup", dep.FieldName)
+	assert.Equal(t, "Profile", dep.ReferenceTo)
+	assert.True(t, dep.IsPointer)
+	assert.False(t, dep.IsSlice)
+	assert.True(t, dep.IsMap)
+	assert.Equal(t, "Profile", dep.MapValueType)
+}
+
 func TestReferenceAnalyzer_AnalyzePackageDependenciesFromReflectTypes(t *testing.T) {
 	type Address struct {
 		Street string

@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/kaptinlin/jsonschema/pkg/tagparser"
@@ -305,12 +306,9 @@ func extractTag(tagString, tagName string) string {
 
 // hasRuleByName checks if a rule with given name exists
 func hasRuleByName(rules []tagparser.TagRule, name string) bool {
-	for _, rule := range rules {
-		if rule.Name == name {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(rules, func(rule tagparser.TagRule) bool {
+		return rule.Name == name
+	})
 }
 
 // isOptionalType determines if a type is optional (pointer, slice, map, interface)

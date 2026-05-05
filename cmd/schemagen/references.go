@@ -160,10 +160,10 @@ func (ra *ReferenceAnalyzer) analyzeTypeString(fieldName, typeName string) *Fiel
 	}
 
 	// Handle map types
-	if strings.HasPrefix(typeName, "map[") {
+	if mapType, ok := strings.CutPrefix(typeName, "map["); ok {
 		// Extract value type from map[keyType]valueType
-		if endIdx := strings.LastIndex(typeName, "]"); endIdx != -1 && endIdx < len(typeName)-1 {
-			valueType := typeName[endIdx+1:]
+		if endIdx := strings.LastIndex(mapType, "]"); endIdx != -1 && endIdx < len(mapType)-1 {
+			valueType := mapType[endIdx+1:]
 			valueType = strings.TrimPrefix(valueType, "*") // Handle map[string]*Type
 			if ra.isCustomStruct(valueType) {
 				return &FieldDependency{
