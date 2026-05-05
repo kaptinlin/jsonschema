@@ -22,13 +22,15 @@ func TestCategorizeErrorsInChinese_PrintsCategories(t *testing.T) {
 	// No t.Parallel(): captures process-wide stdout.
 	out := testutil.CaptureStdout(t, func() {
 		categorizeErrorsInChinese(map[string]string{
-			"name":  "长度至少为 3",
-			"email": "格式无效",
-			"age":   "最小值为 0",
+			"name":     "长度至少为 3",
+			"email":    "格式无效",
+			"age":      "最小值为 0",
+			"password": "缺少必需属性",
+			"active":   "应为布尔类型",
 		})
 	})
 
-	for _, want := range []string{"格式错误:", "范围错误:"} {
+	for _, want := range []string{"必需字段错误:", "类型错误:", "格式错误:", "范围错误:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q in %q", want, out)
 		}

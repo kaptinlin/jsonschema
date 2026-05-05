@@ -1173,6 +1173,30 @@ func TestEnumAndConstCompareNumericTypes(t *testing.T) {
 	assert.False(t, Const(nil).Validate("not null").IsValid())
 }
 
+func TestIsTimeRFC3339Boundaries(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{name: "fractional seconds", value: "23:59:59.123Z", want: true},
+		{name: "numeric offset", value: "23:59:60+00:00", want: true},
+		{name: "missing timezone", value: "23:59:59", want: false},
+		{name: "empty fractional seconds", value: "23:59:59.Z", want: false},
+		{name: "invalid offset sign", value: "23:59:59~00:00", want: false},
+		{name: "invalid offset minute", value: "23:59:59+00:60", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, IsTime(tt.value))
+		})
+	}
+}
+
 func TestFormatValidatorsEdgeCases(t *testing.T) {
 	tests := []struct {
 		name      string
