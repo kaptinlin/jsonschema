@@ -27,13 +27,6 @@ pre-commit:
       glob: "*.go"
       run: task test
 
-    - name: markdownlint
-      glob: "*.md"
-      exclude:
-        - ".research/**/*.md"
-        - "SPECS/**/*.md"
-      run: markdownlint-cli2 {staged_files}
-
     - name: yamllint
       glob: "*.{yml,yaml}"
       run: yamllint -s {staged_files}

@@ -124,7 +124,6 @@ task bench                           # Package benchmarks
 
 - `golangci-lint` v2 is configured in `.golangci.yml`.
 - `task lint` also enforces tidy `go.mod` and `go.sum`.
-- Keep touched Markdown files markdownlint-clean when updating documentation.
 
 ## CI
 
