@@ -50,7 +50,7 @@ func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusio
 	defer stopTestServer(server)
 
 	// Read the JSON file containing the test definitions.
-	data, err := os.ReadFile(filePath) //nolint:gosec // Test code reads fixture paths controlled by the suite.
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		t.Fatalf("Failed to read test file: %s", err)
 	}

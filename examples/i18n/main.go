@@ -59,44 +59,7 @@ func main() {
 		"age":   16,              // Below minimum
 		"email": "invalid-email", // Invalid format
 	}
-
-	fmt.Printf("Input: %+v\n\n", invalidData)
-
-	// Step 1: Validate
-	result := schema.Validate(invalidData)
-	if result.IsValid() {
-		fmt.Println("✅ Valid - proceeding to unmarshal")
-		var user User
-		if err := schema.Unmarshal(&user, invalidData); err != nil {
-			fmt.Printf("❌ Unmarshal error: %v\n", err)
-		} else {
-			fmt.Printf("User: %+v\n", user)
-		}
-	} else {
-		fmt.Println("❌ Validation failed")
-
-		// Show Chinese error messages
-		fmt.Println("\n🇨🇳 Chinese errors:")
-		chineseErrors := result.ToLocalizeList(chineseLocalizer)
-		for field, message := range chineseErrors.Errors {
-			fmt.Printf("  %s: %s\n", field, message)
-		}
-
-		// Show English error messages
-		fmt.Println("\n🇺🇸 English errors:")
-		englishErrors := result.ToLocalizeList(englishLocalizer)
-		for field, message := range englishErrors.Errors {
-			fmt.Printf("  %s: %s\n", field, message)
-		}
-
-		// Unmarshal still works (no validation)
-		var user User
-		if err := schema.Unmarshal(&user, invalidData); err != nil {
-			fmt.Printf("\n❌ Unmarshal error: %v\n", err)
-		} else {
-			fmt.Printf("\nℹ️  Unmarshal succeeded: %+v\n", user)
-		}
-	}
+	showValidationExample(schema, invalidData, chineseLocalizer, englishLocalizer)
 
 	// Production pattern with i18n
 	fmt.Println("\nProduction pattern:")
@@ -111,6 +74,47 @@ func main() {
 		fmt.Printf("❌ Error: %v\n", err)
 	} else {
 		fmt.Println("✅ User processed successfully")
+	}
+}
+
+func showValidationExample(schema *jsonschema.Schema, data map[string]any, chineseLocalizer, englishLocalizer *i18n.Localizer) {
+	fmt.Printf("Input: %+v\n\n", data)
+
+	// Step 1: Validate
+	result := schema.Validate(data)
+	if result.IsValid() {
+		fmt.Println("✅ Valid - proceeding to unmarshal")
+		var user User
+		if err := schema.Unmarshal(&user, data); err != nil {
+			fmt.Printf("❌ Unmarshal error: %v\n", err)
+		} else {
+			fmt.Printf("User: %+v\n", user)
+		}
+		return
+	}
+
+	fmt.Println("❌ Validation failed")
+
+	// Show Chinese error messages
+	fmt.Println("\n🇨🇳 Chinese errors:")
+	chineseErrors := result.ToLocalizeList(chineseLocalizer)
+	for field, message := range chineseErrors.Errors {
+		fmt.Printf("  %s: %s\n", field, message)
+	}
+
+	// Show English error messages
+	fmt.Println("\n🇺🇸 English errors:")
+	englishErrors := result.ToLocalizeList(englishLocalizer)
+	for field, message := range englishErrors.Errors {
+		fmt.Printf("  %s: %s\n", field, message)
+	}
+
+	// Unmarshal still works (no validation)
+	var user User
+	if err := schema.Unmarshal(&user, data); err != nil {
+		fmt.Printf("\n❌ Unmarshal error: %v\n", err)
+	} else {
+		fmt.Printf("\nℹ️  Unmarshal succeeded: %+v\n", user)
 	}
 }
 

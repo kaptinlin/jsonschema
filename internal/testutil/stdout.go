@@ -1,4 +1,3 @@
-// Package testutil provides shared helpers for tests.
 package testutil
 
 import (
@@ -21,9 +20,7 @@ func CaptureStdout(t *testing.T, fn func()) string {
 		os.Stdout = oldStdout
 	}()
 	defer func() {
-		if err := r.Close(); err != nil {
-			t.Fatalf("r.Close() error = %v", err)
-		}
+		_ = r.Close()
 	}()
 
 	fn()

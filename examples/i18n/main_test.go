@@ -40,6 +40,26 @@ func mustLocalizer(t *testing.T, lang string) *i18n.Localizer {
 	return bundle.NewLocalizer(lang)
 }
 
+func TestShowValidationExample_PrintsValidUser(t *testing.T) {
+	// No t.Parallel(): captures process-wide stdout.
+	out := testutil.CaptureStdout(t, func() {
+		showValidationExample(mustSchema(t), map[string]any{
+			"name":  "Alice",
+			"age":   25,
+			"email": "alice@example.com",
+		}, mustLocalizer(t, "zh-Hans"), mustLocalizer(t, "en"))
+	})
+
+	for _, want := range []string{
+		"Valid - proceeding to unmarshal",
+		"User: {Name:Alice Age:25 Email:alice@example.com}",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output missing %q in %q", want, out)
+		}
+	}
+}
+
 func TestProcessUser_ReturnsValidationError(t *testing.T) {
 	t.Parallel()
 
