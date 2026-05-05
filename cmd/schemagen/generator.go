@@ -929,14 +929,12 @@ func (g *CodeGenerator) generateFieldSchema(field *tagparser.FieldInfo) (string,
 		return constructor, nil
 	}
 
-	// Handle slice types with Items support
 	if strings.HasPrefix(typeName, "[]") {
-		return g.generateArraySchema(typeName, field)
+		return "jsonschema.Array", nil
 	}
 
-	// Handle map types with AdditionalProperties support
 	if strings.HasPrefix(typeName, "map[") {
-		return g.generateMapSchema(typeName, field)
+		return "jsonschema.Object", nil
 	}
 
 	// Handle any type
@@ -956,27 +954,6 @@ func (g *CodeGenerator) generateFieldSchema(field *tagparser.FieldInfo) (string,
 
 	// Unknown type
 	return "", fmt.Errorf("%w: %s", jsonschema.ErrUnsupportedGenerationType, typeName)
-}
-
-// generateArraySchema generates schema for array/slice types with proper Items support
-func (g *CodeGenerator) generateArraySchema(_ string, _ *tagparser.FieldInfo) (string, error) {
-	// For arrays, always return jsonschema.Array
-	// The items constraint will be handled by the items validator in the validator rules
-	return "jsonschema.Array", nil
-}
-
-// generateMapSchema generates schema for map types with proper AdditionalProperties support
-func (g *CodeGenerator) generateMapSchema(_ string, field *tagparser.FieldInfo) (string, error) {
-	// Check if patternProperties is specified - if so, don't add additionalProperties
-	for _, rule := range field.Rules {
-		if rule.Name == "patternProperties" {
-			return "jsonschema.Object", nil
-		}
-	}
-
-	// For maps, return jsonschema.Object
-	// The additionalProperties constraint will be handled by the additionalProperties validator
-	return "jsonschema.Object", nil
 }
 
 // isCustomStructType checks if a type name represents a custom struct

@@ -72,10 +72,8 @@ func (s *Schema) processJSONBytes(jsonBytes []byte) (any, error) {
 }
 
 func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*EvaluationResult, map[string]bool, map[int]bool) {
-	// Handle []byte input
 	instance = s.preprocessByteInput(instance)
 
-	// Check for problematic circular reference
 	if dynamicScope.Contains(s) && s.isProblematicCircularReference(dynamicScope) {
 		result := NewEvaluationResult(s)
 		evaluatedProps := make(map[string]bool)
@@ -91,7 +89,6 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 	evaluatedProps := make(map[string]bool)
 	evaluatedItems := make(map[int]bool)
 
-	// Handle boolean schema
 	if s.Boolean != nil {
 		if err := s.evaluateBoolean(instance, evaluatedProps, evaluatedItems); err != nil {
 			result.AddError(err)
@@ -99,15 +96,12 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 		return result, evaluatedProps, evaluatedItems
 	}
 
-	// Compile patterns if needed
 	if s.PatternProperties != nil {
 		s.compilePatterns()
 	}
 
-	// Process references
 	s.processReferences(instance, dynamicScope, result, evaluatedProps, evaluatedItems)
 
-	// Process validation keywords
 	s.processValidationKeywords(instance, dynamicScope, result, evaluatedProps, evaluatedItems)
 
 	return result, evaluatedProps, evaluatedItems
@@ -122,29 +116,21 @@ func (s *Schema) preprocessByteInput(instance any) any {
 
 	parsed, err := s.processJSONBytes(jsonBytes)
 	if err != nil {
-		// Create a temporary result to hold the JSON parsing error
-		// Return the error as part of the instance for downstream handling
-		return &jsonParseError{data: jsonBytes, err: err}
+		return &jsonParseError{}
 	}
 
 	return parsed
 }
 
-// jsonParseError wraps JSON parsing errors for downstream handling
-type jsonParseError struct {
-	data []byte
-	err  error
-}
+type jsonParseError struct{}
 
 // processReferences handles $ref and $dynamicRef evaluation
 func (s *Schema) processReferences(instance any, dynamicScope *DynamicScope, result *EvaluationResult, evaluatedProps map[string]bool, evaluatedItems map[int]bool) {
-	// Handle JSON parse errors
 	if _, ok := instance.(*jsonParseError); ok {
 		result.AddError(NewEvaluationError("format", "invalid_json", "Invalid JSON format in byte array"))
 		return
 	}
 
-	// Process $ref
 	if s.ResolvedRef != nil {
 		refResult, props, items := s.ResolvedRef.evaluate(instance, dynamicScope)
 		if refResult != nil {
@@ -157,7 +143,6 @@ func (s *Schema) processReferences(instance any, dynamicScope *DynamicScope, res
 		mergeIntMaps(evaluatedItems, items)
 	}
 
-	// Process $dynamicRef
 	if s.ResolvedDynamicRef != nil {
 		s.processDynamicRef(instance, dynamicScope, result, evaluatedProps, evaluatedItems)
 	}

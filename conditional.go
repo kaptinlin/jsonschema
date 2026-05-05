@@ -20,53 +20,48 @@ func evaluateConditional(
 		return nil, nil
 	}
 
-	// Evaluate the 'if' condition
 	ifResult, ifEvaluatedProps, ifEvaluatedItems := schema.If.evaluate(instance, dynamicScope)
+	if ifResult == nil {
+		return nil, nil
+	}
 
-	var results []*EvaluationResult
+	ifResult.SetEvaluationPath("/if").
+		SetSchemaLocation(schema.SchemaLocation("/if"))
 
-	if ifResult != nil {
-		ifResult.SetEvaluationPath("/if").
-			SetSchemaLocation(schema.SchemaLocation("/if"))
+	results := []*EvaluationResult{ifResult}
 
-		results = append(results, ifResult)
+	if ifResult.IsValid() {
+		mergeStringMaps(evaluatedProps, ifEvaluatedProps)
+		mergeIntMaps(evaluatedItems, ifEvaluatedItems)
 
-		if ifResult.IsValid() {
-			// Merge maps only if 'if' condition is successfully validated
-			mergeStringMaps(evaluatedProps, ifEvaluatedProps)
-			mergeIntMaps(evaluatedItems, ifEvaluatedItems)
+		if schema.Then != nil {
+			thenResult, thenEvaluatedProps, thenEvaluatedItems := schema.Then.evaluate(instance, dynamicScope)
 
-			if schema.Then != nil {
-				thenResult, thenEvaluatedProps, thenEvaluatedItems := schema.Then.evaluate(instance, dynamicScope)
+			if thenResult != nil {
+				thenResult.SetEvaluationPath("/then").
+					SetSchemaLocation(schema.SchemaLocation("/then"))
 
-				if thenResult != nil {
-					thenResult.SetEvaluationPath("/then").
-						SetSchemaLocation(schema.SchemaLocation("/then"))
+				results = append(results, thenResult)
 
-					results = append(results, thenResult)
-
-					if !thenResult.IsValid() {
-						return results, NewEvaluationError("then", "if_then_mismatch",
-							"Value meets the 'if' condition but does not match the 'then' schema")
-					}
-					// Merge maps only if 'then' condition is successfully validated
-					mergeStringMaps(evaluatedProps, thenEvaluatedProps)
-					mergeIntMaps(evaluatedItems, thenEvaluatedItems)
+				if !thenResult.IsValid() {
+					return results, NewEvaluationError("then", "if_then_mismatch",
+						"Value meets the 'if' condition but does not match the 'then' schema")
 				}
+				mergeStringMaps(evaluatedProps, thenEvaluatedProps)
+				mergeIntMaps(evaluatedItems, thenEvaluatedItems)
 			}
-		} else if schema.Else != nil {
-			elseResult, elseEvaluatedProps, elseEvaluatedItems := schema.Else.evaluate(instance, dynamicScope)
-			if elseResult != nil {
-				results = append(results, elseResult)
+		}
+	} else if schema.Else != nil {
+		elseResult, elseEvaluatedProps, elseEvaluatedItems := schema.Else.evaluate(instance, dynamicScope)
+		if elseResult != nil {
+			results = append(results, elseResult)
 
-				if !elseResult.IsValid() {
-					return results, NewEvaluationError("else", "if_else_mismatch",
-						"Value fails the 'if' condition and does not match the 'else' schema")
-				}
-				// Merge maps only if 'else' condition is successfully validated
-				mergeStringMaps(evaluatedProps, elseEvaluatedProps)
-				mergeIntMaps(evaluatedItems, elseEvaluatedItems)
+			if !elseResult.IsValid() {
+				return results, NewEvaluationError("else", "if_else_mismatch",
+					"Value fails the 'if' condition and does not match the 'else' schema")
 			}
+			mergeStringMaps(evaluatedProps, elseEvaluatedProps)
+			mergeIntMaps(evaluatedItems, elseEvaluatedItems)
 		}
 	}
 

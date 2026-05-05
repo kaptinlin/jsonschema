@@ -378,7 +378,6 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 		}
 	}
 
-	// Sort required fields based on RequiredSort option
 	if len(required) > 0 {
 		if g.options.RequiredSort == RequiredSortAlphabetical {
 			slices.Sort(required)
@@ -386,21 +385,12 @@ func (g *structTagGenerator) generateSchemaWithDependencyAnalysis(structType ref
 		// For RequiredSortNone, keep the order as-is from struct field iteration
 	}
 
-	// Create the object schema
-	var keywords []Keyword
-	if len(required) > 0 {
-		keywords = append(keywords, Required(required...))
-	}
-
-	// Convert properties to any slice
 	items := make([]any, len(properties))
 	for i, prop := range properties {
 		items[i] = prop
 	}
-
-	// Add keywords to items slice
-	for _, keyword := range keywords {
-		items = append(items, keyword)
+	if len(required) > 0 {
+		items = append(items, Required(required...))
 	}
 
 	schema := Object(items...)
@@ -1513,14 +1503,11 @@ func (g *structTagGenerator) separateArrayAndItemKeywords(keywords []Keyword, fi
 		keywordType := getKeywordType(keyword)
 
 		switch {
-		case isObjectConstraint(keywordType) && (elemType.Kind() == reflect.Struct || elemType.Kind() == reflect.Map):
-			// Object-specific constraints should go on items if elements are objects
+		case keywordType == "object" && (elemType.Kind() == reflect.Struct || elemType.Kind() == reflect.Map):
 			itemKeywords = append(itemKeywords, keyword)
-		case isArrayConstraint(keywordType):
-			// Array-specific constraints go on the array
+		case keywordType == "array":
 			arrayKeywords = append(arrayKeywords, keyword)
 		default:
-			// Default: apply to array level (backward compatibility)
 			arrayKeywords = append(arrayKeywords, keyword)
 		}
 	}
@@ -1565,16 +1552,6 @@ func getKeywordType(keyword Keyword) string {
 	}
 
 	return "unknown"
-}
-
-// isObjectConstraint checks if a constraint type applies to objects
-func isObjectConstraint(constraintType string) bool {
-	return constraintType == "object"
-}
-
-// isArrayConstraint checks if a constraint type applies to arrays
-func isArrayConstraint(constraintType string) bool {
-	return constraintType == "array"
 }
 
 // applySchemaProperties applies schema-level properties from StructTagOptions to the schema

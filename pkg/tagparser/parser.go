@@ -62,21 +62,17 @@ func (p *TagParser) parseFields(structType reflect.Type, seenTypes map[string]in
 		return nil, nil
 	}
 
-	// Handle pointer to struct
 	for structType.Kind() == reflect.Pointer {
 		structType = structType.Elem()
 	}
 
-	// Ensure it's a struct
 	if structType.Kind() != reflect.Struct {
 		return nil, nil
 	}
 
 	var allFields []FieldInfo
 
-	// Iterate through all exported fields
 	for field := range structType.Fields() {
-		// Skip unexported fields
 		if !field.IsExported() {
 			continue
 		}
@@ -103,12 +99,10 @@ func (p *TagParser) parseFields(structType reflect.Type, seenTypes map[string]in
 func (p *TagParser) parseEmbeddedField(field *reflect.StructField, seenTypes map[string]int, depth int) ([]FieldInfo, error) {
 	fieldType := field.Type
 
-	// Handle pointer to struct
 	for fieldType.Kind() == reflect.Pointer {
 		fieldType = fieldType.Elem()
 	}
 
-	// Only process struct types
 	if fieldType.Kind() != reflect.Struct {
 		return nil, nil
 	}
@@ -144,7 +138,6 @@ func (p *TagParser) parseRegularField(field *reflect.StructField, depth int) *Fi
 		return nil
 	}
 
-	// Parse field information
 	fieldInfo := FieldInfo{
 		Name:           field.Name,
 		Type:           field.Type,
@@ -156,7 +149,6 @@ func (p *TagParser) parseRegularField(field *reflect.StructField, depth int) *Fi
 		Optional:       field.Type.Kind() == reflect.Pointer,
 	}
 
-	// Parse validation rules from tag
 	if jsonschemaTag != "" {
 		rules, err := p.ParseTagString(jsonschemaTag)
 		if err != nil {

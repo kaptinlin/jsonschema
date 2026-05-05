@@ -98,6 +98,17 @@ func TestValidateJSON(t *testing.T) {
 	}
 }
 
+func TestValidateStructReportsInvalidJSONByteInput(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{"type":"object"}`))
+	require.NoError(t, err)
+
+	result := schema.ValidateStruct([]byte(`{invalid json`))
+
+	assert.False(t, result.IsValid())
+	assert.Contains(t, result.Errors, "format")
+}
+
 // TestValidateStruct tests struct validation
 func TestValidateStruct(t *testing.T) {
 	type Person struct {
