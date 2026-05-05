@@ -4,11 +4,21 @@ package jsonschema
 var defaultCompiler = NewCompiler()
 
 // SetDefaultCompiler sets the compiler used by the constructor API.
+//
+// This mutates process-global state and is not safe for concurrent use with
+// other callers of the constructor API. Prefer creating an explicit
+// [NewCompiler] and threading it through your code; this function is
+// convenient for scripts and small programs but should be avoided in
+// servers, libraries, and tests that run in parallel.
 func SetDefaultCompiler(c *Compiler) {
 	defaultCompiler = c
 }
 
 // DefaultCompiler returns the compiler used by the constructor API.
+//
+// The returned compiler is process-global. In server, library, or test
+// contexts where loaders, formats, or default functions differ across
+// callers, prefer an explicit [NewCompiler] instead of mutating this one.
 func DefaultCompiler() *Compiler {
 	return defaultCompiler
 }

@@ -7,13 +7,12 @@ A high-performance JSON Schema Draft 2020-12 validator for Go with direct struct
 
 ## Features
 
-- **Draft 2020-12**: Validate schemas and instances against the current JSON Schema specification used by the package.
-- **Multiple input paths**: Validate raw JSON, decoded maps, or Go structs with entry points tuned for each input type.
-- **Separated workflow**: Validate first, then unmarshal with defaults when the payload is safe to consume.
+- **Draft 2020-12**: Validate schemas and instances against the current JSON Schema specification.
+- **One main entry point**: `schema.Validate(input)` accepts raw JSON, maps, or Go structs.
+- **Defaults without surprises**: `schema.Unmarshal` applies schema defaults; validation stays a separate step.
 - **Constructor API**: Build schemas in Go with `Object`, `Prop`, `String`, `Required`, and composition helpers.
-- **Struct tags**: Generate schemas from Go types with `FromStruct` and customize generation with `StructTagOptions`.
-- **Custom formats and defaults**: Register format validators and dynamic default functions on a compiler.
-- **Reference support**: Resolve `$ref`, `$dynamicRef`, anchors, and batch-compiled schema graphs.
+- **Struct tags**: Generate schemas from Go types with `FromStruct`.
+- **Extensible**: Register custom formats, default functions, media types, decoders, and reference loaders on a compiler.
 - **Localized errors**: Render validation output through `go-i18n` localizers.
 
 ## Installation
@@ -69,23 +68,25 @@ func main() {
 }
 ```
 
-## Validation Workflows
+## Validation
 
-Choose the validation method that matches your input:
-
-| Input | Method | When to Use |
-|-------|--------|-------------|
-| `[]byte` | `ValidateJSON` | Raw request payloads or stored JSON documents |
-| `map[string]any` | `ValidateMap` | Already-decoded JSON objects |
-| Go struct | `ValidateStruct` | Validate Go values without a JSON round-trip |
-| mixed | `Validate` | Convenience path that auto-detects the input type |
+`schema.Validate` is the main entry point. Pass raw JSON, a decoded map, or a Go struct — it dispatches internally.
 
 ```go
-result := schema.ValidateJSON([]byte(`{"name":"Alice"}`))
-result = schema.ValidateMap(map[string]any{"name": "Alice"})
-result = schema.ValidateStruct(User{Name: "Alice"})
-result = schema.Validate(anyInput)
+result := schema.Validate([]byte(`{"name":"Alice"}`))
+result = schema.Validate(map[string]any{"name": "Alice"})
+result = schema.Validate(User{Name: "Alice"})
 ```
+
+### Fast paths
+
+When the input type is known and you want to skip the dispatch and any extra conversion, call the type-specific method directly. They share semantics with `Validate`.
+
+| Method | Use When |
+|--------|----------|
+| `ValidateJSON([]byte)` | Hot paths handling raw JSON request bodies or stored documents |
+| `ValidateMap(map[string]any)` | Already-decoded JSON objects you do not want re-encoded |
+| `ValidateStruct(any)` | Go values, when you want to avoid a JSON round-trip |
 
 ## Constructor API
 
@@ -166,9 +167,9 @@ compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
 
 ### References, Extras, and Batch Compilation
 
-- Use `RegisterLoader` to resolve external references by scheme.
 - Use `CompileBatch` to compile related schemas before resolving cross-references.
 - Use `SetPreserveExtra(true)` when tools need to keep non-standard extension keywords in `Schema.Extra`.
+- Reference loaders are pluggable per scheme via `RegisterLoader`. `http` and `https` ship pre-registered with a 10s timeout. If your schemas come from untrusted sources, replace or remove those loaders so external `$ref` resolution is gated by your own host/size/timeout policy.
 
 ### Localized Results
 
