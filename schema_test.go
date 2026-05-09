@@ -302,6 +302,34 @@ func TestSchemaMapMarshalJSONToStreamsMapAndNil(t *testing.T) {
 	assert.JSONEq(t, `null`, buf.String())
 }
 
+func TestSchemaTypeUnmarshalJSONRejectsInvalidShape(t *testing.T) {
+	t.Parallel()
+
+	var schemaType SchemaType
+	err := schemaType.UnmarshalJSON([]byte(`42`))
+
+	require.ErrorIs(t, err, ErrInvalidSchemaType)
+}
+
+func TestConstValueUnmarshalJSONRejectsInvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	var cv ConstValue
+	err := cv.UnmarshalJSON([]byte(``))
+
+	var syntaxErr *jsontext.SyntacticError
+	require.ErrorAs(t, err, &syntaxErr)
+}
+
+func TestConstValueUnmarshalJSONRejectsNilReceiver(t *testing.T) {
+	t.Parallel()
+
+	var cv *ConstValue
+	err := cv.UnmarshalJSON([]byte(`null`))
+
+	require.ErrorIs(t, err, ErrNilConstValue)
+}
+
 func TestSchemaRoundTrip(t *testing.T) {
 	// Create a complex schema to test round-trip stability
 	// Note: Required arrays should be pre-sorted if you want deterministic output
