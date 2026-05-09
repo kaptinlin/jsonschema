@@ -255,8 +255,8 @@ func (s *Schema) prepareStructObjectForDefaults(data map[string]any, schema *Sch
 			continue
 		}
 
-		fieldType, ok := structFieldTypeForDefaults(fieldInfo.Type)
-		if !ok {
+		fieldType := fieldInfo.Type
+		if fieldType.Kind() != reflect.Struct || fieldType == reflect.TypeFor[time.Time]() {
 			continue
 		}
 
@@ -277,14 +277,6 @@ func (s *Schema) prepareStructObjectForDefaults(data map[string]any, schema *Sch
 
 		s.prepareStructObjectForDefaults(propObject, propSchema, fieldType, seen)
 	}
-}
-
-func structFieldTypeForDefaults(fieldType reflect.Type) (reflect.Type, bool) {
-	if fieldType.Kind() != reflect.Struct || fieldType == reflect.TypeFor[time.Time]() {
-		return nil, false
-	}
-
-	return fieldType, true
 }
 
 func schemaHasOwnDefault(schema *Schema, seen map[*Schema]struct{}) bool {

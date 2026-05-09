@@ -371,7 +371,6 @@ func (s *Schema) hasObjectValidation() bool {
 		len(s.Required) > 0 || len(s.DependentRequired) > 0
 }
 
-// Helper methods for adding results and errors.
 func (s *Schema) addResultsAndError(result *EvaluationResult, results []*EvaluationResult, err *EvaluationError) {
 	for _, res := range results {
 		result.AddDetail(res)
@@ -550,8 +549,7 @@ func validateObjectConstraints(schema *Schema, object map[string]any) []*Evaluat
 
 // evaluateNumeric groups the validation of all numeric-specific keywords.
 func evaluateNumeric(schema *Schema, data any) []*EvaluationError {
-	// Fast path: If no numeric constraints are defined, skip validation
-	if !hasNumericConstraints(schema) {
+	if !schema.hasNumericValidation() {
 		return nil
 	}
 
@@ -604,16 +602,6 @@ func evaluateNumeric(schema *Schema, data any) []*EvaluationError {
 	}
 
 	return errors
-}
-
-// hasNumericConstraints checks if the schema has any numeric validation constraints
-// This allows for a fast path when no numeric validation is needed
-func hasNumericConstraints(schema *Schema) bool {
-	return schema.MultipleOf != nil ||
-		schema.Maximum != nil ||
-		schema.ExclusiveMaximum != nil ||
-		schema.Minimum != nil ||
-		schema.ExclusiveMinimum != nil
 }
 
 // evaluateString groups the validation of all string-specific keywords.
