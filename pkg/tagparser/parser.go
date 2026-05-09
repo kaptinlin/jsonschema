@@ -343,9 +343,8 @@ func parseTagRule(part string) TagRule {
 				params = []string{unescapeString(unquoted)}
 			case needsCommaSeparation(name):
 				// Comma-separated parameters for specific rules (allOf, anyOf, oneOf)
-				params = strings.Split(paramStr, ",")
-				for i := range params {
-					params[i] = strings.TrimSpace(params[i])
+				for param := range strings.SplitSeq(paramStr, ",") {
+					params = append(params, strings.TrimSpace(param))
 				}
 			case strings.Contains(paramStr, " ") && needsSpaceSeparation(name):
 				// Space-separated parameters for specific rules (enum, examples)

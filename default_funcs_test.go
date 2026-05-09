@@ -67,6 +67,11 @@ func TestParseFunctionCall(t *testing.T) {
 			want:  &FunctionCall{Name: "func", Args: []any{"arg1", int64(42), float64(3.14)}},
 		},
 		{
+			name:  "function skips empty args",
+			input: "func(arg1, , 42,)",
+			want:  &FunctionCall{Name: "func", Args: []any{"arg1", int64(42)}},
+		},
+		{
 			name:  "not a function call",
 			input: "just a string",
 			want:  nil,

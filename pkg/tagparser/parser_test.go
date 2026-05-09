@@ -221,6 +221,13 @@ func TestTagParser_ParseComplexParameters(t *testing.T) {
 			},
 		},
 		{
+			name: "comma-separated allOf values with spaces",
+			tag:  "allOf=BaseUser, AdminUser , ExtendedUser",
+			expected: []TagRule{
+				{Name: "allOf", Params: []string{"BaseUser", "AdminUser", "ExtendedUser"}},
+			},
+		},
+		{
 			name: "comma-separated anyOf values",
 			tag:  "anyOf=EmailContact,PhoneContact,AddressContact",
 			expected: []TagRule{

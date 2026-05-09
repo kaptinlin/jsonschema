@@ -39,10 +39,9 @@ func parseFunctionCall(input string) *FunctionCall {
 }
 
 func parseArgs(raw string) []any {
-	parts := strings.Split(raw, ",")
-	args := make([]any, 0, len(parts))
+	args := make([]any, 0)
 
-	for _, part := range parts {
+	for part := range strings.SplitSeq(raw, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
