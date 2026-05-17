@@ -443,23 +443,8 @@ func evaluatePatternPropertiesStruct(schema *Schema, structValue reflect.Value, 
 		}
 	}
 
-	if len(invalidProperties) == 1 {
-		return results, NewEvaluationError(
-			"properties", "pattern_property_mismatch",
-			"Property {property} does not match the pattern schema",
-			map[string]any{"property": fmt.Sprintf("'%s'", invalidProperties[0])},
-		)
-	}
-	if len(invalidProperties) > 1 {
-		quotedProperties := make([]string, len(invalidProperties))
-		for i, prop := range invalidProperties {
-			quotedProperties[i] = fmt.Sprintf("'%s'", prop)
-		}
-		return results, NewEvaluationError(
-			"properties", "pattern_properties_mismatch",
-			"Properties {properties} do not match their pattern schemas",
-			map[string]any{"properties": strings.Join(quotedProperties, ", ")},
-		)
+	if len(invalidProperties) > 0 {
+		return results, createPatternPropertyValidationError(invalidProperties)
 	}
 
 	return results, nil
@@ -550,39 +535,54 @@ func evaluatePropertyNamesStruct(schema *Schema, structValue reflect.Value, fiel
 // evaluateDependentRequiredStruct validates dependent required properties for structs
 func evaluateDependentRequiredStruct(schema *Schema, structValue reflect.Value, fieldCache *FieldCache) *EvaluationError {
 	for propName, dependentRequired := range schema.DependentRequired {
-		// Check if property exists
 		fieldInfo, exists := fieldCache.FieldsByName[propName]
 		if !exists {
 			continue
 		}
+		if isEmptyValue(structValue.Field(fieldInfo.Index)) {
+			continue
+		}
 
-		fieldValue := structValue.Field(fieldInfo.Index)
-
-		// If property exists and is not empty, check dependent properties
-		if !isEmptyValue(fieldValue) {
-			for _, requiredProp := range dependentRequired {
-				depFieldInfo, depExists := fieldCache.FieldsByName[requiredProp]
-				if !depExists {
-					return NewEvaluationError("dependentRequired", "dependent_required_missing",
-						"Property {property} is required when {dependent_property} is present", map[string]any{
-							"property":           requiredProp,
-							"dependent_property": propName,
-						})
-				}
-
-				depFieldValue := structValue.Field(depFieldInfo.Index)
-				if isMissingValue(depFieldValue) {
-					return NewEvaluationError("dependentRequired", "dependent_required_missing",
-						"Property {property} is required when {dependent_property} is present", map[string]any{
-							"property":           requiredProp,
-							"dependent_property": propName,
-						})
-				}
+		for _, requiredProp := range dependentRequired {
+			depFieldInfo, depExists := fieldCache.FieldsByName[requiredProp]
+			if !depExists {
+				return newDependentRequiredMissingError(requiredProp, propName)
+			}
+			if isMissingValue(structValue.Field(depFieldInfo.Index)) {
+				return newDependentRequiredMissingError(requiredProp, propName)
 			}
 		}
 	}
 
 	return nil
+}
+
+func newDependentRequiredMissingError(requiredProp, propName string) *EvaluationError {
+	return NewEvaluationError("dependentRequired", "dependent_required_missing",
+		"Property {property} is required when {dependent_property} is present", map[string]any{
+			"property":           requiredProp,
+			"dependent_property": propName,
+		})
+}
+
+func createPatternPropertyValidationError(invalidProperties []string) *EvaluationError {
+	quotedProperties := make([]string, len(invalidProperties))
+	for i, prop := range invalidProperties {
+		quotedProperties[i] = "'" + prop + "'"
+	}
+
+	if len(quotedProperties) == 1 {
+		return NewEvaluationError(
+			"properties", "pattern_property_mismatch",
+			"Property {property} does not match the pattern schema",
+			map[string]any{"property": quotedProperties[0]},
+		)
+	}
+	return NewEvaluationError(
+		"properties", "pattern_properties_mismatch",
+		"Properties {properties} do not match their pattern schemas",
+		map[string]any{"properties": strings.Join(quotedProperties, ", ")},
+	)
 }
 
 // createValidationError creates a validation error with proper formatting for single or multiple items

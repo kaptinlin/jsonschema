@@ -467,48 +467,26 @@ func evaluateObject(schema *Schema, data any, evaluatedProps map[string]bool, ev
 func evaluateObjectMap(schema *Schema, object map[string]any, evaluatedProps map[string]bool, evaluatedItems map[int]bool, dynamicScope *DynamicScope) ([]*EvaluationResult, []*EvaluationError) {
 	var results []*EvaluationResult
 	var errors []*EvaluationError
+	appendEvaluation := func(moreResults []*EvaluationResult, err *EvaluationError) {
+		results = append(results, moreResults...)
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
 
-	// Properties validation
 	if schema.Properties != nil {
-		if propResults, propError := evaluateProperties(schema, object, evaluatedProps, evaluatedItems, dynamicScope); propResults != nil || propError != nil {
-			results = append(results, propResults...)
-			if propError != nil {
-				errors = append(errors, propError)
-			}
-		}
+		appendEvaluation(evaluateProperties(schema, object, evaluatedProps, evaluatedItems, dynamicScope))
 	}
-
-	// Pattern properties validation
 	if schema.PatternProperties != nil {
-		if patResults, patError := evaluatePatternProperties(schema, object, evaluatedProps, evaluatedItems, dynamicScope); patResults != nil || patError != nil {
-			results = append(results, patResults...)
-			if patError != nil {
-				errors = append(errors, patError)
-			}
-		}
+		appendEvaluation(evaluatePatternProperties(schema, object, evaluatedProps, evaluatedItems, dynamicScope))
 	}
-
-	// Additional properties validation
 	if schema.AdditionalProperties != nil {
-		if addResults, addError := evaluateAdditionalProperties(schema, object, evaluatedProps, evaluatedItems, dynamicScope); addResults != nil || addError != nil {
-			results = append(results, addResults...)
-			if addError != nil {
-				errors = append(errors, addError)
-			}
-		}
+		appendEvaluation(evaluateAdditionalProperties(schema, object, evaluatedProps, evaluatedItems, dynamicScope))
 	}
-
-	// Property names validation
 	if schema.PropertyNames != nil {
-		if nameResults, nameError := evaluatePropertyNames(schema, object, evaluatedProps, evaluatedItems, dynamicScope); nameResults != nil || nameError != nil {
-			results = append(results, nameResults...)
-			if nameError != nil {
-				errors = append(errors, nameError)
-			}
-		}
+		appendEvaluation(evaluatePropertyNames(schema, object, evaluatedProps, evaluatedItems, dynamicScope))
 	}
 
-	// Object constraint validation
 	errors = append(errors, validateObjectConstraints(schema, object)...)
 
 	return results, errors
