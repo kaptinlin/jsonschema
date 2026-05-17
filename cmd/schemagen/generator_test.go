@@ -84,6 +84,19 @@ func TestCodeGenerator_GenerateFieldPropertySpecialBaseSchemas(t *testing.T) {
 			expected: `jsonschema.Prop("kind", jsonschema.Const("user"))`,
 		},
 		{
+			name: "const with validator",
+			field: tagparser.FieldInfo{
+				Name:     "Kind",
+				TypeName: "string",
+				JSONName: "kind",
+				Rules: []tagparser.TagRule{
+					{Name: "const", Params: []string{"user"}},
+					{Name: "description", Params: []string{"user kind"}},
+				},
+			},
+			expected: "jsonschema.Prop(\"kind\", jsonschema.Any(\n\t\t\tjsonschema.Const(\"user\"),\n\t\t\tjsonschema.Description(\"user kind\"),\n\t\t))",
+		},
+		{
 			name: "dynamic ref with validator",
 			field: tagparser.FieldInfo{
 				Name:     "Node",

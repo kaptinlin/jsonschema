@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/kaptinlin/jsonschema"
@@ -322,7 +323,7 @@ func (g *CodeGenerator) generateFieldProperty(field *tagparser.FieldInfo) (strin
 			schemaCode = fmt.Sprintf("jsonschema.AllOf(%s)", strings.Join(allOfSchemas, ", "))
 		case strings.HasPrefix(baseSchema, "jsonschema.Enum(") || strings.HasPrefix(baseSchema, "jsonschema.Const("):
 			// For complete schemas like Enum/Const with validators, wrap in Any()
-			schemaCode = fmt.Sprintf("jsonschema.Any(\n\t\t\t%s,\n\t\t)", strings.Join(append([]string{baseSchema}, validators...), ",\n\t\t\t"))
+			schemaCode = fmt.Sprintf("jsonschema.Any(\n\t\t\t%s,\n\t\t)", strings.Join(slices.Concat([]string{baseSchema}, validators), ",\n\t\t\t"))
 		default:
 			// Base schema with validators
 			schemaCode = fmt.Sprintf("%s(\n\t\t\t%s,\n\t\t)", baseSchema, strings.Join(validators, ",\n\t\t\t"))

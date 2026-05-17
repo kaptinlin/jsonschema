@@ -734,8 +734,7 @@ type SchemaMap map[string]*Schema
 
 // MarshalJSON ensures that SchemaMap serializes properly as a JSON object.
 func (sm SchemaMap) MarshalJSON() ([]byte, error) {
-	m := make(map[string]*Schema)
-	maps.Copy(m, sm)
+	m := maps.Clone(map[string]*Schema(sm))
 	// Use deterministic marshaling to ensure consistent key ordering
 	return json.Marshal(m, json.Deterministic(true))
 }
@@ -748,8 +747,7 @@ func (sm *SchemaMap) MarshalJSONTo(enc *jsontext.Encoder, opts json.Options) err
 	if sm == nil {
 		return json.MarshalEncode(enc, nil, opts)
 	}
-	m := make(map[string]*Schema)
-	maps.Copy(m, *sm)
+	m := maps.Clone(map[string]*Schema(*sm))
 	return json.MarshalEncode(enc, m, opts)
 }
 
