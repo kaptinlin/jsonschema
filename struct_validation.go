@@ -134,13 +134,8 @@ func isZeroValue(rv reflect.Value) bool {
 
 // shouldOmitField determines if a field should be omitted based on omitempty/omitzero tags
 func shouldOmitField(fieldInfo FieldInfo, fieldValue reflect.Value) bool {
-	if fieldInfo.Omitzero && isZeroValue(fieldValue) {
-		return true
-	}
-	if fieldInfo.Omitempty && isEmptyValue(fieldValue) {
-		return true
-	}
-	return false
+	return fieldInfo.Omitzero && isZeroValue(fieldValue) ||
+		fieldInfo.Omitempty && isEmptyValue(fieldValue)
 }
 
 // isEmptyValue checks if a reflect.Value represents an empty value for omitempty behavior

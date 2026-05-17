@@ -28,26 +28,24 @@ func (s *Schema) resolveRef(ref string) (*Schema, error) {
 }
 
 func (s *Schema) resolveAnchor(anchorName string) (*Schema, error) {
-	var schema *Schema
-	var err error
-
 	if strings.HasPrefix(anchorName, "/") {
-		schema, err = s.resolveJSONPointer(anchorName)
-	} else {
-		if schema, ok := s.anchors[anchorName]; ok {
-			return schema, nil
+		schema, err := s.resolveJSONPointer(anchorName)
+		if schema == nil && s.parent != nil {
+			return s.parent.resolveAnchor(anchorName)
 		}
-
-		if schema, ok := s.dynamicAnchors[anchorName]; ok {
-			return schema, nil
-		}
+		return schema, err
 	}
 
-	if schema == nil && s.parent != nil {
+	if schema, ok := s.anchors[anchorName]; ok {
+		return schema, nil
+	}
+	if schema, ok := s.dynamicAnchors[anchorName]; ok {
+		return schema, nil
+	}
+	if s.parent != nil {
 		return s.parent.resolveAnchor(anchorName)
 	}
-
-	return schema, err
+	return nil, nil
 }
 
 // resolveRefWithFullURL resolves a full URL reference to another schema.

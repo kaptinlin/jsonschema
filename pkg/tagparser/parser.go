@@ -313,7 +313,6 @@ func parseTagParts(tag string) []string {
 		}
 	}
 
-	// Add final part
 	if current.Len() > 0 {
 		parts = append(parts, current.String())
 	}
@@ -327,22 +326,17 @@ func parseTagRule(part string) TagRule {
 		return TagRule{}
 	}
 
-	// Check if rule has parameters (contains =)
 	if before, after, ok := strings.Cut(part, "="); ok {
 		name := strings.TrimSpace(before)
 		paramStr := strings.TrimSpace(after)
 
-		// Parse parameters
 		var params []string
 		if paramStr != "" {
-			// Handle quoted parameters
 			switch {
 			case strings.HasPrefix(paramStr, "'") && strings.HasSuffix(paramStr, "'"):
-				// Single quoted parameter
 				unquoted := paramStr[1 : len(paramStr)-1]
 				params = []string{unescapeString(unquoted)}
 			case needsCommaSeparation(name):
-				// Comma-separated parameters for specific rules (allOf, anyOf, oneOf)
 				for param := range strings.SplitSeq(paramStr, ",") {
 					params = append(params, strings.TrimSpace(param))
 				}

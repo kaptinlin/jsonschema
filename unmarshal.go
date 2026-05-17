@@ -784,21 +784,15 @@ func (s *Schema) setPointerValue(fieldVal reflect.Value, valueVal reflect.Value,
 
 // setSliceValue handles slice field assignment
 func (s *Schema) setSliceValue(fieldVal reflect.Value, value any) error {
-	// Handle []any from JSON unmarshaling
 	if sliceVal, ok := value.([]any); ok {
-		// Create a new slice of the correct type
 		sliceType := fieldVal.Type()
 		newSlice := reflect.MakeSlice(sliceType, 0, len(sliceVal))
 
-		// Convert each element
 		elemType := sliceType.Elem()
 		for _, item := range sliceVal {
-			// Create a new element of the correct type
 			elemVal := reflect.New(elemType).Elem()
 
-			// Set the value for the element
 			if err := s.setFieldValue(elemVal, item); err != nil {
-				// If direct conversion fails, try JSON round-trip
 				jsonData, encErr := s.Compiler().jsonEncoder(item)
 				if encErr != nil {
 					return fmt.Errorf("%w: %w", ErrNestedValueEncode, encErr)
@@ -815,7 +809,6 @@ func (s *Schema) setSliceValue(fieldVal reflect.Value, value any) error {
 		return nil
 	}
 
-	// Fallback to JSON round-trip for other cases
 	return s.setComplexValue(fieldVal, value)
 }
 

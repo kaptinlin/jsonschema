@@ -802,7 +802,6 @@ func (s *Schema) processObjectValidationWithoutRefs(instance any, result *Evalua
 // handleAdditionalPropertiesForCircular handles additionalProperties validation for circular references
 func (s *Schema) handleAdditionalPropertiesForCircular(object map[string]any, result *EvaluationResult, evaluatedProps map[string]bool) {
 	if s.AdditionalProperties == nil {
-		// Mark all properties as evaluated if no additional properties constraint
 		for key := range object {
 			evaluatedProps[key] = true
 		}
@@ -819,11 +818,9 @@ func (s *Schema) processArrayValidationWithoutRefs(instance any, result *Evaluat
 		return
 	}
 
-	// Only validate basic array constraints, not item schemas
 	errors := validateArrayConstraints(s, items)
 	s.addErrors(result, errors)
 
-	// Mark all items as evaluated to prevent further processing
 	for i := range items {
 		evaluatedItems[i] = true
 	}
@@ -831,9 +828,7 @@ func (s *Schema) processArrayValidationWithoutRefs(instance any, result *Evaluat
 
 // checkAdditionalPropertiesForCircular validates additionalProperties constraint for circular references
 func (s *Schema) checkAdditionalPropertiesForCircular(object map[string]any, result *EvaluationResult, evaluatedProps map[string]bool) {
-	// Check if additionalProperties is false (no additional properties allowed)
 	if s.AdditionalProperties.Boolean != nil && !*s.AdditionalProperties.Boolean {
-		// Get list of properties defined in the schema
 		allowedProps := make(map[string]bool)
 		if s.Properties != nil {
 			for prop := range *s.Properties {
@@ -841,7 +836,6 @@ func (s *Schema) checkAdditionalPropertiesForCircular(object map[string]any, res
 			}
 		}
 
-		// Check if all object properties are allowed
 		for prop := range object {
 			if allowedProps[prop] {
 				evaluatedProps[prop] = true
@@ -855,7 +849,6 @@ func (s *Schema) checkAdditionalPropertiesForCircular(object map[string]any, res
 		return
 	}
 
-	// Mark all properties as evaluated if additional properties are allowed
 	for key := range object {
 		evaluatedProps[key] = true
 	}
