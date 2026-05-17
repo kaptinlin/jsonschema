@@ -261,58 +261,39 @@ func evaluateObjectStruct(schema *Schema, structValue reflect.Value, evaluatedPr
 	var results []*EvaluationResult
 	var errors []*EvaluationError
 
-	structType := structValue.Type()
-	fieldCache := getFieldCache(structType)
+	fieldCache := getFieldCache(structValue.Type())
+	appendEvaluation := func(moreResults []*EvaluationResult, err *EvaluationError) {
+		results = append(results, moreResults...)
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
 
-	// Validate properties
 	if schema.Properties != nil {
 		propertiesResults, propertiesErrors := evaluatePropertiesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope)
 		results = append(results, propertiesResults...)
 		errors = append(errors, propertiesErrors...)
 	}
-
-	// Validate patternProperties
 	if schema.PatternProperties != nil {
-		patternResults, patternError := evaluatePatternPropertiesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope)
-		results = append(results, patternResults...)
-		if patternError != nil {
-			errors = append(errors, patternError)
-		}
+		appendEvaluation(evaluatePatternPropertiesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope))
 	}
-
-	// Validate additionalProperties
 	if schema.AdditionalProperties != nil {
-		additionalResults, additionalError := evaluateAdditionalPropertiesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope)
-		results = append(results, additionalResults...)
-		if additionalError != nil {
-			errors = append(errors, additionalError)
-		}
+		appendEvaluation(evaluateAdditionalPropertiesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope))
 	}
-
-	// Validate propertyNames
 	if schema.PropertyNames != nil {
-		propertyNamesResults, propertyNamesError := evaluatePropertyNamesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope)
-		results = append(results, propertyNamesResults...)
-		if propertyNamesError != nil {
-			errors = append(errors, propertyNamesError)
-		}
+		appendEvaluation(evaluatePropertyNamesStruct(schema, structValue, fieldCache, evaluatedProps, dynamicScope))
 	}
 
-	// Validate required fields
 	if len(schema.Required) > 0 {
 		if err := evaluateRequiredStruct(schema, structValue, fieldCache); err != nil {
 			errors = append(errors, err)
 		}
 	}
-
-	// Validate dependentRequired
 	if len(schema.DependentRequired) > 0 {
 		if err := evaluateDependentRequiredStruct(schema, structValue, fieldCache); err != nil {
 			errors = append(errors, err)
 		}
 	}
-
-	// Validate property count constraints
 	if schema.MaxProperties != nil || schema.MinProperties != nil {
 		if err := evaluatePropertyCountStruct(schema, structValue, fieldCache); err != nil {
 			errors = append(errors, err)
@@ -373,7 +354,6 @@ func evaluatePropertiesStruct(schema *Schema, structValue reflect.Value, fieldCa
 		appendValidationResult(&results, &invalidProperties, propName, result)
 	}
 
-	// Handle errors for invalid properties
 	if len(invalidProperties) > 0 {
 		errors = append(errors, createPropertyValidationError(invalidProperties))
 	}
@@ -459,7 +439,7 @@ func evaluatePatternPropertiesStruct(schema *Schema, structValue reflect.Value, 
 						SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/patternProperties/%s", jsonName))).
 						SetInstanceLocation(fmt.Sprintf("/%s", jsonName))
 					results = append(results, result)
-					if !result.IsValid() && !slices.Contains(invalidProperties, jsonName) {
+					if !result.IsValid() {
 						invalidProperties = append(invalidProperties, jsonName)
 					}
 				}
@@ -495,7 +475,6 @@ func evaluateAdditionalPropertiesStruct(schema *Schema, structValue reflect.Valu
 	var results []*EvaluationResult
 	var invalidProperties []string
 
-	// Check for unevaluated properties
 	for jsonName, fieldInfo := range fieldCache.FieldsByName {
 		if evaluatedProps[jsonName] {
 			continue
@@ -506,25 +485,20 @@ func evaluateAdditionalPropertiesStruct(schema *Schema, structValue reflect.Valu
 			continue
 		}
 
-		// This is an additional property, validate according to additionalProperties
-		if schema.AdditionalProperties != nil {
-			value := extractValue(fieldValue)
-			result, _, _ := schema.AdditionalProperties.evaluate(value, dynamicScope)
-			if result != nil {
-				result.SetEvaluationPath(fmt.Sprintf("/additionalProperties/%s", jsonName)).
-					SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/additionalProperties/%s", jsonName))).
-					SetInstanceLocation(fmt.Sprintf("/%s", jsonName))
-				results = append(results, result)
-				if !result.IsValid() {
-					invalidProperties = append(invalidProperties, jsonName)
-				}
+		value := extractValue(fieldValue)
+		result, _, _ := schema.AdditionalProperties.evaluate(value, dynamicScope)
+		if result != nil {
+			result.SetEvaluationPath(fmt.Sprintf("/additionalProperties/%s", jsonName)).
+				SetSchemaLocation(schema.SchemaLocation(fmt.Sprintf("/additionalProperties/%s", jsonName))).
+				SetInstanceLocation(fmt.Sprintf("/%s", jsonName))
+			results = append(results, result)
+			if !result.IsValid() {
+				invalidProperties = append(invalidProperties, jsonName)
 			}
-			// Mark property as evaluated
-			evaluatedProps[jsonName] = true
 		}
+		evaluatedProps[jsonName] = true
 	}
 
-	// Handle errors for invalid properties
 	if len(invalidProperties) > 0 {
 		return results, createValidationError(
 			"additional_property_mismatch",
@@ -553,7 +527,6 @@ func evaluatePropertyNamesStruct(schema *Schema, structValue reflect.Value, fiel
 			continue
 		}
 
-		// Validate the property name itself
 		result, _, _ := schema.PropertyNames.evaluate(jsonName, dynamicScope)
 		if result != nil {
 			result.SetEvaluationPath(fmt.Sprintf("/propertyNames/%s", jsonName)).
@@ -566,7 +539,6 @@ func evaluatePropertyNamesStruct(schema *Schema, structValue reflect.Value, fiel
 		}
 	}
 
-	// Handle errors for invalid properties
 	if len(invalidProperties) > 0 {
 		return results, createValidationError(
 			"property_name_mismatch",

@@ -442,7 +442,6 @@ func evaluateObject(schema *Schema, data any, evaluatedProps map[string]bool, ev
 		return evaluateObjectMap(schema, convertStringMap(obj), evaluatedProps, evaluatedItems, dynamicScope)
 	}
 
-	// Slow path: Use reflection for uncommon types (structs, interfaces, other map types)
 	rv := reflect.ValueOf(data)
 	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
@@ -459,7 +458,6 @@ func evaluateObject(schema *Schema, data any, evaluatedProps map[string]bool, ev
 			return evaluateObjectReflectMap(schema, rv, evaluatedProps, evaluatedItems, dynamicScope)
 		}
 	default:
-		// Handle other kinds by returning nil
 	}
 
 	return nil, nil
