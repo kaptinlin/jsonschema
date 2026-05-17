@@ -55,7 +55,7 @@ Key entry points:
 
 ### Must Follow
 
-- Go 1.26.2 — use the modern features already present in this repository when they simplify code.
+- Use the Go version declared in `go.mod`; use the modern features already present in this repository when they simplify code.
 - Keep validation and unmarshaling separate. `Schema.Unmarshal` applies defaults but must not silently become a validator.
 - Keep validation entry points behaviorally aligned. When a change affects validation semantics, add coverage for the relevant combination of `Validate`, `ValidateJSON`, `ValidateStruct`, and `ValidateMap`.
 - Preserve JSON Schema Draft 2020-12 semantics. `format` remains annotation-only unless the caller opts in with `Compiler.SetAssertFormat(true)`.

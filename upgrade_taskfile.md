@@ -36,7 +36,7 @@ This document outlines the plan to migrate all packages in the golang monorepo f
 ```makefile
 PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 export GOBIN = $(PROJECT_ROOT)/bin
-REQUIRED_GOLANGCI_LINT_VERSION := $(shell cat .golangci.version 2>/dev/null || echo "2.9.0")
+REQUIRED_GOLANGCI_LINT_VERSION := $(shell cat .golangci.version 2>/dev/null || echo "2.12.2")
 ```
 
 **Taskfile:**
@@ -46,7 +46,7 @@ vars:
     sh: pwd
   GOBIN: '{{.PROJECT_ROOT}}/bin'
   REQUIRED_GOLANGCI_LINT_VERSION:
-    sh: cat .golangci.version 2>/dev/null || echo "2.9.0"
+    sh: cat .golangci.version 2>/dev/null || echo "2.12.2"
 
 env:
   GOBIN: '{{.GOBIN}}'
@@ -125,7 +125,7 @@ vars:
   GOBIN: '{{.PROJECT_ROOT}}/bin'
   GOLANGCI_LINT_BINARY: '{{.GOBIN}}/golangci-lint'
   REQUIRED_GOLANGCI_LINT_VERSION:
-    sh: cat .golangci.version 2>/dev/null || echo "2.9.0"
+    sh: cat .golangci.version 2>/dev/null || echo "2.12.2"
   GOLANGCI_LINT_VERSION:
     sh: '{{.GOLANGCI_LINT_BINARY}} version --format short 2>/dev/null || {{.GOLANGCI_LINT_BINARY}} version --short 2>/dev/null || echo "not-installed"'
 

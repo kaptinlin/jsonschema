@@ -1,6 +1,6 @@
 # jsonschema
 
-[![Go Version](https://img.shields.io/badge/go-1.26%2B-00ADD8?logo=go)](https://go.dev/)
+[![Go Module](https://img.shields.io/badge/go-module-00ADD8?logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A high-performance JSON Schema Draft 2020-12 validator for Go with direct struct validation, default-aware unmarshaling, and a fluent constructor API
@@ -21,7 +21,7 @@ A high-performance JSON Schema Draft 2020-12 validator for Go with direct struct
 go get github.com/kaptinlin/jsonschema
 ```
 
-Requires **Go 1.26+**.
+Requires the Go version declared in `go.mod`.
 
 ## Quick Start
 
