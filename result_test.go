@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
@@ -54,6 +55,23 @@ func TestValidationOutputs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEvaluationErrorLocalize(t *testing.T) {
+	err := NewEvaluationError(
+		"minLength",
+		"string_too_short",
+		"Value should be at least {min_length} characters",
+		map[string]any{"min_length": 3},
+	)
+
+	assert.Equal(t, "Value should be at least 3 characters", err.Localize(nil))
+
+	i18n, i18nErr := I18n()
+	require.NoError(t, i18nErr)
+	localizer := i18n.NewLocalizer("zh-Hans")
+
+	assert.Equal(t, "值应至少为 3 个字符", err.Localize(localizer))
 }
 
 func TestToLocalizeList(t *testing.T) {

@@ -885,6 +885,32 @@ func TestJSONPointerReferencesResolveNestedSchemaSegments(t *testing.T) {
 	assert.False(t, schema.Validate(invalid).IsValid())
 }
 
+func TestJSONPointerReferencesResolveEscapedPropertyNames(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"first/name": {"type": "string", "minLength": 2},
+			"tilde~field": {"type": "integer", "minimum": 1},
+			"copySlash": {"$ref": "#/properties/first~1name"},
+			"copyTilde": {"$ref": "#/properties/tilde~0field"}
+		}
+	}`))
+	require.NoError(t, err)
+
+	valid := map[string]any{
+		"copySlash": "ok",
+		"copyTilde": 1,
+	}
+	assert.True(t, schema.Validate(valid).IsValid())
+
+	invalid := map[string]any{
+		"copySlash": "x",
+		"copyTilde": 0,
+	}
+	assert.False(t, schema.Validate(invalid).IsValid())
+}
+
 // TestInvalidRegexInPatternProperties tests invalid regex in patternProperties
 func TestInvalidRegexInPatternProperties(t *testing.T) {
 	t.Run("invalid lookahead in patternProperties key", func(t *testing.T) {
