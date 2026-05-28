@@ -1,41 +1,30 @@
-# golangci-lint v2 — canonical config for this ecosystem.
-# Owner: golangci-linting skill. Do not fork or override per-project
-# without amending the skill.
 version: "2"
 
 run:
-  timeout: 5m
+  timeout: 30m
+  concurrency: 1
   go: "1.26.3"
 
 linters:
-  # `standard` = errcheck, govet, ineffassign, staticcheck, unused.
   default: standard
   enable:
-    # --- Error vocabulary ----------------------------------------------
     - errname
     - errorlint
     - nilerr
-    # --- Switch totality -----------------------------------------------
     - exhaustive
-    # --- Code quality --------------------------------------------------
     - gocritic
     - revive
     - misspell
     - nakedret
     - whitespace
     - prealloc
-    # --- Resource & context safety -------------------------------------
     - bodyclose
     - noctx
-    # --- Security ------------------------------------------------------
     - gosec
-    # --- Suppression hygiene -------------------------------------------
     - nolintlint
 
   settings:
     exhaustive:
-      # A `default:` clause that calls panic("unreachable") satisfies
-      # totality. Required by library-panic-optimizing.
       default-signifies-exhaustive: true
 
     gocritic:
@@ -69,9 +58,7 @@ linters:
       allow-unused: false
 
   exclusions:
-    # Generated files: do not lint.
     generated: lax
-    # Test files: relax the linters that fight tests, keep the rest.
     rules:
       - path: _test\.go
         linters:

@@ -3,7 +3,7 @@ module github.com/kaptinlin/jsonschema
 go 1.26.3
 
 require (
-	github.com/kaptinlin/go-i18n v0.4.8
+	github.com/kaptinlin/go-i18n v0.4.9
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -15,11 +15,11 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-require github.com/go-json-experiment/json v0.0.0-20260505212615-e40f80bf6836
+require github.com/go-json-experiment/json v0.0.0-20260520185125-572e7c383686
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/kaptinlin/jsonpointer v0.4.23
+	github.com/kaptinlin/jsonpointer v0.4.25
 )
 
 require (
