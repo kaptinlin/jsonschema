@@ -70,55 +70,120 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 
 	segments := jsonpointer.Parse(pointer)
 	currentSchema := s
-	previousSegment := ""
 
-	for i, segment := range segments {
-		decodedSegment, err := url.PathUnescape(segment)
+	for i := 0; i < len(segments); i++ {
+		segment, err := decodeJSONPointerSegment(segments[i])
 		if err != nil {
-			return nil, ErrJSONPointerSegmentDecode
+			return nil, err
 		}
 
-		nextSchema, found := findSchemaInSegment(currentSchema, decodedSegment, previousSegment)
-		if found {
-			currentSchema = nextSchema
-			previousSegment = decodedSegment
-			continue
+		nextSchema, err := currentSchema.schemaForPointerSegment(segment, segments, &i)
+		if err != nil {
+			return nil, err
 		}
-
-		if i == len(segments)-1 {
-			return nil, ErrJSONPointerSegmentNotFound
-		}
-
-		previousSegment = decodedSegment
+		currentSchema = nextSchema
 	}
 
 	return currentSchema, nil
 }
 
-// findSchemaInSegment finds a schema within a given segment.
-func findSchemaInSegment(currentSchema *Schema, segment string, previousSegment string) (*Schema, bool) {
-	switch previousSegment {
-	case "properties":
-		if currentSchema.Properties != nil {
-			if schema, exists := (*currentSchema.Properties)[segment]; exists {
-				return schema, true
-			}
-		}
-	case "prefixItems":
-		index, err := strconv.Atoi(segment)
-		if err == nil && currentSchema.PrefixItems != nil && index < len(currentSchema.PrefixItems) {
-			return currentSchema.PrefixItems[index], true
-		}
-	case "$defs", "definitions":
-		if defSchema, exists := currentSchema.Defs[segment]; exists {
-			return defSchema, true
-		}
-	case "items":
-		if currentSchema.Items != nil {
-			return currentSchema.Items, true
-		}
+func decodeJSONPointerSegment(segment string) (string, error) {
+	decodedSegment, err := url.PathUnescape(segment)
+	if err != nil {
+		return "", ErrJSONPointerSegmentDecode
 	}
-	return nil, false
+	return decodedSegment, nil
+}
+
+func (s *Schema) schemaForPointerSegment(segment string, segments []string, index *int) (*Schema, error) {
+	switch segment {
+	case "properties":
+		if s.Properties == nil {
+			return nil, ErrJSONPointerSegmentNotFound
+		}
+		return schemaMapPointerTarget(map[string]*Schema(*s.Properties), segments, index)
+	case "patternProperties":
+		if s.PatternProperties == nil {
+			return nil, ErrJSONPointerSegmentNotFound
+		}
+		return schemaMapPointerTarget(map[string]*Schema(*s.PatternProperties), segments, index)
+	case "$defs", "definitions":
+		return schemaMapPointerTarget(s.Defs, segments, index)
+	case "dependentSchemas":
+		return schemaMapPointerTarget(s.DependentSchemas, segments, index)
+	case "prefixItems":
+		return schemaSlicePointerTarget(s.PrefixItems, segments, index)
+	case "allOf":
+		return schemaSlicePointerTarget(s.AllOf, segments, index)
+	case "anyOf":
+		return schemaSlicePointerTarget(s.AnyOf, segments, index)
+	case "oneOf":
+		return schemaSlicePointerTarget(s.OneOf, segments, index)
+	case "not":
+		return schemaPointerTarget(s.Not)
+	case "if":
+		return schemaPointerTarget(s.If)
+	case "then":
+		return schemaPointerTarget(s.Then)
+	case "else":
+		return schemaPointerTarget(s.Else)
+	case "items":
+		return schemaPointerTarget(s.Items)
+	case "contains":
+		return schemaPointerTarget(s.Contains)
+	case "additionalProperties":
+		return schemaPointerTarget(s.AdditionalProperties)
+	case "propertyNames":
+		return schemaPointerTarget(s.PropertyNames)
+	case "unevaluatedItems":
+		return schemaPointerTarget(s.UnevaluatedItems)
+	case "unevaluatedProperties":
+		return schemaPointerTarget(s.UnevaluatedProperties)
+	case "contentSchema":
+		return schemaPointerTarget(s.ContentSchema)
+	}
+	return nil, ErrJSONPointerSegmentNotFound
+}
+
+func schemaMapPointerTarget(schemas map[string]*Schema, segments []string, index *int) (*Schema, error) {
+	if len(schemas) == 0 || *index+1 >= len(segments) {
+		return nil, ErrJSONPointerSegmentNotFound
+	}
+
+	*index += 1
+	key, err := decodeJSONPointerSegment(segments[*index])
+	if err != nil {
+		return nil, err
+	}
+	schema, ok := schemas[key]
+	if !ok || schema == nil {
+		return nil, ErrJSONPointerSegmentNotFound
+	}
+	return schema, nil
+}
+
+func schemaSlicePointerTarget(schemas []*Schema, segments []string, index *int) (*Schema, error) {
+	if *index+1 >= len(segments) {
+		return nil, ErrJSONPointerSegmentNotFound
+	}
+
+	*index += 1
+	segment, err := decodeJSONPointerSegment(segments[*index])
+	if err != nil {
+		return nil, err
+	}
+	itemIndex, err := strconv.Atoi(segment)
+	if err != nil || itemIndex < 0 || itemIndex >= len(schemas) || schemas[itemIndex] == nil {
+		return nil, ErrJSONPointerSegmentNotFound
+	}
+	return schemas[itemIndex], nil
+}
+
+func schemaPointerTarget(schema *Schema) (*Schema, error) {
+	if schema == nil {
+		return nil, ErrJSONPointerSegmentNotFound
+	}
+	return schema, nil
 }
 
 // ResolveUnresolvedReferences tries to resolve any previously unresolved references.

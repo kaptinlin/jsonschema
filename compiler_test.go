@@ -951,3 +951,59 @@ func TestInvalidRegexInPatternProperties(t *testing.T) {
 		require.NotNil(t, schema)
 	})
 }
+
+func TestJSONPointerReferencesResolveApplicatorAndSchemaObjectSegments(t *testing.T) {
+	t.Parallel()
+
+	schema, err := NewCompiler().Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"choice": {
+				"oneOf": [
+					{"type": "string", "minLength": 2},
+					{"type": "integer", "minimum": 10}
+				]
+			},
+			"choiceCopy": {"$ref": "#/properties/choice/oneOf/1"},
+			"dependentSource": {
+				"dependentSchemas": {
+					"credit_card": {"required": ["billing_address"]}
+				}
+			},
+			"dependentCopy": {"$ref": "#/properties/dependentSource/dependentSchemas/credit_card"},
+			"encoded": {
+				"contentSchema": {
+					"type": "object",
+					"properties": {
+						"name": {"type": "string", "minLength": 2}
+					}
+				}
+			},
+			"encodedName": {"$ref": "#/properties/encoded/contentSchema/properties/name"},
+			"conditional": {
+				"if": {"properties": {"kind": {"const": "business"}}},
+				"then": {"required": ["tax_id"]},
+				"else": {"required": ["ssn"]}
+			},
+			"businessRule": {"$ref": "#/properties/conditional/then"}
+		}
+	}`))
+	require.NoError(t, err)
+
+	valid := map[string]any{
+		"choiceCopy":    11,
+		"dependentCopy": map[string]any{"credit_card": true, "billing_address": "123 Main"},
+		"encodedName":   "Ada",
+		"businessRule":  map[string]any{"tax_id": "12-3456789"},
+	}
+	assert.True(t, schema.Validate(valid).IsValid())
+
+	invalid := map[string]any{
+		"choiceCopy":    9,
+		"dependentCopy": map[string]any{"credit_card": true},
+		"encodedName":   "A",
+		"businessRule":  map[string]any{},
+	}
+	result := schema.Validate(invalid)
+	assert.False(t, result.IsValid())
+}

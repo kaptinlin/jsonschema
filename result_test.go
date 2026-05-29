@@ -518,3 +518,40 @@ func TestEvaluationResultHelpers(t *testing.T) {
 	assert.Equal(t, examples, result.Annotations["examples"])
 	assert.Equal(t, 42, result.Annotations["x-extra"])
 }
+
+func TestToLocalizeListFlattensLocalizedNestedDetails(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := I18n()
+	require.NoError(t, err)
+	localizer := bundle.NewLocalizer("zh-Hans")
+
+	root := NewEvaluationResult(&Schema{}).SetInvalid()
+	child := NewEvaluationResult(&Schema{}).
+		SetInstanceLocation("/profile").
+		SetInvalid().
+		AddError(NewEvaluationError(
+			"required",
+			"missing_required_property",
+			"Required property {property} is missing",
+			map[string]any{"property": "name"},
+		))
+	grandchild := NewEvaluationResult(&Schema{}).
+		SetInstanceLocation("/age").
+		SetInvalid().
+		AddError(NewEvaluationError(
+			"minimum",
+			"value_below_minimum",
+			"{value} should be at least {minimum}",
+			map[string]any{"value": 16, "minimum": 18},
+		))
+
+	child.AddDetail(grandchild)
+	root.AddDetail(child)
+
+	list := root.ToLocalizeList(localizer, false)
+
+	require.Len(t, list.Details, 2)
+	assert.Equal(t, "缺少必需的属性 name", list.Details[0].Errors["required"])
+	assert.Equal(t, "16 应至少为 18", list.Details[1].Errors["minimum"])
+}
