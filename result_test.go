@@ -74,6 +74,22 @@ func TestEvaluationErrorLocalize(t *testing.T) {
 	assert.Equal(t, "值应至少为 3 个字符", err.Localize(localizer))
 }
 
+func TestI18nSupportsEmbeddedLocales(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := I18n()
+	require.NoError(t, err)
+
+	locales := []string{"de-DE", "es-ES", "fr-FR", "ja-JP", "ko-KR", "pt-BR", "zh-Hans", "zh-Hant"}
+	for _, locale := range locales {
+		t.Run(locale, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, locale, bundle.NewLocalizer(locale).Locale())
+		})
+	}
+}
+
 func TestToLocalizeList(t *testing.T) {
 	// Initialize localizer for Simplified Chinese
 	i18n, err := I18n()

@@ -911,6 +911,43 @@ func TestJSONPointerReferencesResolveEscapedPropertyNames(t *testing.T) {
 	assert.False(t, schema.Validate(invalid).IsValid())
 }
 
+func TestJSONPointerReferencesDecodeURIEncodedEscapesBeforePointerEscapes(t *testing.T) {
+	t.Parallel()
+
+	schema, err := NewCompiler().Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"slash/field": {"type": "string", "minLength": 2},
+			"tilde~field": {"type": "integer", "minimum": 1},
+			"copySlash": {"$ref": "#/properties/slash%7E1field"},
+			"copyTilde": {"$ref": "#/properties/tilde%7E0field"}
+		}
+	}`))
+	require.NoError(t, err)
+
+	valid := map[string]any{
+		"copySlash": "ok",
+		"copyTilde": 1,
+	}
+	assert.True(t, schema.Validate(valid).IsValid())
+
+	invalidSlash := map[string]any{
+		"copySlash": "x",
+		"copyTilde": 1,
+	}
+	result := schema.Validate(invalidSlash)
+	assert.False(t, result.IsValid())
+	assert.Contains(t, result.DetailedErrors(), "/copySlash/minLength")
+
+	invalidTilde := map[string]any{
+		"copySlash": "ok",
+		"copyTilde": 0,
+	}
+	result = schema.Validate(invalidTilde)
+	assert.False(t, result.IsValid())
+	assert.Contains(t, result.DetailedErrors(), "/copyTilde/minimum")
+}
+
 // TestInvalidRegexInPatternProperties tests invalid regex in patternProperties
 func TestInvalidRegexInPatternProperties(t *testing.T) {
 	t.Run("invalid lookahead in patternProperties key", func(t *testing.T) {

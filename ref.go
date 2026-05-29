@@ -68,16 +68,15 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 		return s, nil
 	}
 
-	segments := jsonpointer.Parse(pointer)
+	decodedPointer, err := url.PathUnescape(pointer)
+	if err != nil {
+		return nil, ErrJSONPointerSegmentDecode
+	}
+	segments := jsonpointer.Parse(decodedPointer)
 	currentSchema := s
 
 	for i := 0; i < len(segments); i++ {
-		segment, err := decodeJSONPointerSegment(segments[i])
-		if err != nil {
-			return nil, err
-		}
-
-		nextSchema, err := currentSchema.schemaForPointerSegment(segment, segments, &i)
+		nextSchema, err := currentSchema.schemaForPointerSegment(segments[i], segments, &i)
 		if err != nil {
 			return nil, err
 		}
@@ -85,14 +84,6 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 	}
 
 	return currentSchema, nil
-}
-
-func decodeJSONPointerSegment(segment string) (string, error) {
-	decodedSegment, err := url.PathUnescape(segment)
-	if err != nil {
-		return "", ErrJSONPointerSegmentDecode
-	}
-	return decodedSegment, nil
 }
 
 func (s *Schema) schemaForPointerSegment(segment string, segments []string, index *int) (*Schema, error) {
@@ -151,11 +142,7 @@ func schemaMapPointerTarget(schemas map[string]*Schema, segments []string, index
 	}
 
 	*index += 1
-	key, err := decodeJSONPointerSegment(segments[*index])
-	if err != nil {
-		return nil, err
-	}
-	schema, ok := schemas[key]
+	schema, ok := schemas[segments[*index]]
 	if !ok || schema == nil {
 		return nil, ErrJSONPointerSegmentNotFound
 	}
@@ -168,11 +155,7 @@ func schemaSlicePointerTarget(schemas []*Schema, segments []string, index *int) 
 	}
 
 	*index += 1
-	segment, err := decodeJSONPointerSegment(segments[*index])
-	if err != nil {
-		return nil, err
-	}
-	itemIndex, err := strconv.Atoi(segment)
+	itemIndex, err := strconv.Atoi(segments[*index])
 	if err != nil || itemIndex < 0 || itemIndex >= len(schemas) || schemas[itemIndex] == nil {
 		return nil, ErrJSONPointerSegmentNotFound
 	}

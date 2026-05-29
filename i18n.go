@@ -13,7 +13,7 @@ var localesFS embed.FS
 func I18n() (*i18n.I18n, error) {
 	bundle := i18n.NewBundle(
 		i18n.WithDefaultLocale("en"),
-		i18n.WithLocales("en", "zh-Hans"),
+		i18n.WithLocales("en", "de-DE", "es-ES", "fr-FR", "ja-JP", "ko-KR", "pt-BR", "zh-Hans", "zh-Hant"),
 	)
 
 	err := bundle.LoadFS(localesFS, "locales/*.json")
