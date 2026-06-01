@@ -269,3 +269,41 @@ func (s *Schema) UnresolvedReferenceURIs() []string {
 
 	return unresolvedURIs
 }
+
+func (s *Schema) unresolvedReferenceTargetURIs() []string {
+	var unresolvedURIs []string
+
+	var collect func(*Schema)
+	collect = func(schema *Schema) {
+		if schema.Ref != "" && schema.ResolvedRef == nil {
+			if uri := schema.unresolvedReferenceTargetURI(schema.Ref); uri != "" {
+				unresolvedURIs = append(unresolvedURIs, uri)
+			}
+		}
+		if schema.DynamicRef != "" && schema.ResolvedDynamicRef == nil {
+			if uri := schema.unresolvedReferenceTargetURI(schema.DynamicRef); uri != "" {
+				unresolvedURIs = append(unresolvedURIs, uri)
+			}
+		}
+		schema.walkNestedSchemas(collect)
+	}
+	collect(s)
+
+	return unresolvedURIs
+}
+
+func (s *Schema) unresolvedReferenceTargetURI(ref string) string {
+	if strings.HasPrefix(ref, "#") {
+		return ""
+	}
+
+	if !isAbsoluteURI(ref) && s.baseURI != "" {
+		ref = resolveRelativeURI(s.baseURI, ref)
+	}
+
+	baseURI, _ := splitRef(ref)
+	if baseURI != "" {
+		return baseURI
+	}
+	return ref
+}

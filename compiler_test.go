@@ -208,6 +208,34 @@ func TestResolveReferencesCorrectly(t *testing.T) {
 	assert.Same(t, baseSchema, userInfoProp.ResolvedRef, "ResolvedRef for userInfo does not match the base schema")
 }
 
+func TestCompileReresolvesDelayedRelativeReferenceWithFragment(t *testing.T) {
+	compiler := NewCompiler().SetDefaultBaseURI("http://example.com/schemas/")
+
+	schema, err := compiler.Compile([]byte(`{
+		"$id": "root.json",
+		"type": "object",
+		"properties": {
+			"child": {"$ref": "defs.json#/$defs/positive"}
+		}
+	}`))
+	require.NoError(t, err)
+
+	result := schema.Validate(map[string]any{"child": 0})
+	assert.True(t, result.IsValid(), "unresolved references are ignored until their target schema is compiled")
+
+	_, err = compiler.Compile([]byte(`{
+		"$id": "defs.json",
+		"$defs": {
+			"positive": {"type": "integer", "minimum": 1}
+		}
+	}`))
+	require.NoError(t, err)
+
+	result = schema.Validate(map[string]any{"child": 0})
+	assert.False(t, result.IsValid(), "compiling the resolved target schema should re-resolve the waiting relative reference")
+	assert.Contains(t, result.DetailedErrors(), "/child/minimum")
+}
+
 func TestSetDefaultBaseURI(t *testing.T) {
 	compiler := NewCompiler()
 	baseURI := "http://example.com/schemas/"

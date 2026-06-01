@@ -150,8 +150,7 @@ func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
 // trackUnresolvedReferences tracks which schemas have unresolved references to which URIs.
 // This method should be called with mutex locked.
 func (c *Compiler) trackUnresolvedReferences(schema *Schema) {
-	unresolvedURIs := schema.UnresolvedReferenceURIs()
-	for _, uri := range unresolvedURIs {
+	for _, uri := range schema.unresolvedReferenceTargetURIs() {
 		if !slices.Contains(c.unresolvedRefs[uri], schema) {
 			c.unresolvedRefs[uri] = append(c.unresolvedRefs[uri], schema)
 		}
