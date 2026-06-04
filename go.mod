@@ -8,7 +8,7 @@ require (
 )
 
 require (
-	github.com/agentable/go-intl v0.2.5 // indirect
+	github.com/agentable/go-intl v0.2.6 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.3 // indirect
 	github.com/kaptinlin/messageformat-go v0.6.5 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -17,11 +17,11 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-require github.com/go-json-experiment/json v0.0.0-20260520185125-572e7c383686
+require github.com/go-json-experiment/json v0.0.0-20260601182631-00ed12fed2a6
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/kaptinlin/jsonpointer v0.4.25
+	github.com/kaptinlin/jsonpointer v0.4.26
 )
 
 require (

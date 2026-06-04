@@ -210,7 +210,7 @@ task bench   # Run benchmarks
 task verify  # Run deps, fmt, vet, lint, test, and govulncheck
 ```
 
-For development conventions and agent-facing project rules, see [AGENTS.md](AGENTS.md).
+For development conventions and agent-facing project rules, see [CLAUDE.md](CLAUDE.md).
 
 ## Contributing
 
