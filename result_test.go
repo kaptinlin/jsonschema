@@ -74,6 +74,16 @@ func TestEvaluationErrorLocalize(t *testing.T) {
 	assert.Equal(t, "值应至少为 3 个字符", err.Localize(localizer))
 }
 
+func TestEvaluationErrorLocalizeFallsBackToMessageForMissingKey(t *testing.T) {
+	bundle, i18nErr := I18n()
+	require.NoError(t, i18nErr)
+	localizer := bundle.NewLocalizer("zh-Hans")
+
+	err := NewEvaluationError("format", "invalid_json", "Invalid JSON format")
+
+	assert.Equal(t, "Invalid JSON format", err.Localize(localizer))
+}
+
 func TestI18nSupportsEmbeddedLocales(t *testing.T) {
 	t.Parallel()
 

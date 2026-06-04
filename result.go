@@ -35,7 +35,10 @@ func (e *EvaluationError) Error() string {
 // Localize returns a localized error message using the provided localizer.
 func (e *EvaluationError) Localize(localizer *i18n.Localizer) string {
 	if localizer != nil {
-		return localizer.Get(e.Code, i18n.Vars(e.Params))
+		result := localizer.Lookup(e.Code, i18n.Vars(e.Params))
+		if result.Source != i18n.TranslationSourceMissing {
+			return result.Text
+		}
 	}
 	return e.Error()
 }
