@@ -236,6 +236,68 @@ func TestCompileReresolvesDelayedRelativeReferenceWithFragment(t *testing.T) {
 	assert.Contains(t, result.DetailedErrors(), "/child/minimum")
 }
 
+func TestCompileReresolvesDelayedReferenceInsideDependentSchemas(t *testing.T) {
+	compiler := NewCompiler().SetDefaultBaseURI("http://example.com/schemas/")
+
+	schema, err := compiler.Compile([]byte(`{
+		"$id": "root.json",
+		"type": "object",
+		"dependentSchemas": {
+			"credit_card": {
+				"properties": {
+					"billing_code": {"$ref": "defs.json#/$defs/positive"}
+				}
+			}
+		}
+	}`))
+	require.NoError(t, err)
+
+	result := schema.Validate(map[string]any{"credit_card": "4111", "billing_code": 0})
+	assert.True(t, result.IsValid(), "unresolved nested references are ignored until their target schema is compiled")
+
+	_, err = compiler.Compile([]byte(`{
+		"$id": "defs.json",
+		"$defs": {
+			"positive": {"type": "integer", "minimum": 1}
+		}
+	}`))
+	require.NoError(t, err)
+
+	result = schema.Validate(map[string]any{"credit_card": "4111", "billing_code": 0})
+	assert.False(t, result.IsValid(), "dependentSchemas should re-resolve delayed nested references")
+	assert.Contains(t, result.DetailedErrors(), "/credit_card/billing_code/minimum")
+}
+
+func TestCompileReresolvesDelayedConditionalReferenceWithFragment(t *testing.T) {
+	compiler := NewCompiler().SetDefaultBaseURI("http://example.com/schemas/")
+
+	schema, err := compiler.Compile([]byte(`{
+		"$id": "root.json",
+		"if": {"properties": {"kind": {"const": "positive"}}},
+		"then": {"$ref": "defs.json#/$defs/positiveValue"}
+	}`))
+	require.NoError(t, err)
+
+	instance := map[string]any{"kind": "positive", "value": 0}
+	result := schema.Validate(instance)
+	assert.True(t, result.IsValid(), "unresolved conditional references are ignored until their target schema is compiled")
+
+	_, err = compiler.Compile([]byte(`{
+		"$id": "defs.json",
+		"$defs": {
+			"positiveValue": {
+				"type": "object",
+				"properties": {"value": {"type": "integer", "minimum": 1}}
+			}
+		}
+	}`))
+	require.NoError(t, err)
+
+	result = schema.Validate(instance)
+	assert.False(t, result.IsValid(), "compiling the resolved target schema should re-resolve refs under conditional schemas")
+	assert.Contains(t, result.DetailedErrors(), "/value/minimum")
+}
+
 func TestSetDefaultBaseURI(t *testing.T) {
 	compiler := NewCompiler()
 	baseURI := "http://example.com/schemas/"

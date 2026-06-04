@@ -207,9 +207,9 @@ func (s *Schema) resolveReferences() {
 
 // walkNestedSchemas applies fn recursively to all nested subschemas.
 func (s *Schema) walkNestedSchemas(fn func(*Schema)) {
-	if s.Defs != nil {
-		for _, defSchema := range s.Defs {
-			fn(defSchema)
+	for _, schema := range s.Defs {
+		if schema != nil {
+			fn(schema)
 		}
 	}
 
@@ -220,8 +220,20 @@ func (s *Schema) walkNestedSchemas(fn func(*Schema)) {
 			}
 		}
 	}
+	if s.PatternProperties != nil {
+		for _, schema := range *s.PatternProperties {
+			if schema != nil {
+				fn(schema)
+			}
+		}
+	}
+	for _, schema := range s.DependentSchemas {
+		if schema != nil {
+			fn(schema)
+		}
+	}
 
-	for _, schemas := range [][]*Schema{s.AllOf, s.AnyOf, s.OneOf} {
+	for _, schemas := range [][]*Schema{s.AllOf, s.AnyOf, s.OneOf, s.PrefixItems} {
 		for _, schema := range schemas {
 			if schema != nil {
 				fn(schema)
@@ -229,23 +241,20 @@ func (s *Schema) walkNestedSchemas(fn func(*Schema)) {
 		}
 	}
 
-	if s.Not != nil {
-		fn(s.Not)
-	}
-	if s.Items != nil {
-		fn(s.Items)
-	}
-	for _, schema := range s.PrefixItems {
-		fn(schema)
-	}
-	if s.AdditionalProperties != nil {
-		fn(s.AdditionalProperties)
-	}
-	if s.Contains != nil {
-		fn(s.Contains)
-	}
-	if s.PatternProperties != nil {
-		for _, schema := range *s.PatternProperties {
+	for _, schema := range []*Schema{
+		s.Not,
+		s.If,
+		s.Then,
+		s.Else,
+		s.Items,
+		s.AdditionalProperties,
+		s.Contains,
+		s.PropertyNames,
+		s.UnevaluatedItems,
+		s.UnevaluatedProperties,
+		s.ContentSchema,
+	} {
+		if schema != nil {
 			fn(schema)
 		}
 	}
