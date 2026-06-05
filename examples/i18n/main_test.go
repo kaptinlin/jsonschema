@@ -5,9 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kaptinlin/go-i18n"
-
 	"github.com/kaptinlin/jsonschema"
+	"github.com/kaptinlin/jsonschema/i18n"
 	"github.com/kaptinlin/jsonschema/internal/testutil"
 )
 
@@ -30,14 +29,14 @@ func mustSchema(t *testing.T) *jsonschema.Schema {
 	return schema
 }
 
-func mustLocalizer(t *testing.T, lang string) *i18n.Localizer {
+func mustTranslator(t *testing.T, locale string) jsonschema.Translator {
 	t.Helper()
 
-	bundle, err := jsonschema.I18n()
+	translator, err := i18n.New(locale)
 	if err != nil {
-		t.Fatalf("I18n() error = %v", err)
+		t.Fatalf("i18n.New(%q) error = %v", locale, err)
 	}
-	return bundle.NewLocalizer(lang)
+	return translator
 }
 
 func TestShowValidationExample_PrintsValidUser(t *testing.T) {
@@ -47,7 +46,7 @@ func TestShowValidationExample_PrintsValidUser(t *testing.T) {
 			"name":  "Alice",
 			"age":   25,
 			"email": "alice@example.com",
-		}, mustLocalizer(t, "zh-Hans"), mustLocalizer(t, "en"))
+		}, mustTranslator(t, "zh-Hans"), mustTranslator(t, "en"))
 	})
 
 	for _, want := range []string{
@@ -67,7 +66,7 @@ func TestProcessUser_ReturnsValidationError(t *testing.T) {
 		"name":  "X",
 		"age":   16,
 		"email": "invalid-email",
-	}, mustLocalizer(t, "en"))
+	}, mustTranslator(t, "en"))
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -97,7 +96,7 @@ func TestProcessUser_ReturnsUnmarshalError(t *testing.T) {
 		"name":  "Alice",
 		"age":   "25",
 		"email": "alice@example.com",
-	}, mustLocalizer(t, "en"))
+	}, mustTranslator(t, "en"))
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -113,7 +112,7 @@ func TestProcessUser_PrintsProcessedUser(t *testing.T) {
 			"name":  "Alice",
 			"age":   25,
 			"email": "alice@example.com",
-		}, mustLocalizer(t, "zh-Hans"))
+		}, mustTranslator(t, "zh-Hans"))
 		if err != nil {
 			t.Fatalf("processUser() error = %v", err)
 		}

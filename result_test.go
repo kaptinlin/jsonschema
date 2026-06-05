@@ -57,6 +57,18 @@ func TestValidationOutputs(t *testing.T) {
 	}
 }
 
+// fakeTranslator is a stdlib-only Translator that guards the fallback
+// contract without pulling any translation framework into the root package.
+type fakeTranslator map[string]string
+
+func (f fakeTranslator) Translate(code string, params map[string]any) (string, bool) {
+	message, ok := f[code]
+	if !ok {
+		return "", false
+	}
+	return replace(message, params), true
+}
+
 func TestEvaluationErrorLocalize(t *testing.T) {
 	err := NewEvaluationError(
 		"minLength",
@@ -67,45 +79,17 @@ func TestEvaluationErrorLocalize(t *testing.T) {
 
 	assert.Equal(t, "Value should be at least 3 characters", err.Localize(nil))
 
-	i18n, i18nErr := I18n()
-	require.NoError(t, i18nErr)
-	localizer := i18n.NewLocalizer("zh-Hans")
-
-	assert.Equal(t, "值应至少为 3 个字符", err.Localize(localizer))
+	zh := fakeTranslator{"string_too_short": "值应至少为 {min_length} 个字符"}
+	assert.Equal(t, "值应至少为 3 个字符", err.Localize(zh))
 }
 
 func TestEvaluationErrorLocalizeFallsBackToMessageForMissingKey(t *testing.T) {
-	bundle, i18nErr := I18n()
-	require.NoError(t, i18nErr)
-	localizer := bundle.NewLocalizer("zh-Hans")
-
 	err := NewEvaluationError("format", "invalid_json", "Invalid JSON format")
 
-	assert.Equal(t, "Invalid JSON format", err.Localize(localizer))
+	assert.Equal(t, "Invalid JSON format", err.Localize(fakeTranslator{}))
 }
 
-func TestI18nSupportsEmbeddedLocales(t *testing.T) {
-	t.Parallel()
-
-	bundle, err := I18n()
-	require.NoError(t, err)
-
-	locales := []string{"de-DE", "es-ES", "fr-FR", "ja-JP", "ko-KR", "pt-BR", "zh-Hans", "zh-Hant"}
-	for _, locale := range locales {
-		t.Run(locale, func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t, locale, bundle.NewLocalizer(locale).Locale())
-		})
-	}
-}
-
-func TestToLocalizeList(t *testing.T) {
-	// Initialize localizer for Simplified Chinese
-	i18n, err := I18n()
-	assert.Nil(t, err, "Failed to initialize i18n")
-	localizer := i18n.NewLocalizer("zh-Hans")
-
+func TestToLocalizedList(t *testing.T) {
 	// Define a schema JSON with multiple constraints
 	schemaJSON := `{
         "type": "object",
@@ -133,7 +117,8 @@ func TestToLocalizeList(t *testing.T) {
 	assert.False(t, result.IsValid(), "Schema validation should fail for the given instance")
 
 	// Localize and output the validation errors
-	details, err := json.Marshal(result.ToLocalizeList(localizer), jsontext.WithIndent("  "))
+	zh := fakeTranslator{"string_too_short": "值应至少为 {min_length} 个字符"}
+	details, err := json.Marshal(result.ToLocalizedList(zh), jsontext.WithIndent("  "))
 	assert.Nil(t, err, "Marshaling the localized list should not fail")
 
 	// Check if the error message for "minLength" is correctly localized
@@ -325,15 +310,10 @@ func TestDetailedErrors(t *testing.T) {
 	t.Run("edge_cases", func(t *testing.T) {
 		testDetailedErrorsEdgeCases(t)
 	})
-
-	// Test multilingual support
-	t.Run("multilingual_support", func(t *testing.T) {
-		testDetailedErrorsMultilingual(t)
-	})
 }
 
-// TestGetDetailedLocalizedErrors tests the GetDetailedLocalizedErrors method
-func TestGetDetailedLocalizedErrors(t *testing.T) {
+// TestLocalizedDetailedErrors tests the LocalizedDetailedErrors method
+func TestLocalizedDetailedErrors(t *testing.T) {
 	schemaJSON := `{
 		"type": "object",
 		"properties": {
@@ -355,23 +335,19 @@ func TestGetDetailedLocalizedErrors(t *testing.T) {
 	result := schema.ValidateMap(invalidData)
 	assert.False(t, result.IsValid(), "Expected validation to fail")
 
-	// Test without localizer (default English)
+	// Test without translator (default English)
 	englishErrors := result.DetailedErrors()
 
-	// Test with actual localizer
-	i18n, err := I18n()
-	if err == nil {
-		localizer := i18n.NewLocalizer("zh-Hans")
-		chineseErrors := result.DetailedErrors(localizer)
+	// Test with a translator
+	zh := fakeTranslator{"missing_required_property": "缺少必需的属性 {property}"}
+	chineseErrors := result.LocalizedDetailedErrors(zh)
 
-		assert.Equal(t, len(englishErrors), len(chineseErrors),
-			"English and Chinese errors should have same count")
-		assert.Greater(t, len(chineseErrors), 0, "Expected localized errors")
-
-		t.Logf("English errors: %d, Chinese errors: %d", len(englishErrors), len(chineseErrors))
-	} else {
-		t.Logf("Skipped localization test due to i18n error: %v", err)
-	}
+	assert.Equal(t, len(englishErrors), len(chineseErrors),
+		"English and Chinese errors should have same count")
+	assert.Greater(t, len(chineseErrors), 0, "Expected localized errors")
+	assert.Contains(t, chineseErrors, "required")
+	// The required validator pre-quotes the property name in its params.
+	assert.Equal(t, "缺少必需的属性 'name'", chineseErrors["required"])
 }
 
 // Test edge cases for DetailedErrors
@@ -401,61 +377,6 @@ func testDetailedErrorsEdgeCases(t *testing.T) {
 
 	detailedErrors2 := result2.DetailedErrors()
 	assert.Equal(t, 0, len(detailedErrors2), "Empty schema should have no errors")
-}
-
-// Test multilingual support for DetailedErrors
-func testDetailedErrorsMultilingual(t *testing.T) {
-	// Schema with multiple error types
-	schemaJSON := `{
-		"type": "object",
-		"properties": {
-			"age": {"type": "integer", "minimum": 18, "maximum": 100},
-			"name": {"type": "string", "minLength": 2}
-		},
-		"required": ["name", "age"]
-	}`
-
-	compiler := NewCompiler()
-	schema, err := compiler.Compile([]byte(schemaJSON))
-	assert.Nil(t, err, "Schema compilation should not fail")
-
-	// Invalid data with multiple issues
-	invalidData := map[string]any{
-		"age":  150, // Above maximum
-		"name": "A", // Too short
-		// Missing required fields in schema will be caught
-	}
-
-	result := schema.ValidateMap(invalidData)
-	assert.False(t, result.IsValid(), "Invalid data should fail validation")
-
-	// Test default English
-	englishErrors := result.DetailedErrors()
-	assert.Greater(t, len(englishErrors), 0, "Should have detailed errors")
-
-	// Test with i18n if available
-	i18n, err := I18n()
-	if err == nil {
-		// Test multiple languages
-		languages := []string{"zh-Hans", "ja-JP", "fr-FR", "de-DE"}
-
-		for _, lang := range languages {
-			localizer := i18n.NewLocalizer(lang)
-			localizedErrors := result.DetailedErrors(localizer)
-
-			// Should have same number of errors as English
-			assert.Equal(t, len(englishErrors), len(localizedErrors),
-				"Localized errors should have same count as English for language: %s", lang)
-
-			// Should have at least one error
-			assert.Greater(t, len(localizedErrors), 0,
-				"Should have detailed errors for language: %s", lang)
-		}
-
-		t.Logf("Successfully tested multilingual support for %d languages", len(languages))
-	} else {
-		t.Logf("Skipped multilingual test due to i18n initialization error: %v", err)
-	}
 }
 
 // Helper function for checking if string contains any of the given substrings
@@ -545,12 +466,13 @@ func TestEvaluationResultHelpers(t *testing.T) {
 	assert.Equal(t, 42, result.Annotations["x-extra"])
 }
 
-func TestToLocalizeListFlattensLocalizedNestedDetails(t *testing.T) {
+func TestToLocalizedListFlattensLocalizedNestedDetails(t *testing.T) {
 	t.Parallel()
 
-	bundle, err := I18n()
-	require.NoError(t, err)
-	localizer := bundle.NewLocalizer("zh-Hans")
+	zh := fakeTranslator{
+		"missing_required_property": "缺少必需的属性 {property}",
+		"value_below_minimum":       "{value} 应至少为 {minimum}",
+	}
 
 	root := NewEvaluationResult(&Schema{}).SetInvalid()
 	child := NewEvaluationResult(&Schema{}).
@@ -575,7 +497,7 @@ func TestToLocalizeListFlattensLocalizedNestedDetails(t *testing.T) {
 	child.AddDetail(grandchild)
 	root.AddDetail(child)
 
-	list := root.ToLocalizeList(localizer, false)
+	list := root.ToLocalizedList(zh, false)
 
 	require.Len(t, list.Details, 2)
 	assert.Equal(t, "缺少必需的属性 name", list.Details[0].Errors["required"])

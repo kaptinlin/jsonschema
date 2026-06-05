@@ -13,7 +13,7 @@ A high-performance JSON Schema Draft 2020-12 validator for Go with direct struct
 - **Constructor API**: Build schemas in Go with `Object`, `Prop`, `String`, `Required`, and composition helpers.
 - **Struct tags**: Generate schemas from Go types with `FromStruct`.
 - **Extensible**: Register custom formats, default functions, media types, decoders, and reference loaders on a compiler.
-- **Localized errors**: Render validation output through `go-i18n` localizers.
+- **Localized errors**: Pure validation has zero Intl dependencies; opt into localization by importing the `i18n` subpackage, or implement the one-method `Translator` interface yourself.
 
 ## Installation
 
@@ -173,22 +173,33 @@ compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
 
 ### Localized Results
 
+The root package knows nothing about translation frameworks — pure validation users pay zero Intl compile, link, and binary cost. Localization lives in the optional `i18n` subpackage:
+
 ```go
-i18nBundle, err := jsonschema.I18n()
+import "github.com/kaptinlin/jsonschema/i18n"
+
+zh, err := i18n.New("zh-Hans") // one translator per locale
 if err != nil {
 	log.Fatal(err)
 }
 
-localizer := i18nBundle.NewLocalizer("zh-Hans")
-localized := result.ToLocalizeList(localizer)
+localized := result.ToLocalizedList(zh)
 fmt.Println(localized.Valid)
+
+for path, message := range result.LocalizedDetailedErrors(zh) {
+	fmt.Printf("%s: %s\n", path, message)
+}
 ```
+
+Built-in locales: `en`, `de-DE`, `es-ES`, `fr-FR`, `ja-JP`, `ko-KR`, `pt-BR`, `zh-Hans`, `zh-Hant`. Missing translations fall back to the built-in English message; localization never fails.
+
+Don't want `go-i18n`? Implement the one-method `jsonschema.Translator` interface with any backend — a database, gettext, or a hardcoded map.
 
 ## Error Handling
 
 - Compilation failures return regular Go errors, including sentinel errors such as `ErrRegexValidation`.
 - Structured error types such as `RegexPatternError`, `StructTagError`, and `UnmarshalError` work with `errors.As`.
-- Validation failures are returned in `*EvaluationResult`; use `IsValid`, `Errors`, `ToFlag`, `ToList`, or `ToLocalizeList` depending on how much detail you need.
+- Validation failures are returned in `*EvaluationResult`; use `IsValid`, `Errors`, `ToFlag`, `ToList`, or `ToLocalizedList` depending on how much detail you need.
 
 ## Documentation
 

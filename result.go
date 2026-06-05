@@ -1,6 +1,11 @@
 package jsonschema
 
-import "github.com/kaptinlin/go-i18n"
+// Translator renders a localized message for an evaluation error code.
+// Implementations return ok=false when no translation exists; callers fall
+// back to the built-in English message.
+type Translator interface {
+	Translate(code string, params map[string]any) (message string, ok bool)
+}
 
 // EvaluationError represents an error that occurred during schema evaluation
 type EvaluationError struct {
@@ -32,12 +37,13 @@ func (e *EvaluationError) Error() string {
 	return replace(e.Message, e.Params)
 }
 
-// Localize returns a localized error message using the provided localizer.
-func (e *EvaluationError) Localize(localizer *i18n.Localizer) string {
-	if localizer != nil {
-		result := localizer.Lookup(e.Code, i18n.Vars(e.Params))
-		if result.Source != i18n.TranslationSourceMissing {
-			return result.Text
+// Localize returns a localized error message using the provided translator.
+// A nil translator or a missing translation falls back to the built-in
+// English message; localization never fails.
+func (e *EvaluationError) Localize(t Translator) string {
+	if t != nil {
+		if message, ok := t.Translate(e.Code, e.Params); ok {
+			return message
 		}
 	}
 	return e.Error()
@@ -192,12 +198,12 @@ func (e *EvaluationResult) ToList(includeHierarchy ...bool) *List {
 		hierarchyIncluded = includeHierarchy[0]
 	}
 
-	return e.ToLocalizeList(nil, hierarchyIncluded)
+	return e.ToLocalizedList(nil, hierarchyIncluded)
 }
 
-// ToLocalizeList converts the evaluation results into a list format with optional hierarchy with localization.
+// ToLocalizedList converts the evaluation results into a list format with optional hierarchy with localization.
 // includeHierarchy is variadic; if not provided, it defaults to true
-func (e *EvaluationResult) ToLocalizeList(localizer *i18n.Localizer, includeHierarchy ...bool) *List {
+func (e *EvaluationResult) ToLocalizedList(t Translator, includeHierarchy ...bool) *List {
 	hierarchyIncluded := true
 	if len(includeHierarchy) > 0 {
 		hierarchyIncluded = includeHierarchy[0]
@@ -209,23 +215,23 @@ func (e *EvaluationResult) ToLocalizeList(localizer *i18n.Localizer, includeHier
 		SchemaLocation:   e.SchemaLocation,
 		InstanceLocation: e.InstanceLocation,
 		Annotations:      e.Annotations,
-		Errors:           e.convertErrors(localizer),
+		Errors:           e.convertErrors(t),
 		Details:          make([]List, 0),
 	}
 
 	if hierarchyIncluded {
 		for _, detail := range e.Details {
-			childList := detail.ToLocalizeList(localizer, true)
+			childList := detail.ToLocalizedList(t, true)
 			list.Details = append(list.Details, *childList)
 		}
 	} else {
-		e.flattenDetailsToList(localizer, list, e.Details)
+		e.flattenDetailsToList(t, list, e.Details)
 	}
 
 	return list
 }
 
-func (e *EvaluationResult) flattenDetailsToList(localizer *i18n.Localizer, list *List, details []*EvaluationResult) {
+func (e *EvaluationResult) flattenDetailsToList(t Translator, list *List, details []*EvaluationResult) {
 	for _, detail := range details {
 		flatDetail := List{
 			Valid:            detail.Valid,
@@ -233,45 +239,43 @@ func (e *EvaluationResult) flattenDetailsToList(localizer *i18n.Localizer, list 
 			SchemaLocation:   detail.SchemaLocation,
 			InstanceLocation: detail.InstanceLocation,
 			Annotations:      detail.Annotations,
-			Errors:           detail.convertErrors(localizer),
+			Errors:           detail.convertErrors(t),
 		}
 		list.Details = append(list.Details, flatDetail)
 
 		if len(detail.Details) > 0 {
-			e.flattenDetailsToList(localizer, list, detail.Details)
+			e.flattenDetailsToList(t, list, detail.Details)
 		}
 	}
 }
 
-func (e *EvaluationResult) convertErrors(localizer *i18n.Localizer) map[string]string {
+func (e *EvaluationResult) convertErrors(t Translator) map[string]string {
 	errors := make(map[string]string, len(e.Errors))
 	for key, err := range e.Errors {
-		if localizer != nil {
-			errors[key] = err.Localize(localizer)
-		} else {
-			errors[key] = err.Error()
-		}
+		errors[key] = err.Localize(t)
 	}
 	return errors
 }
 
 // DetailedErrors collects all detailed validation errors from the nested Details hierarchy.
 // This method helps users access specific validation failures that might be buried in nested structures.
-// Returns a map where keys are field paths and values are the most specific error messages.
-// For localized messages, pass a localizer; for default English messages, call without arguments.
-func (e *EvaluationResult) DetailedErrors(localizer ...*i18n.Localizer) map[string]string {
-	var loc *i18n.Localizer
-	if len(localizer) > 0 {
-		loc = localizer[0]
-	}
+// Returns a map where keys are field paths and values are the built-in English error messages.
+// For localized messages, use LocalizedDetailedErrors.
+func (e *EvaluationResult) DetailedErrors() map[string]string {
+	return e.LocalizedDetailedErrors(nil)
+}
 
+// LocalizedDetailedErrors collects all detailed validation errors from the nested
+// Details hierarchy, rendering each message with the provided translator.
+// A nil translator or a missing translation falls back to the built-in English message.
+func (e *EvaluationResult) LocalizedDetailedErrors(t Translator) map[string]string {
 	detailedErrors := make(map[string]string)
-	e.collectDetailedErrors(detailedErrors, loc, "")
+	e.collectDetailedErrors(detailedErrors, t, "")
 	return detailedErrors
 }
 
 // collectDetailedErrors recursively traverses the Details hierarchy to collect leaf-level errors.
-func (e *EvaluationResult) collectDetailedErrors(collector map[string]string, localizer *i18n.Localizer, basePath string) {
+func (e *EvaluationResult) collectDetailedErrors(collector map[string]string, t Translator, basePath string) {
 	// Collect errors from current level
 	if len(e.Errors) > 0 {
 		currentPath := basePath + e.InstanceLocation
@@ -283,16 +287,12 @@ func (e *EvaluationResult) collectDetailedErrors(collector map[string]string, lo
 				fieldPath = key
 			}
 
-			if localizer != nil {
-				collector[fieldPath] = err.Localize(localizer)
-			} else {
-				collector[fieldPath] = err.Error()
-			}
+			collector[fieldPath] = err.Localize(t)
 		}
 	}
 
 	// Recursively collect from Details
 	for _, detail := range e.Details {
-		detail.collectDetailedErrors(collector, localizer, basePath+e.InstanceLocation)
+		detail.collectDetailedErrors(collector, t, basePath+e.InstanceLocation)
 	}
 }

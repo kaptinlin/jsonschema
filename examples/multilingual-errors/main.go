@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/kaptinlin/jsonschema"
+	"github.com/kaptinlin/jsonschema/i18n"
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 				"minLength": 3
 			},
 			"age": {
-				"type": "integer", 
+				"type": "integer",
 				"minimum": 0,
 				"maximum": 150
 			},
@@ -54,66 +55,58 @@ func main() {
 	fmt.Println("=== DetailedErrors Multilingual Support Demo ===")
 	fmt.Println()
 
-	// 1. Default English errors
+	// 1. Default English errors — no translator needed
 	fmt.Println("1. English (Default):")
 	englishErrors := result.DetailedErrors()
 	for path, msg := range englishErrors {
 		fmt.Printf("   %s: %s\n", path, msg)
 	}
 
-	// 2. Initialize i18n system
-	i18n, err := jsonschema.I18n()
-	if err != nil {
-		log.Printf("Failed to initialize i18n: %v", err)
-		return
+	// 2. Localized errors — one translator per locale
+	languages := []struct {
+		locale string
+		title  string
+	}{
+		{"zh-Hans", "Chinese (Simplified)"},
+		{"ja-JP", "Japanese"},
+		{"fr-FR", "French"},
+		{"de-DE", "German"},
 	}
 
-	// 3. Chinese Simplified errors
-	fmt.Println("\n2. 简体中文:")
-	zhLocalizer := i18n.NewLocalizer("zh-Hans")
-	chineseErrors := result.DetailedErrors(zhLocalizer)
-	for path, msg := range chineseErrors {
-		fmt.Printf("   %s: %s\n", path, msg)
+	var chineseErrors map[string]string
+	errorCounts := []string{fmt.Sprintf("English errors: %d", len(englishErrors))}
+
+	for i, lang := range languages {
+		translator, err := i18n.New(lang.locale)
+		if err != nil {
+			log.Fatalf("Failed to create %s translator: %v", lang.locale, err)
+		}
+
+		fmt.Printf("\n%d. %s:\n", i+2, lang.title)
+		localizedErrors := result.LocalizedDetailedErrors(translator)
+		for path, msg := range localizedErrors {
+			fmt.Printf("   %s: %s\n", path, msg)
+		}
+
+		errorCounts = append(errorCounts, fmt.Sprintf("%s errors: %d", lang.title, len(localizedErrors)))
+		if lang.locale == "zh-Hans" {
+			chineseErrors = localizedErrors
+		}
 	}
 
-	// 4. Japanese errors
-	fmt.Println("\n3. 日本語:")
-	jaLocalizer := i18n.NewLocalizer("ja-JP")
-	japaneseErrors := result.DetailedErrors(jaLocalizer)
-	for path, msg := range japaneseErrors {
-		fmt.Printf("   %s: %s\n", path, msg)
-	}
-
-	// 5. French errors
-	fmt.Println("\n4. Français:")
-	frLocalizer := i18n.NewLocalizer("fr-FR")
-	frenchErrors := result.DetailedErrors(frLocalizer)
-	for path, msg := range frenchErrors {
-		fmt.Printf("   %s: %s\n", path, msg)
-	}
-
-	// 6. German errors
-	fmt.Println("\n5. Deutsch:")
-	deLocalizer := i18n.NewLocalizer("de-DE")
-	germanErrors := result.DetailedErrors(deLocalizer)
-	for path, msg := range germanErrors {
-		fmt.Printf("   %s: %s\n", path, msg)
-	}
-
-	// 7. Compare error counts (should be consistent across languages)
+	// 3. Compare error counts (should be consistent across languages)
 	fmt.Printf("\n=== Error Count Statistics ===\n")
-	fmt.Printf("English errors: %d\n", len(englishErrors))
-	fmt.Printf("Chinese errors: %d\n", len(chineseErrors))
-	fmt.Printf("Japanese errors: %d\n", len(japaneseErrors))
-	fmt.Printf("French errors: %d\n", len(frenchErrors))
-	fmt.Printf("German errors: %d\n", len(germanErrors))
+	for _, line := range errorCounts {
+		fmt.Println(line)
+	}
 
-	// 8. Demonstrate error categorization in Chinese
+	// 4. Demonstrate error categorization on the Chinese messages
 	fmt.Printf("\n=== Chinese Error Categorization ===\n")
-	categorizeErrorsInChinese(chineseErrors)
+	categorizeChineseErrors(chineseErrors)
 }
 
-func categorizeErrorsInChinese(errors map[string]string) {
+// categorizeChineseErrors groups localized Chinese messages by error category.
+func categorizeChineseErrors(errors map[string]string) {
 	requiredErrors := []string{}
 	typeErrors := []string{}
 	formatErrors := []string{}
@@ -133,28 +126,28 @@ func categorizeErrorsInChinese(errors map[string]string) {
 	}
 
 	if len(requiredErrors) > 0 {
-		fmt.Println("必需字段错误:")
+		fmt.Println("Required field errors:")
 		for _, err := range requiredErrors {
 			fmt.Printf("  • %s\n", err)
 		}
 	}
 
 	if len(typeErrors) > 0 {
-		fmt.Println("类型错误:")
+		fmt.Println("Type errors:")
 		for _, err := range typeErrors {
 			fmt.Printf("  • %s\n", err)
 		}
 	}
 
 	if len(formatErrors) > 0 {
-		fmt.Println("格式错误:")
+		fmt.Println("Format errors:")
 		for _, err := range formatErrors {
 			fmt.Printf("  • %s\n", err)
 		}
 	}
 
 	if len(rangeErrors) > 0 {
-		fmt.Println("范围错误:")
+		fmt.Println("Range errors:")
 		for _, err := range rangeErrors {
 			fmt.Printf("  • %s\n", err)
 		}

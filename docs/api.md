@@ -232,39 +232,36 @@ for field, message := range list.Errors {
 }
 ```
 
-#### `(*EvaluationResult) ToLocalizeList(localizer *i18n.Localizer, includeHierarchy ...bool) *List`
+#### `(*EvaluationResult) ToLocalizedList(t Translator, includeHierarchy ...bool) *List`
 
 Converts result with localized error messages.
 
 ```go
-i18nBundle, _ := jsonschema.I18n()
-localizer := i18nBundle.NewLocalizer("zh-Hans")
-list := result.ToLocalizeList(localizer)
+zh, _ := i18n.New("zh-Hans") // import "github.com/kaptinlin/jsonschema/i18n"
+list := result.ToLocalizedList(zh)
 ```
 
-#### `(*EvaluationResult) DetailedErrors(localizer ...*i18n.Localizer) map[string]string`
+#### `(*EvaluationResult) DetailedErrors() map[string]string`
 
-⭐ **Recommended for most users** - Collects all detailed validation errors from the nested Details hierarchy. Returns a flattened map where keys are field paths and values are specific error messages. This method helps access validation failures that might be buried in nested structures.
+⭐ **Recommended for most users** - Collects all detailed validation errors from the nested Details hierarchy. Returns a flattened map where keys are field paths and values are specific English error messages. This method helps access validation failures that might be buried in nested structures.
 
-**Parameters:**
-- `localizer` (optional): For localized error messages. Pass nil or omit for default English messages.
-
-**Default English errors:**
 ```go
 result := schema.Validate(data)
 if !result.IsValid() {
-    detailedErrors := result.DetailedErrors() // No parameters = English
+    detailedErrors := result.DetailedErrors()
     for path, message := range detailedErrors {
         fmt.Printf("Field '%s': %s\n", path, message)
     }
 }
 ```
 
-**Localized errors:**
+#### `(*EvaluationResult) LocalizedDetailedErrors(t Translator) map[string]string`
+
+Same as `DetailedErrors`, rendered through a `Translator`. Missing translations fall back to the built-in English message.
+
 ```go
-i18nBundle, _ := jsonschema.I18n()
-localizer := i18nBundle.NewLocalizer("zh-Hans")
-detailedErrors := result.DetailedErrors(localizer) // Pass localizer
+zh, _ := i18n.New("zh-Hans") // import "github.com/kaptinlin/jsonschema/i18n"
+detailedErrors := result.LocalizedDetailedErrors(zh)
 for path, message := range detailedErrors {
     fmt.Printf("字段 '%s': %s\n", path, message) // Chinese messages
 }
@@ -319,23 +316,31 @@ if errors.As(err, &unmarshalErr) {
 
 ## Internationalization
 
-### `I18n() (*i18n.I18n, error)`
+The root package has zero translation-framework dependencies; pure validation users pay no Intl compile, link, or binary cost. Localization is opt-in via the `Translator` interface and the `i18n` subpackage.
 
-Returns the i18n bundle with supported locales.
+### `Translator`
+
+The consumer-side interface the root package renders localized messages through. Implement it with any backend — a database, gettext, or a hardcoded map.
 
 ```go
-i18nBundle, err := jsonschema.I18n()
-if err != nil {
-    log.Fatal(err)
+type Translator interface {
+    Translate(code string, params map[string]any) (message string, ok bool)
 }
 ```
 
-### `(*i18n.I18n) NewLocalizer(locale string) *i18n.Localizer`
+Return `ok=false` when no translation exists; callers fall back to the built-in English message.
 
-Creates a localizer for a specific locale.
+### `i18n.New(locale string) (jsonschema.Translator, error)`
+
+Creates a translator bound to one locale, backed by the built-in catalogs. Unknown locales are an error here rather than a silent fall back to English.
 
 ```go
-localizer := i18nBundle.NewLocalizer("zh-Hans")
+import "github.com/kaptinlin/jsonschema/i18n"
+
+zh, err := i18n.New("zh-Hans")
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
 **Supported locales:**
@@ -402,9 +407,11 @@ func ValidateWithLocale(schema *jsonschema.Schema, data interface{}, locale stri
         return nil
     }
     
-    i18nBundle, _ := jsonschema.I18n()
-    localizer := i18nBundle.NewLocalizer(locale)
-    localizedList := result.ToLocalizeList(localizer)
+    translator, err := i18n.New(locale) // import "github.com/kaptinlin/jsonschema/i18n"
+    if err != nil {
+        return err
+    }
+    localizedList := result.ToLocalizedList(translator)
     
     var errors []string
     for field, message := range localizedList.Errors {

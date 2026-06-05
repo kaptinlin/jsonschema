@@ -18,10 +18,10 @@ func TestContains(t *testing.T) {
 	}
 }
 
-func TestCategorizeErrorsInChinese_PrintsCategories(t *testing.T) {
+func TestCategorizeChineseErrors_PrintsCategories(t *testing.T) {
 	// No t.Parallel(): captures process-wide stdout.
 	out := testutil.CaptureStdout(t, func() {
-		categorizeErrorsInChinese(map[string]string{
+		categorizeChineseErrors(map[string]string{
 			"name":     "长度至少为 3",
 			"email":    "格式无效",
 			"age":      "最小值为 0",
@@ -30,7 +30,7 @@ func TestCategorizeErrorsInChinese_PrintsCategories(t *testing.T) {
 		})
 	})
 
-	for _, want := range []string{"必需字段错误:", "类型错误:", "格式错误:", "范围错误:"} {
+	for _, want := range []string{"Required field errors:", "Type errors:", "Format errors:", "Range errors:"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q in %q", want, out)
 		}
@@ -44,10 +44,10 @@ func TestMain_PrintsMultilingualErrors(t *testing.T) {
 	for _, want := range []string{
 		"DetailedErrors Multilingual Support Demo",
 		"English (Default):",
-		"简体中文:",
-		"日本語:",
-		"Français:",
-		"Deutsch:",
+		"Chinese (Simplified):",
+		"Japanese:",
+		"French:",
+		"German:",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("output missing %q in %q", want, out)

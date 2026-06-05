@@ -206,16 +206,17 @@ if !result.IsValid() {
 
 #### Localized Version
 
-The method supports localization:
+Localization lives in the optional `i18n` subpackage; the root package stays free of translation frameworks:
 
 ```go
-i18n, _ := jsonschema.I18n()
-localizer := i18n.NewLocalizer("zh-Hans")
+import "github.com/kaptinlin/jsonschema/i18n"
+
+zh, _ := i18n.New("zh-Hans")
 
 result := schema.Validate(data)
 if !result.IsValid() {
     // Get detailed errors with localization
-    detailedErrors := result.GetDetailedLocalizedErrors(localizer)
+    detailedErrors := result.LocalizedDetailedErrors(zh)
 }
 ```
 
@@ -410,13 +411,14 @@ flat := result.ToList(false)
 ### Localized Error Messages
 
 ```go
-// Get localizer for Chinese
-i18n, _ := jsonschema.I18n()
-localizer := i18n.NewLocalizer("zh-Hans")
+import "github.com/kaptinlin/jsonschema/i18n"
+
+// Create a translator for Chinese
+zh, _ := i18n.New("zh-Hans")
 
 // Get localized errors
 result := schema.Validate(data)
-localizedList := result.ToLocalizeList(localizer)
+localizedList := result.ToLocalizedList(zh)
 
 for field, message := range localizedList.Errors {
     fmt.Printf("%s: %s\n", field, message) // Messages in Chinese
@@ -427,13 +429,15 @@ for field, message := range localizedList.Errors {
 
 - English (en) - Default
 - Chinese Simplified (zh-Hans)
-- Chinese Traditional (zh-Hant) 
-- Japanese (ja)
-- Korean (ko)
-- French (fr)
-- German (de)
-- Spanish (es)
-- Portuguese (pt)
+- Chinese Traditional (zh-Hant)
+- Japanese (ja-JP)
+- Korean (ko-KR)
+- French (fr-FR)
+- German (de-DE)
+- Spanish (es-ES)
+- Portuguese (pt-BR)
+
+Missing translations fall back to the built-in English message; localization never fails. To use a different backend entirely, implement the one-method `jsonschema.Translator` interface.
 
 ---
 

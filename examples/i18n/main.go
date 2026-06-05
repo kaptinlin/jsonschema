@@ -7,9 +7,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/kaptinlin/go-i18n"
-
 	"github.com/kaptinlin/jsonschema"
+	"github.com/kaptinlin/jsonschema/i18n"
 )
 
 // Static errors for linter compliance
@@ -43,15 +42,15 @@ func main() {
 	fmt.Println("Internationalization Demo")
 	fmt.Println("========================")
 
-	// Get i18n support
-	i18nBundle, err := jsonschema.I18n()
+	// Create translators; each one is bound to a single locale.
+	chinese, err := i18n.New("zh-Hans")
 	if err != nil {
-		log.Fatal("Failed to get i18n:", err)
+		log.Fatal("Failed to create Chinese translator:", err)
 	}
-
-	// Create localizers
-	chineseLocalizer := i18nBundle.NewLocalizer("zh-Hans")
-	englishLocalizer := i18nBundle.NewLocalizer("en")
+	english, err := i18n.New("en")
+	if err != nil {
+		log.Fatal("Failed to create English translator:", err)
+	}
 
 	// Test data with various validation errors
 	invalidData := map[string]any{
@@ -59,7 +58,7 @@ func main() {
 		"age":   16,              // Below minimum
 		"email": "invalid-email", // Invalid format
 	}
-	showValidationExample(schema, invalidData, chineseLocalizer, englishLocalizer)
+	showValidationExample(schema, invalidData, chinese, english)
 
 	// Production pattern with i18n
 	fmt.Println("\nProduction pattern:")
@@ -70,14 +69,14 @@ func main() {
 		"email": "alice@example.com",
 	}
 
-	if err := processUser(schema, validData, chineseLocalizer); err != nil {
+	if err := processUser(schema, validData, chinese); err != nil {
 		fmt.Printf("❌ Error: %v\n", err)
 	} else {
 		fmt.Println("✅ User processed successfully")
 	}
 }
 
-func showValidationExample(schema *jsonschema.Schema, data map[string]any, chineseLocalizer, englishLocalizer *i18n.Localizer) {
+func showValidationExample(schema *jsonschema.Schema, data map[string]any, chinese, english jsonschema.Translator) {
 	fmt.Printf("Input: %+v\n\n", data)
 
 	// Step 1: Validate
@@ -97,14 +96,14 @@ func showValidationExample(schema *jsonschema.Schema, data map[string]any, chine
 
 	// Show Chinese error messages
 	fmt.Println("\n🇨🇳 Chinese errors:")
-	chineseErrors := result.ToLocalizeList(chineseLocalizer)
+	chineseErrors := result.ToLocalizedList(chinese)
 	for field, message := range chineseErrors.Errors {
 		fmt.Printf("  %s: %s\n", field, message)
 	}
 
 	// Show English error messages
 	fmt.Println("\n🇺🇸 English errors:")
-	englishErrors := result.ToLocalizeList(englishLocalizer)
+	englishErrors := result.ToLocalizedList(english)
 	for field, message := range englishErrors.Errors {
 		fmt.Printf("  %s: %s\n", field, message)
 	}
@@ -119,11 +118,11 @@ func showValidationExample(schema *jsonschema.Schema, data map[string]any, chine
 }
 
 // processUser demonstrates production usage with i18n
-func processUser(schema *jsonschema.Schema, data any, localizer *i18n.Localizer) error {
+func processUser(schema *jsonschema.Schema, data any, translator jsonschema.Translator) error {
 	// Step 1: Validate
 	result := schema.Validate(data)
 	if !result.IsValid() {
-		localizedErrors := result.ToLocalizeList(localizer)
+		localizedErrors := result.ToLocalizedList(translator)
 		var errMsg strings.Builder
 		for field, message := range localizedErrors.Errors {
 			fmt.Fprintf(&errMsg, "%s: %s; ", field, message)
