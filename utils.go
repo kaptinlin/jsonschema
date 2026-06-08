@@ -8,6 +8,8 @@ import (
 	"path"
 	"reflect"
 	"strings"
+
+	"github.com/kaptinlin/jsonpointer"
 )
 
 // replace substitutes placeholders in a template string with actual parameter values.
@@ -182,7 +184,7 @@ func splitRef(ref string) (baseURI string, anchor string) {
 	return ref, ""
 }
 
-// isJSONPointer checks if a string is a JSON Pointer.
+// isJSONPointer checks if a non-empty string is a valid JSON Pointer.
 func isJSONPointer(s string) bool {
-	return strings.HasPrefix(s, "/")
+	return s != "" && jsonpointer.Validate(s) == nil
 }

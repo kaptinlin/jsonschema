@@ -28,7 +28,7 @@ func (s *Schema) resolveRef(ref string) (*Schema, error) {
 }
 
 func (s *Schema) resolveAnchor(anchorName string) (*Schema, error) {
-	if strings.HasPrefix(anchorName, "/") {
+	if isJSONPointer(anchorName) {
 		schema, err := s.resolveJSONPointer(anchorName)
 		if schema == nil && s.parent != nil {
 			return s.parent.resolveAnchor(anchorName)
