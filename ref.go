@@ -1,6 +1,7 @@
 package jsonschema
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -57,7 +58,7 @@ func (s *Schema) resolveRefWithFullURL(ref string) (*Schema, error) {
 
 	resolved, err := s.Compiler().Schema(ref)
 	if err != nil {
-		return nil, ErrGlobalReferenceResolution
+		return nil, fmt.Errorf("%w: %s: %w", ErrGlobalReferenceResolution, ref, err)
 	}
 	return resolved, nil
 }

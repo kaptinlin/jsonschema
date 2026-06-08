@@ -35,6 +35,30 @@ var (
 	ErrInvalidFilenamePath = errors.New("invalid filename path")
 )
 
+// HTTPStatusError describes an unexpected HTTP response status while loading a remote schema.
+type HTTPStatusError struct {
+	// URL is the remote schema URL that returned the status.
+	URL string
+
+	// StatusCode is the numeric HTTP status code.
+	StatusCode int
+
+	// Status is the full HTTP status text, such as "404 Not Found".
+	Status string
+}
+
+// Error formats the unexpected HTTP status with request context.
+func (e *HTTPStatusError) Error() string {
+	status := e.Status
+	if status == "" {
+		status = fmt.Sprintf("%d", e.StatusCode)
+	}
+	if e.URL == "" {
+		return fmt.Sprintf("remote schema returned %s", status)
+	}
+	return fmt.Sprintf("%s returned %s", e.URL, status)
+}
+
 var (
 	// ErrJSONUnmarshal reports a JSON unmarshal failure.
 	ErrJSONUnmarshal = errors.New("json unmarshal failed")

@@ -343,12 +343,16 @@ func (c *Compiler) setupLoaders() {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			return nil, ErrNetworkFetch
+			return nil, fmt.Errorf("%w: %w", ErrNetworkFetch, err)
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
-			return nil, ErrInvalidStatusCode
+			return nil, fmt.Errorf("%w: %w", ErrInvalidStatusCode, &HTTPStatusError{
+				URL:        url,
+				StatusCode: resp.StatusCode,
+				Status:     resp.Status,
+			})
 		}
 
 		return resp.Body, nil

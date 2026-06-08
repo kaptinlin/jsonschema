@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -402,6 +405,34 @@ func TestRegisterLoader(t *testing.T) {
 
 	_, exists := compiler.Loaders["test"]
 	assert.True(t, exists, "Expected loader to be registered")
+}
+
+func TestDefaultHTTPLoaderPreservesNetworkError(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	serverURL := server.URL
+	server.Close()
+
+	_, err := NewCompiler().Schema(serverURL)
+	require.ErrorIs(t, err, ErrNetworkFetch)
+
+	var urlErr *url.Error
+	require.ErrorAs(t, err, &urlErr)
+}
+
+func TestDefaultHTTPLoaderPreservesStatusError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "schema unavailable", http.StatusTeapot)
+	}))
+	t.Cleanup(server.Close)
+
+	_, err := NewCompiler().Schema(server.URL)
+	require.ErrorIs(t, err, ErrInvalidStatusCode)
+
+	var statusErr *HTTPStatusError
+	require.ErrorAs(t, err, &statusErr)
+	assert.Equal(t, server.URL, statusErr.URL)
+	assert.Equal(t, http.StatusTeapot, statusErr.StatusCode)
+	assert.Equal(t, "418 I'm a teapot", statusErr.Status)
 }
 
 // createTestSchemaJSON simplifies creating JSON schema strings for testing.
