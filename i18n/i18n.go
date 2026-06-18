@@ -29,10 +29,13 @@ var locales = []string{"en", "de-DE", "es-ES", "fr-FR", "ja-JP", "ko-KR", "pt-BR
 
 // loadBundle parses the embedded catalogs once; the bundle is read-only afterwards.
 var loadBundle = sync.OnceValues(func() (*goi18n.I18n, error) {
-	bundle := goi18n.NewBundle(
+	bundle, err := goi18n.NewBundle(
 		goi18n.WithDefaultLocale("en"),
 		goi18n.WithLocales(locales...),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("create locale bundle: %w", err)
+	}
 
 	if err := bundle.LoadFS(localesFS, "locales/*.json"); err != nil {
 		return nil, fmt.Errorf("load embedded locales: %w", err)

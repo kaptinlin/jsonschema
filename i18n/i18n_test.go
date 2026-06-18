@@ -28,6 +28,23 @@ func TestNewSupportsAllEmbeddedLocales(t *testing.T) {
 	}
 }
 
+func TestNewReusesLoadedBundle(t *testing.T) {
+	t.Parallel()
+
+	first, err := i18n.New("en")
+	require.NoError(t, err)
+	second, err := i18n.New("en")
+	require.NoError(t, err)
+
+	params := map[string]any{"min_length": 3}
+	firstMessage, firstOK := first.Translate("string_too_short", params)
+	secondMessage, secondOK := second.Translate("string_too_short", params)
+
+	assert.True(t, firstOK)
+	assert.True(t, secondOK)
+	assert.Equal(t, firstMessage, secondMessage)
+}
+
 func TestNewRejectsUnknownLocale(t *testing.T) {
 	t.Parallel()
 

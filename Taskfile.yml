@@ -97,6 +97,34 @@ tasks:
           go work sync
         fi
 
+  deps:submodules:
+    desc: Update nested git submodules
+    cmds:
+      - task: submodule:update
+
+  submodule:update:
+    desc: Init/reset nested git submodules for this repository
+    cmds:
+      - |
+        set -eu
+        if [ ! -f .gitmodules ]; then
+          echo "No nested submodules."
+          exit 0
+        fi
+        paths=$(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}' | grep -v '^.agents/skills$' || true)
+        if [ -z "$paths" ]; then
+          echo "No maintained nested submodules."
+          exit 0
+        fi
+        git submodule sync --recursive -- $paths
+        git submodule update --init --recursive --remote --force -- $paths
+        for path in $paths; do
+          git -C "$path" reset --hard
+          git -C "$path" clean -fd
+        done
+        git submodule sync --recursive -- $paths
+        git submodule update --init --recursive --remote --force -- $paths
+
   test:
     desc: Run all tests with race detection
     cmds:
