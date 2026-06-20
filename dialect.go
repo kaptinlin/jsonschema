@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 const recursiveDynamicAnchor = "__jsonschema_recursive_anchor__"
@@ -93,10 +94,10 @@ func (c *Compiler) schemaHasValidationVocabulary(schemaURI string) bool {
 	c.mu.RLock()
 	metaschema := c.schemas[schemaURI]
 	c.mu.RUnlock()
-	if metaschema == nil || len(metaschema.vocabulary) == 0 {
+	if metaschema == nil || len(metaschema.Vocabulary) == 0 {
 		return true
 	}
-	return metaschema.vocabulary[draft201909ValidationVocabulary]
+	return metaschema.Vocabulary[draft201909ValidationVocabulary]
 }
 
 func dialectFromSchemaURI(uri string, fallback Dialect) Dialect {
@@ -117,27 +118,97 @@ func dialectFromSchemaURI(uri string, fallback Dialect) Dialect {
 	}
 }
 
+// applyDialectCompatibility binds dialect-specific keywords parked in rawExtra
+// according to the resolved dialect, applies Draft-04 boolean exclusive bounds,
+// then promotes whatever the dialect did not claim to Extra. A keyword the active
+// dialect does not recognize is, by definition, an extension for that dialect.
 func (s *Schema) applyDialectCompatibility() error {
-	if s.dialect == Draft4 && s.ID == "" && s.legacyID != "" {
-		s.ID = s.legacyID
+	if err := s.claimLegacyKeywords(); err != nil {
+		return err
 	}
-	if s.dialect == Draft201909 {
-		s.applyRecursiveCompatibility()
-	}
-
 	if err := s.applyLegacyExclusiveBounds(); err != nil {
 		return err
 	}
-	return s.applyLegacyDependencies()
+	return s.finalizeExtra()
 }
 
-func (s *Schema) applyRecursiveCompatibility() {
-	if s.recursiveRef != "" && s.DynamicRef == "" {
-		s.DynamicRef = s.recursiveRef
+// claimLegacyKeywords binds dialect-specific keywords from rawExtra and removes
+// the claimed ones, so the remainder can become Extra. Each keyword is claimed
+// only under the dialects that actually recognize it.
+func (s *Schema) claimLegacyKeywords() error {
+	if len(s.rawExtra) == 0 {
+		return nil
 	}
-	if s.recursiveAnchor != nil && *s.recursiveAnchor && s.DynamicAnchor == "" {
-		s.DynamicAnchor = recursiveDynamicAnchor
+
+	// "id" is the Draft-04 spelling of "$id" ("$id" arrived in Draft-06).
+	if raw, ok := s.rawExtra["id"]; ok && s.dialect == Draft4 {
+		var id string
+		if err := json.Unmarshal(raw, &id); err != nil {
+			return fmt.Errorf("id: %w", err)
+		}
+		if s.ID == "" {
+			s.ID = id
+		}
+		delete(s.rawExtra, "id")
 	}
+
+	// "dependencies" splits into dependentRequired/dependentSchemas (Draft 4-2019).
+	if raw, ok := s.rawExtra["dependencies"]; ok && s.dialect.supportsLegacyDependencies() {
+		if err := s.applyLegacyDependencies(raw); err != nil {
+			return err
+		}
+		delete(s.rawExtra, "dependencies")
+	}
+
+	// "$recursiveRef"/"$recursiveAnchor" map to dynamic refs (Draft 2019-09 only).
+	if s.dialect == Draft201909 {
+		if raw, ok := s.rawExtra["$recursiveRef"]; ok {
+			var ref string
+			if err := json.Unmarshal(raw, &ref); err != nil {
+				return fmt.Errorf("$recursiveRef: %w", err)
+			}
+			if ref != "" && s.DynamicRef == "" {
+				s.DynamicRef = ref
+			}
+			delete(s.rawExtra, "$recursiveRef")
+		}
+		if raw, ok := s.rawExtra["$recursiveAnchor"]; ok {
+			var anchor bool
+			if err := json.Unmarshal(raw, &anchor); err != nil {
+				return fmt.Errorf("$recursiveAnchor: %w", err)
+			}
+			if anchor && s.DynamicAnchor == "" {
+				s.DynamicAnchor = recursiveDynamicAnchor
+			}
+			delete(s.rawExtra, "$recursiveAnchor")
+		}
+	}
+
+	return nil
+}
+
+// finalizeExtra promotes the unclaimed rawExtra members to Extra, decoding each
+// value lazily. Extra is the remainder after structural recognition (typed
+// fields) and dialect claims, so it never relies on a hand-maintained list.
+func (s *Schema) finalizeExtra() error {
+	rest := s.rawExtra
+	s.rawExtra = nil
+	if len(rest) == 0 {
+		return nil
+	}
+
+	extra := make(map[string]any, len(rest))
+	for key, value := range rest {
+		var v any
+		if err := json.Unmarshal(value, &v); err != nil {
+			return fmt.Errorf("extra keyword %q: %w", key, err)
+		}
+		extra[key] = v
+	}
+	if len(extra) > 0 {
+		s.Extra = extra
+	}
+	return nil
 }
 
 func (s *Schema) applyLegacyExclusiveBounds() error {
@@ -163,12 +234,13 @@ func (s *Schema) applyLegacyExclusiveBounds() error {
 	return nil
 }
 
-func (s *Schema) applyLegacyDependencies() error {
-	if len(s.legacyDependencies) == 0 || !s.dialect.supportsLegacyDependencies() {
-		return nil
+func (s *Schema) applyLegacyDependencies(rawDependencies jsontext.Value) error {
+	var dependencies map[string]jsontext.Value
+	if err := json.Unmarshal(rawDependencies, &dependencies); err != nil {
+		return fmt.Errorf("dependencies: %w", err)
 	}
 
-	for property, raw := range s.legacyDependencies {
+	for property, raw := range dependencies {
 		trimmed := bytes.TrimSpace(raw)
 		if len(trimmed) == 0 {
 			continue

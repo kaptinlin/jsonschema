@@ -14,85 +14,6 @@ import (
 	"github.com/kaptinlin/jsonpointer"
 )
 
-// knownSchemaFields contains all known JSON Schema keywords.
-// Used to filter out known fields when collecting extra/extension fields.
-var knownSchemaFields = map[string]struct{}{
-	// Core keywords
-	"$id":              {},
-	"id":               {}, // Legacy dialect compatibility
-	"$schema":          {},
-	"$ref":             {},
-	"$dynamicRef":      {},
-	"$recursiveRef":    {},
-	"$anchor":          {},
-	"$dynamicAnchor":   {},
-	"$recursiveAnchor": {},
-	"$defs":            {},
-	"definitions":      {}, // Draft-7 compatibility
-	"$vocabulary":      {},
-	"$comment":         {},
-
-	// Applicator keywords
-	"allOf":                 {},
-	"anyOf":                 {},
-	"oneOf":                 {},
-	"not":                   {},
-	"if":                    {},
-	"then":                  {},
-	"else":                  {},
-	"dependentSchemas":      {},
-	"dependencies":          {}, // Legacy dialect compatibility
-	"prefixItems":           {},
-	"items":                 {},
-	"additionalItems":       {}, // Legacy dialect compatibility
-	"contains":              {},
-	"properties":            {},
-	"patternProperties":     {},
-	"additionalProperties":  {},
-	"propertyNames":         {},
-	"unevaluatedItems":      {},
-	"unevaluatedProperties": {},
-
-	// Validation keywords
-	"type":              {},
-	"enum":              {},
-	"const":             {},
-	"multipleOf":        {},
-	"maximum":           {},
-	"exclusiveMaximum":  {},
-	"minimum":           {},
-	"exclusiveMinimum":  {},
-	"maxLength":         {},
-	"minLength":         {},
-	"pattern":           {},
-	"maxItems":          {},
-	"minItems":          {},
-	"uniqueItems":       {},
-	"maxContains":       {},
-	"minContains":       {},
-	"maxProperties":     {},
-	"minProperties":     {},
-	"required":          {},
-	"dependentRequired": {},
-
-	// Format keyword
-	"format": {},
-
-	// Content keywords
-	"contentEncoding":  {},
-	"contentMediaType": {},
-	"contentSchema":    {},
-
-	// Meta-data keywords
-	"title":       {},
-	"description": {},
-	"default":     {},
-	"deprecated":  {},
-	"readOnly":    {},
-	"writeOnly":   {},
-	"examples":    {},
-}
-
 // Schema represents a JSON Schema as per the 2020-12 draft, containing all
 // necessary metadata and validation properties defined by the specification.
 type Schema struct {
@@ -106,13 +27,9 @@ type Schema struct {
 	schemas                map[string]*Schema        // Cache of compiled schemas.
 	compiledStringPattern  *regexp.Regexp            // Cached compiled regular expressions for string patterns.
 	dialect                Dialect                   // JSON Schema dialect selected for this schema resource.
-	legacyID               string                    // Legacy "id" keyword used by Draft-04.
-	legacyDependencies     map[string]jsontext.Value // Raw legacy "dependencies" keyword values.
+	rawExtra               map[string]jsontext.Value // Members not bound to a typed field; dialect layer claims known ones, the rest become Extra.
 	legacyExclusiveMinimum jsontext.Value            // Raw Draft-04 boolean exclusiveMinimum value.
 	legacyExclusiveMaximum jsontext.Value            // Raw Draft-04 boolean exclusiveMaximum value.
-	recursiveRef           string                    // Draft 2019-09 "$recursiveRef" keyword.
-	recursiveAnchor        *bool                     // Draft 2019-09 "$recursiveAnchor" keyword.
-	vocabulary             map[string]bool           // "$vocabulary" declarations on metaschemas.
 	disableValidation      bool                      // True when the active metaschema omits validation vocabulary.
 
 	ID     string  `json:"$id,omitempty"`     // Public identifier for the schema.
@@ -125,6 +42,8 @@ type Schema struct {
 	Anchor             string             `json:"$anchor,omitempty"`        // Anchor for resolving relative JSON Pointers.
 	DynamicAnchor      string             `json:"$dynamicAnchor,omitempty"` // Anchor for dynamic resolution
 	Defs               map[string]*Schema `json:"$defs,omitempty"`          // An object containing schema definitions.
+	Comment            string             `json:"$comment,omitempty"`       // Annotation-only comment, see core spec "$comment".
+	Vocabulary         map[string]bool    `json:"$vocabulary,omitempty"`    // Vocabulary declarations, meaningful on meta-schemas.
 	ResolvedRef        *Schema            `json:"-"`                        // Resolved schema for $ref
 	ResolvedDynamicRef *Schema            `json:"-"`                        // Resolved schema for $dynamicRef
 
@@ -653,25 +572,21 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// Use a temporary struct to intercept "items" and "additionalItems"
+	// Decode into the typed model in a single pass. Keywords common to every
+	// supported dialect bind to struct fields; "exclusiveMinimum/Maximum" and
+	// "items" need decode-time disambiguation; everything else (dialect-specific
+	// keywords plus unknown extensions) lands in Rest, the inlined fallback.
+	// Recognition is otherwise structural: a keyword is "known" iff it has a
+	// field, so there is no separate hand-maintained keyword list to drift.
 	type Alias Schema
 	aux := &struct {
-		Items            jsontext.Value            `json:"items,omitempty"`
-		AdditionalItems  *Schema                   `json:"additionalItems,omitempty"`
-		LegacyID         string                    `json:"id,omitempty"`
-		Dependencies     map[string]jsontext.Value `json:"dependencies,omitempty"`
-		ExclusiveMinimum jsontext.Value            `json:"exclusiveMinimum,omitempty"`
-		ExclusiveMaximum jsontext.Value            `json:"exclusiveMaximum,omitempty"`
-		RecursiveRef     string                    `json:"$recursiveRef,omitempty"`
-		RecursiveAnchor  *bool                     `json:"$recursiveAnchor,omitempty"`
-		Vocabulary       map[string]bool           `json:"$vocabulary,omitempty"`
+		Items            jsontext.Value `json:"items,omitempty"`
+		ExclusiveMinimum jsontext.Value `json:"exclusiveMinimum,omitempty"`
+		ExclusiveMaximum jsontext.Value `json:"exclusiveMaximum,omitempty"`
 		// Const is captured as a raw token so "const": null is preserved
 		// (a *ConstValue field would be niled by the decoder, losing IsSet).
-		Const jsontext.Value `json:"const,omitempty"`
-		// Rest collects every member not matched by a named field above or by
-		// the embedded Alias: legacy "definitions" plus unknown keywords. This
-		// inlined fallback replaces a second full decode of data.
-		Rest map[string]jsontext.Value `json:",inline"`
+		Const jsontext.Value            `json:"const,omitempty"`
+		Rest  map[string]jsontext.Value `json:",inline"`
 		*Alias
 	}{
 		Alias: (*Alias)(s),
@@ -680,11 +595,6 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	s.legacyID = aux.LegacyID
-	s.legacyDependencies = aux.Dependencies
-	s.recursiveRef = aux.RecursiveRef
-	s.recursiveAnchor = aux.RecursiveAnchor
-	s.vocabulary = aux.Vocabulary
 	if err := decodeExclusiveBound("exclusiveMinimum", aux.ExclusiveMinimum, &s.ExclusiveMinimum, &s.legacyExclusiveMinimum); err != nil {
 		return err
 	}
@@ -692,37 +602,41 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// Smart handling for "items" polymorphism (Draft 07 vs 2020-12)
+	// "items" polymorphism (legacy tuple form vs 2020-12 list form). When items
+	// is an array, the sibling "additionalItems" (legacy) validates the rest;
+	// consume it from Rest so it is not later treated as an extension keyword.
 	if len(aux.Items) > 0 {
 		trimmed := bytes.TrimSpace(aux.Items)
 		if len(trimmed) > 0 && trimmed[0] == '[' {
-			// Case 1: items is an array (Draft 07 Tuple Validation)
 			if err := json.Unmarshal(aux.Items, &s.PrefixItems); err != nil {
 				return err
 			}
-			// In Draft 07, "additionalItems" validates the rest
-			if aux.AdditionalItems != nil {
-				s.Items = aux.AdditionalItems
+			if additional, ok := aux.Rest["additionalItems"]; ok {
+				item := &Schema{}
+				if err := json.Unmarshal(additional, item); err != nil {
+					return err
+				}
+				s.Items = item
+				delete(aux.Rest, "additionalItems")
 			}
 		} else {
-			// Case 2: items is a schema object (Draft 2020-12 List Validation)
 			if err := json.Unmarshal(aux.Items, &s.Items); err != nil {
 				return err
 			}
 		}
 	}
 
-	// Handle backward compatibility: "definitions" (Draft-7) -> "$defs" (Draft 2020-12)
+	// "definitions" (Draft-7 spelling) -> "$defs". Consume it so it is not
+	// reported as an extension keyword.
 	if defsData, ok := aux.Rest["definitions"]; ok && s.Defs == nil {
 		var defs map[string]*Schema
 		if err := json.Unmarshal(defsData, &defs); err != nil {
 			return err
 		}
 		s.Defs = defs
+		delete(aux.Rest, "definitions")
 	}
 
-	// Special handling for the const field: decode the raw token directly so
-	// "const": null is preserved (a *ConstValue field is niled by the decoder).
 	if len(aux.Const) > 0 {
 		if s.Const == nil {
 			s.Const = &ConstValue{}
@@ -732,31 +646,9 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	return s.collectExtraFields(aux.Rest)
-}
-
-// collectExtraFields records unknown keywords in s.Extra. It reads the inlined
-// fallback map captured during UnmarshalJSON, which already holds only the
-// members not matched by a named field, and decodes those values lazily.
-func (s *Schema) collectExtraFields(rest map[string]jsontext.Value) error {
-	var extra map[string]any
-	for key, value := range rest {
-		if _, known := knownSchemaFields[key]; known {
-			continue
-		}
-		var v any
-		if err := json.Unmarshal(value, &v); err != nil {
-			return err
-		}
-		if extra == nil {
-			extra = make(map[string]any, len(rest))
-		}
-		extra[key] = v
-	}
-
-	if len(extra) > 0 {
-		s.Extra = extra
-	}
+	// Defer Extra: which leftover members are extensions versus dialect-specific
+	// keywords depends on the dialect, which is not known until applyDialect.
+	s.rawExtra = aux.Rest
 	return nil
 }
 
