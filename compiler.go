@@ -38,7 +38,8 @@ type Compiler struct {
 	AssertFormat   bool                                               // Flag to enforce format validation.
 	// PreserveExtra indicates whether to preserve unknown keywords in the schema.
 	// If false (default), unknown keywords are stripped during compilation.
-	PreserveExtra bool
+	PreserveExtra  bool
+	defaultDialect Dialect
 
 	// JSON encoder/decoder configuration
 	jsonEncoder func(v any) ([]byte, error)
@@ -65,6 +66,7 @@ func NewCompiler() *Compiler {
 		Loaders:        make(map[string]func(url string) (io.ReadCloser, error)),
 		defaultFuncs:   make(map[string]DefaultFunc),
 		customFormats:  make(map[string]*FormatDef),
+		defaultDialect: Draft202012,
 
 		// Default to go-json-experiment JSON implementation
 		jsonEncoder: func(v any) ([]byte, error) { return json.Marshal(v) },
@@ -88,7 +90,7 @@ func (c *Compiler) WithDecoderJSON(decoder func(data []byte, v any) error) *Comp
 
 // Compile compiles a JSON schema and caches it. If an URI is provided, it uses that as the key; otherwise, it generates a hash.
 func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
-	schema, err := newSchema(jsonSchema)
+	schema, err := newSchema(jsonSchema, c)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +372,7 @@ func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, 
 
 	// First pass: compile all schemas without resolving references
 	for id, schemaBytes := range schemas {
-		schema, err := newSchema(schemaBytes)
+		schema, err := newSchema(schemaBytes, c)
 		if err != nil {
 			return nil, fmt.Errorf("compiling schema %s: %w", id, err)
 		}

@@ -24,6 +24,26 @@ schema, err := compiler.Compile([]byte(`{"type": "string"}`))
 schema, err := compiler.Compile([]byte(`{"type": "object", ...}`), "user.json")
 ```
 
+### `(*Compiler) SetDefaultDialect(dialect Dialect) *Compiler`
+
+Sets the dialect used when a schema does not declare `$schema`. The default is
+Draft 2020-12.
+
+```go
+compiler := jsonschema.NewCompiler().
+    SetDefaultDialect(jsonschema.Draft7)
+```
+
+Supported dialect constants:
+
+| Constant | Dialect |
+|----------|---------|
+| `Draft202012` | Draft 2020-12 |
+| `Draft201909` | Draft 2019-09 |
+| `Draft7` | Draft-07 |
+| `Draft6` | Draft-06 |
+| `Draft4` | Draft-04 |
+
 ### `(*Compiler) RegisterFormat(name string, fn FormatFunc) *Compiler`
 
 Registers a custom format validator.
@@ -76,6 +96,14 @@ schema := `{
 ## Schema
 
 ### Validation Methods
+
+#### `(*Schema) Dialect() Dialect`
+
+Returns the dialect selected during compilation.
+
+```go
+dialect := schema.Dialect()
+```
 
 #### `(*Schema) Validate(data interface{}) *EvaluationResult`
 
@@ -421,4 +449,3 @@ func ValidateWithLocale(schema *jsonschema.Schema, data interface{}, locale stri
     return fmt.Errorf("validation failed: %s", strings.Join(errors, "; "))
 }
 ```
-

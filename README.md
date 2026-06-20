@@ -3,11 +3,11 @@
 [![Go Module](https://img.shields.io/badge/go-module-00ADD8?logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-A high-performance JSON Schema Draft 2020-12 validator for Go with direct struct validation, default-aware unmarshaling, and a fluent constructor API
+A high-performance JSON Schema validator for Go with direct struct validation, default-aware unmarshaling, a fluent constructor API, and support for Draft 2020-12, Draft 2019-09, Draft-07, Draft-06, and Draft-04.
 
 ## Features
 
-- **Draft 2020-12**: Validate schemas and instances against the current JSON Schema specification.
+- **Multiple dialects**: Validate Draft 2020-12, Draft 2019-09, Draft-07, Draft-06, and Draft-04 schemas.
 - **One main entry point**: `schema.Validate(input)` accepts raw JSON, maps, or Go structs.
 - **Defaults without surprises**: `schema.Unmarshal` applies schema defaults; validation stays a separate step.
 - **Constructor API**: Build schemas in Go with `Object`, `Prop`, `String`, `Required`, and composition helpers.
@@ -87,6 +87,30 @@ When the input type is known and you want to skip the dispatch and any extra con
 | `ValidateJSON([]byte)` | Hot paths handling raw JSON request bodies or stored documents |
 | `ValidateMap(map[string]any)` | Already-decoded JSON objects you do not want re-encoded |
 | `ValidateStruct(any)` | Go values, when you want to avoid a JSON round-trip |
+
+## Dialect Support
+
+Schemas are compiled using the dialect declared by `$schema`. When `$schema` is absent, the compiler defaults to Draft 2020-12.
+
+```go
+compiler := jsonschema.NewCompiler()
+compiler.SetDefaultDialect(jsonschema.Draft7) // for schemas without "$schema"
+schema, err := compiler.Compile(schemaBytes)
+```
+
+Supported dialects are:
+
+| Dialect | Constant |
+|---------|----------|
+| Draft 2020-12 | `jsonschema.Draft202012` |
+| Draft 2019-09 | `jsonschema.Draft201909` |
+| Draft-07 | `jsonschema.Draft7` |
+| Draft-06 | `jsonschema.Draft6` |
+| Draft-04 | `jsonschema.Draft4` |
+
+`format` remains annotation-only unless `SetAssertFormat(true)` is enabled. Schema meta-validation is not performed by default.
+
+See [docs/dialects.md](docs/dialects.md) for compatibility details.
 
 ## Constructor API
 

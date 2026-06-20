@@ -1,5 +1,6 @@
-// Package jsonschema is a JSON Schema Draft 2020-12 backend for Go. It compiles
-// schemas, validates instances, and applies defaults during unmarshaling.
+// Package jsonschema is a JSON Schema validator for Go. It supports Draft
+// 2020-12, Draft 2019-09, Draft-07, Draft-06, and Draft-04 schemas while
+// defaulting to Draft 2020-12 when a schema does not declare "$schema".
 //
 // The main entry point is [Schema.Validate]. It accepts raw JSON bytes, decoded
 // maps, or Go structs and dispatches internally:

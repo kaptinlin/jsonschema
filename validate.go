@@ -101,6 +101,9 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 	}
 
 	s.processReferences(instance, dynamicScope, result, evaluatedProps, evaluatedItems)
+	if s.Ref != "" && s.Dialect().refIgnoresSiblings() {
+		return result, evaluatedProps, evaluatedItems
+	}
 
 	s.processValidationKeywords(instance, dynamicScope, result, evaluatedProps, evaluatedItems)
 
@@ -176,7 +179,9 @@ func (s *Schema) processDynamicRef(instance any, dynamicScope *DynamicScope, res
 // processValidationKeywords handles all validation keywords
 func (s *Schema) processValidationKeywords(instance any, dynamicScope *DynamicScope, result *EvaluationResult, evaluatedProps map[string]bool, evaluatedItems map[int]bool) {
 	// Basic type validation
-	s.processBasicValidation(instance, result)
+	if !s.disableValidation {
+		s.processBasicValidation(instance, result)
+	}
 
 	// Logical operations
 	s.processLogicalOperations(instance, dynamicScope, result, evaluatedProps, evaluatedItems)
@@ -194,20 +199,22 @@ func (s *Schema) processValidationKeywords(instance any, dynamicScope *DynamicSc
 // processBasicValidationWithoutRefs handles basic validation without following references (for circular reference cases)
 func (s *Schema) processBasicValidationWithoutRefs(instance any, result *EvaluationResult, evaluatedProps map[string]bool, evaluatedItems map[int]bool) {
 	// Process basic validation that doesn't involve references
-	s.processBasicValidation(instance, result)
+	if !s.disableValidation {
+		s.processBasicValidation(instance, result)
+	}
 
 	// Process type-specific validation but without following schema references
-	if s.hasNumericValidation() {
+	if !s.disableValidation && s.hasNumericValidation() {
 		errors := evaluateNumeric(s, instance)
 		s.addErrors(result, errors)
 	}
 
-	if s.hasStringValidation() {
+	if !s.disableValidation && s.hasStringValidation() {
 		errors := evaluateString(s, instance)
 		s.addErrors(result, errors)
 	}
 
-	if s.Format != nil {
+	if !s.disableValidation && s.Format != nil {
 		if err := evaluateFormat(s, instance); err != nil {
 			result.AddError(err)
 		}
@@ -290,18 +297,18 @@ func (s *Schema) processTypeSpecificValidation(instance any, dynamicScope *Dynam
 	}
 
 	// Numeric validation
-	if s.hasNumericValidation() {
+	if !s.disableValidation && s.hasNumericValidation() {
 		errors := evaluateNumeric(s, instance)
 		s.addErrors(result, errors)
 	}
 
 	// String validation
-	if s.hasStringValidation() {
+	if !s.disableValidation && s.hasStringValidation() {
 		errors := evaluateString(s, instance)
 		s.addErrors(result, errors)
 	}
 
-	if s.Format != nil {
+	if !s.disableValidation && s.Format != nil {
 		if err := evaluateFormat(s, instance); err != nil {
 			result.AddError(err)
 		}
@@ -487,7 +494,9 @@ func evaluateObjectMap(schema *Schema, object map[string]any, evaluatedProps map
 		appendEvaluation(evaluatePropertyNames(schema, object, evaluatedProps, evaluatedItems, dynamicScope))
 	}
 
-	errors = append(errors, validateObjectConstraints(schema, object)...)
+	if !schema.disableValidation {
+		errors = append(errors, validateObjectConstraints(schema, object)...)
+	}
 
 	return results, errors
 }
@@ -639,8 +648,9 @@ func evaluateArray(schema *Schema, data any, evaluatedProps map[string]bool, eva
 		}
 	}
 
-	// Array constraint validation
-	errors = append(errors, validateArrayConstraints(schema, items)...)
+	if !schema.disableValidation {
+		errors = append(errors, validateArrayConstraints(schema, items)...)
+	}
 
 	return results, errors
 }
@@ -773,7 +783,9 @@ func (s *Schema) processObjectValidationWithoutRefs(instance any, result *Evalua
 	}
 
 	errors := validateObjectConstraints(s, objectMap)
-	s.addErrors(result, errors)
+	if !s.disableValidation {
+		s.addErrors(result, errors)
+	}
 	s.handleAdditionalPropertiesForCircular(objectMap, result, evaluatedProps)
 }
 
@@ -797,7 +809,9 @@ func (s *Schema) processArrayValidationWithoutRefs(instance any, result *Evaluat
 	}
 
 	errors := validateArrayConstraints(s, items)
-	s.addErrors(result, errors)
+	if !s.disableValidation {
+		s.addErrors(result, errors)
+	}
 
 	for i := range items {
 		evaluatedItems[i] = true

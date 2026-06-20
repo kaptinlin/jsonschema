@@ -41,8 +41,37 @@ func stopTestServer(server *http.Server) {
 	}
 }
 
+func contentValidationExclusions() []string {
+	return []string{
+		"validation of string-encoded content based on media type/an invalid JSON document; validates true",
+		"validation of binary string-encoding/an invalid base64 string (% is not a valid character); validates true",
+		"validation of binary-encoded media type documents/a validly-encoded invalid JSON document; validates true",
+		"validation of binary-encoded media type documents/an invalid base64 string that is valid JSON; validates true",
+		"validation of binary-encoded media type documents with schema/an invalid base64-encoded JSON document; validates true",
+		"validation of binary-encoded media type documents with schema/an empty object as a base64-encoded JSON document; validates true",
+		"validation of binary-encoded media type documents with schema/an empty array as a base64-encoded JSON document",
+		"validation of binary-encoded media type documents with schema/a validly-encoded invalid JSON document; validates true",
+		"validation of binary-encoded media type documents with schema/an invalid base64 string that is valid JSON; validates true",
+	}
+}
+
+func schemaMetaValidationExclusions() []string {
+	return []string{
+		"validate definition against metaschema/invalid definition schema",
+	}
+}
+
 // TestJSONSchemaTestSuiteWithFilePath runs schema validation tests from a JSON file against the ForTestSuiteschema implementation.
 func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusions ...string) {
+	testJSONSchemaTestSuiteWithCompiler(t, filePath, nil, exclusions...)
+}
+
+func testJSONSchemaTestSuiteWithCompiler(
+	t *testing.T,
+	filePath string,
+	configure func(*jsonschema.Compiler),
+	exclusions ...string,
+) {
 	t.Helper()
 
 	// Start the server
@@ -92,6 +121,9 @@ func testJSONSchemaTestSuiteWithFilePath(t *testing.T, filePath string, exclusio
 
 			// Initialize the compiler with necessary configurations.
 			compiler := jsonschema.NewCompiler()
+			if configure != nil {
+				configure(compiler)
+			}
 
 			// Assert format for optional/format test cases.
 			if strings.Contains(filePath, "optional/format") {

@@ -150,6 +150,11 @@ func isAbsoluteURI(rawURL string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
+func hasURIScheme(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	return err == nil && u.Scheme != ""
+}
+
 // getBaseURI extracts the base URL from an $id URI, falling back if not valid.
 func getBaseURI(id string) string {
 	if id == "" {

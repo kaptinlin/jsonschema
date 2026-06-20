@@ -12,7 +12,7 @@ import (
 // resolveRef resolves a reference to another schema, either locally or globally, supporting both $ref and $dynamicRef.
 func (s *Schema) resolveRef(ref string) (*Schema, error) {
 	if ref == "#" {
-		return s.rootSchema(), nil
+		return s.scopeSchema(), nil
 	}
 
 	if anchor, ok := strings.CutPrefix(ref, "#"); ok {
@@ -120,6 +120,9 @@ func (s *Schema) schemaForPointerSegment(segment string, segments []string, inde
 	case "else":
 		return schemaPointerTarget(s.Else)
 	case "items":
+		if s.Dialect().usesLegacyTupleItems() && len(s.PrefixItems) > 0 {
+			return schemaSlicePointerTarget(s.PrefixItems, segments, index)
+		}
 		return schemaPointerTarget(s.Items)
 	case "contains":
 		return schemaPointerTarget(s.Contains)
