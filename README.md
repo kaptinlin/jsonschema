@@ -108,7 +108,19 @@ Supported dialects are:
 | Draft-06 | `jsonschema.Draft6` |
 | Draft-04 | `jsonschema.Draft4` |
 
-`format` remains annotation-only unless `SetAssertFormat(true)` is enabled. Schema meta-validation is not performed by default.
+`format` remains annotation-only unless `SetAssertFormat(true)` is enabled.
+`Compile` does not perform schema meta-validation by default; call
+`ValidateSchema` when the schema document itself is untrusted.
+
+```go
+result, err := compiler.ValidateSchema(schemaBytes)
+if err != nil {
+	log.Fatal(err)
+}
+if !result.IsValid() {
+	log.Fatalf("invalid schema document: %v", result.Errors)
+}
+```
 
 See [docs/dialects.md](docs/dialects.md) for compatibility details.
 

@@ -600,7 +600,10 @@ Errors that occur during schema compilation or generation from struct tags.
 
 ### Schema Compilation Errors
 
-Returned by `compiler.Compile()` when the JSON Schema itself is invalid:
+Returned by `compiler.Compile()` for compilation failures such as invalid JSON,
+invalid regular expressions, and unresolved references. `Compile` does not run
+schema meta-validation automatically; use `compiler.ValidateSchema()` when the
+schema document itself must be checked against its declared meta-schema.
 
 ```go
 compiler := jsonschema.NewCompiler()

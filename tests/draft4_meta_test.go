@@ -59,3 +59,104 @@ func TestDraft4MetaSchemaDependenciesCompatibility(t *testing.T) {
 		})
 	}
 }
+
+func TestDraft4MetaSchemaRecursivePropertiesApplyDependencies(t *testing.T) {
+	schema, err := jsonschema.NewCompiler().Compile([]byte(`{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"$id": "http://json-schema.org/draft-04/schema#",
+		"type": "object",
+		"properties": {
+			"properties": {
+				"type": "object",
+				"additionalProperties": {"$ref": "#"}
+			},
+			"maximum": {"type": "number"},
+			"minimum": {"type": "number"},
+			"exclusiveMaximum": {"type": "boolean"},
+			"exclusiveMinimum": {"type": "boolean"},
+			"type": {
+				"enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
+			}
+		},
+		"dependencies": {
+			"exclusiveMaximum": ["maximum"],
+			"exclusiveMinimum": ["minimum"]
+		}
+	}`))
+	require.NoError(t, err)
+
+	result := schema.ValidateJSON([]byte(`{
+		"$schema": "http://json-schema.org/draft-04/schema#",
+		"properties": {
+			"age": {
+				"exclusiveMaximum": true,
+				"exclusiveMinimum": true,
+				"minimum": 18,
+				"type": "integer"
+			}
+		},
+		"type": "object"
+	}`))
+
+	require.False(t, result.IsValid(), "exclusiveMaximum in a nested Draft-04 schema must require maximum")
+}
+
+func TestValidateSchemaDraft4MetaSchema(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+	invalidSchema := []byte(`{
+		"$schema": "http://json-schema.org/draft-04/schema#",
+		"properties": {
+			"age": {
+				"exclusiveMaximum": true,
+				"minimum": 18,
+				"type": "integer"
+			}
+		},
+		"type": "object"
+	}`)
+
+	compiled, err := compiler.Compile(invalidSchema)
+	require.NoError(t, err)
+	require.Equal(t, jsonschema.Draft4, compiled.Dialect())
+
+	result, err := compiler.ValidateSchema(invalidSchema)
+	require.NoError(t, err)
+	require.False(t, result.IsValid(), "Draft-04 exclusiveMaximum requires maximum")
+
+	validSchema := []byte(`{
+		"$schema": "http://json-schema.org/draft-04/schema#",
+		"properties": {
+			"age": {
+				"exclusiveMaximum": true,
+				"maximum": 120,
+				"minimum": 18,
+				"type": "integer"
+			}
+		},
+		"type": "object"
+	}`)
+
+	result, err = compiler.ValidateSchema(validSchema)
+	require.NoError(t, err)
+	require.True(t, result.IsValid())
+}
+
+func TestValidateSchemaUsesDefaultDialect(t *testing.T) {
+	compiler := jsonschema.NewCompiler().SetDefaultDialect(jsonschema.Draft4)
+
+	result, err := compiler.ValidateSchema([]byte(`{"exclusiveMinimum": true}`))
+	require.NoError(t, err)
+	require.False(t, result.IsValid())
+
+	result, err = compiler.ValidateSchema([]byte(`{"exclusiveMinimum": true, "minimum": 0}`))
+	require.NoError(t, err)
+	require.True(t, result.IsValid())
+}
+
+func TestValidateSchemaRejectsNonStringSchemaURI(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+
+	result, err := compiler.ValidateSchema([]byte(`{"$schema": 1, "type": "object"}`))
+	require.NoError(t, err)
+	require.False(t, result.IsValid())
+}

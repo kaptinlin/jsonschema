@@ -38,4 +38,19 @@ Compatibility behavior is normalized during compilation:
 - Draft-07, Draft-06, and Draft-04 `$ref` ignore sibling keywords.
 
 `format` remains annotation-only unless `Compiler.SetAssertFormat(true)` is
-enabled. Schema meta-validation is not performed by default.
+enabled. `Compile` does not perform schema meta-validation by default; call
+`ValidateSchema` when the schema document itself is untrusted.
+
+```go
+result, err := compiler.ValidateSchema(schemaBytes)
+if err != nil {
+	return err
+}
+if !result.IsValid() {
+	return fmt.Errorf("invalid schema document: %v", result.Errors)
+}
+```
+
+Draft-04, Draft-06, and Draft-07 meta-schemas are available without a loader.
+Draft 2019-09, Draft 2020-12, and custom meta-schemas use the compiler's
+registered schema cache and loaders.

@@ -24,6 +24,24 @@ schema, err := compiler.Compile([]byte(`{"type": "string"}`))
 schema, err := compiler.Compile([]byte(`{"type": "object", ...}`), "user.json")
 ```
 
+### `(*Compiler) ValidateSchema(schema []byte) (*EvaluationResult, error)`
+
+Validates a schema document against its declared meta-schema. If the document
+does not declare `$schema`, the compiler's default dialect selects the
+meta-schema.
+
+```go
+result, err := compiler.ValidateSchema(schemaBytes)
+if err != nil {
+    return err
+}
+if !result.IsValid() {
+    return fmt.Errorf("invalid schema document: %v", result.Errors)
+}
+```
+
+`Compile` does not call `ValidateSchema` automatically.
+
 ### `(*Compiler) SetDefaultDialect(dialect Dialect) *Compiler`
 
 Sets the dialect used when a schema does not declare `$schema`. The default is
