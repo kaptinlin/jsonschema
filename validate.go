@@ -1,9 +1,9 @@
 package jsonschema
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
-	"strings"
 )
 
 // Validate checks if the given instance conforms to the schema.
@@ -74,7 +74,7 @@ func (s *Schema) processJSONBytes(jsonBytes []byte) (any, error) {
 func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*EvaluationResult, map[string]bool, map[int]bool) {
 	instance = s.preprocessByteInput(instance)
 
-	if dynamicScope.Contains(s) && s.isProblematicCircularReference(dynamicScope) {
+	if dynamicScope.ContainsEvaluation(s, instance) {
 		result := NewEvaluationResult(s)
 		evaluatedProps := make(map[string]bool)
 		evaluatedItems := make(map[int]bool)
@@ -82,7 +82,7 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 		return result, evaluatedProps, evaluatedItems
 	}
 
-	dynamicScope.Push(s)
+	dynamicScope.Push(s, instance)
 	defer dynamicScope.Pop()
 
 	result := NewEvaluationResult(s)
@@ -682,17 +682,26 @@ func validateArrayConstraints(schema *Schema, items []any) []*EvaluationError {
 
 // DynamicScope struct defines a stack specifically for handling Schema types.
 type DynamicScope struct {
-	schemas []*Schema // Slice storing pointers to Schema
+	schemas      []*Schema // Slice storing pointers to Schema
+	instanceKeys []evaluationInstanceKey
 }
 
 // NewDynamicScope creates and returns a new empty DynamicScope.
 func NewDynamicScope() *DynamicScope {
-	return &DynamicScope{schemas: make([]*Schema, 0)}
+	return &DynamicScope{
+		schemas:      make([]*Schema, 0),
+		instanceKeys: make([]evaluationInstanceKey, 0),
+	}
 }
 
 // Push adds a Schema to the dynamic scope.
-func (ds *DynamicScope) Push(schema *Schema) {
+func (ds *DynamicScope) Push(schema *Schema, instance ...any) {
 	ds.schemas = append(ds.schemas, schema)
+	if len(instance) > 0 {
+		ds.instanceKeys = append(ds.instanceKeys, newEvaluationInstanceKey(instance[0]))
+		return
+	}
+	ds.instanceKeys = append(ds.instanceKeys, evaluationInstanceKey{})
 }
 
 // Pop removes and returns the top Schema from the dynamic scope.
@@ -703,6 +712,7 @@ func (ds *DynamicScope) Pop() *Schema {
 	lastIndex := len(ds.schemas) - 1
 	schema := ds.schemas[lastIndex]
 	ds.schemas = ds.schemas[:lastIndex]
+	ds.instanceKeys = ds.instanceKeys[:lastIndex]
 	return schema
 }
 
@@ -739,6 +749,47 @@ func (ds *DynamicScope) LookupDynamicAnchor(anchor string) *Schema {
 // Contains checks if a schema is already in the dynamic scope (circular reference detection).
 func (ds *DynamicScope) Contains(schema *Schema) bool {
 	return slices.Contains(ds.schemas, schema)
+}
+
+// ContainsEvaluation reports whether the exact schema is already being applied
+// to the same instance value. Recursive schemas are valid over finite JSON
+// trees; only the same schema/data pair needs a cycle break.
+func (ds *DynamicScope) ContainsEvaluation(schema *Schema, instance any) bool {
+	key := newEvaluationInstanceKey(instance)
+	for i, activeSchema := range ds.schemas {
+		if activeSchema == schema && ds.instanceKeys[i] == key {
+			return true
+		}
+	}
+	return false
+}
+
+type evaluationInstanceKey struct {
+	typeName string
+	kind     reflect.Kind
+	pointer  uintptr
+	value    string
+}
+
+func newEvaluationInstanceKey(instance any) evaluationInstanceKey {
+	if instance == nil {
+		return evaluationInstanceKey{value: "<nil>"}
+	}
+
+	rv := reflect.ValueOf(instance)
+	key := evaluationInstanceKey{
+		typeName: rv.Type().String(),
+		kind:     rv.Kind(),
+	}
+
+	switch rv.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
+		key.pointer = rv.Pointer()
+	default:
+		key.value = fmt.Sprintf("%#v", instance)
+	}
+
+	return key
 }
 
 func convertToByteSlice(v any) ([]byte, bool) {
@@ -844,55 +895,4 @@ func (s *Schema) checkAdditionalPropertiesForCircular(object map[string]any, res
 	for key := range object {
 		evaluatedProps[key] = true
 	}
-}
-
-// isProblematicCircularReference determines if this circular reference would cause infinite recursion
-func (s *Schema) isProblematicCircularReference(scope *DynamicScope) bool {
-	depth := 0
-	for _, schema := range scope.schemas {
-		if schema == s {
-			depth++
-		}
-	}
-
-	// For metaschema validation (remote references), be very permissive
-	if s.ID != "" && strings.Contains(s.ID, "json-schema.org") {
-		return depth > 5
-	}
-
-	// For schemas that are clearly self-referential by design, allow more depth
-	if s.hasSelfReferentialPattern() {
-		return depth > 10
-	}
-
-	// For other cases, use a moderate threshold
-	return depth > 3
-}
-
-// hasSelfReferentialPattern checks if schema has patterns designed for self-reference
-func (s *Schema) hasSelfReferentialPattern() bool {
-	// Schema has a property that references itself
-	if s.Properties != nil {
-		for _, prop := range *s.Properties {
-			if prop.Ref == "#" {
-				return true
-			}
-		}
-	}
-
-	// Schema has array items that reference itself
-	if s.Items != nil && s.Items.Ref == "#" {
-		return true
-	}
-
-	// Schema has definitions that might create recursive patterns
-	if s.Defs != nil {
-		for _, def := range s.Defs {
-			if def.Ref == "#" {
-				return true
-			}
-		}
-	}
-
-	return false
 }

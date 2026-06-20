@@ -101,6 +101,64 @@ func TestDraft4MetaSchemaRecursivePropertiesApplyDependencies(t *testing.T) {
 	require.False(t, result.IsValid(), "exclusiveMaximum in a nested Draft-04 schema must require maximum")
 }
 
+func TestDraft4MetaSchemaDeepRecursivePropertiesValidateTypeArrayItems(t *testing.T) {
+	schema, err := jsonschema.NewCompiler().Compile([]byte(`{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"$id": "http://json-schema.org/draft-04/schema#",
+		"definitions": {
+			"simpleTypes": {
+				"enum": ["array", "boolean", "integer", "null", "number", "object", "string"]
+			}
+		},
+		"type": "object",
+		"properties": {
+			"properties": {
+				"type": "object",
+				"additionalProperties": {"$ref": "#"}
+			},
+			"type": {
+				"anyOf": [
+					{"$ref": "#/definitions/simpleTypes"},
+					{
+						"type": "array",
+						"items": {"$ref": "#/definitions/simpleTypes"},
+						"minItems": 1
+					}
+				]
+			}
+		}
+	}`))
+	require.NoError(t, err)
+
+	result := schema.ValidateJSON([]byte(`{
+		"$schema": "http://json-schema.org/draft-04/schema#",
+		"properties": {
+			"a": {
+				"properties": {
+					"b": {
+						"properties": {
+							"c": {
+								"properties": {
+									"d": {
+										"properties": {
+											"e": {
+												"type": [{"unexpected": true}, "null"]
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"type": "object"
+	}`))
+
+	require.False(t, result.IsValid(), "Draft-04 type arrays may only contain simple type strings at every recursive depth")
+}
+
 func TestValidateSchemaDraft4MetaSchema(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	invalidSchema := []byte(`{
