@@ -73,7 +73,11 @@ func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
 	if err != nil {
 		return nil, ErrJSONPointerSegmentDecode
 	}
-	segments := jsonpointer.Parse(decodedPointer)
+	pointerValue, err := jsonpointer.Parse(decodedPointer)
+	if err != nil {
+		return nil, ErrJSONPointerSegmentDecode
+	}
+	segments := pointerValue.Tokens()
 	currentSchema := s
 
 	for i := 0; i < len(segments); i++ {

@@ -273,7 +273,7 @@ func (s *Schema) collectRegexErrors(pathTokens []string, visited map[*Schema]boo
 			patternTokens := slices.Concat(pathTokens, []string{"pattern"})
 			errs = append(errs, &RegexPatternError{
 				Keyword:  "pattern",
-				Location: "#" + jsonpointer.Format(patternTokens...),
+				Location: "#" + jsonpointer.FromTokens(patternTokens...).String(),
 				Pattern:  *s.Pattern,
 				Err:      err,
 			})
@@ -287,7 +287,7 @@ func (s *Schema) collectRegexErrors(pathTokens []string, visited map[*Schema]boo
 			if err := compilePattern(pattern); err != nil {
 				errs = append(errs, &RegexPatternError{
 					Keyword:  "patternProperties",
-					Location: "#" + jsonpointer.Format(patternPropTokens...),
+					Location: "#" + jsonpointer.FromTokens(patternPropTokens...).String(),
 					Pattern:  pattern,
 					Err:      err,
 				})
@@ -586,7 +586,7 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		// Const is captured as a raw token so "const": null is preserved
 		// (a *ConstValue field would be niled by the decoder, losing IsSet).
 		Const jsontext.Value            `json:"const,omitempty"`
-		Rest  map[string]jsontext.Value `json:",inline"`
+		Rest  map[string]jsontext.Value `json:",embed"` //nolint:staticcheck // go-json-experiment/json v2 uses embed for fallback fields.
 		*Alias
 	}{
 		Alias: (*Alias)(s),

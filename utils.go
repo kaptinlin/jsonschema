@@ -191,5 +191,9 @@ func splitRef(ref string) (baseURI string, anchor string) {
 
 // isJSONPointer checks if a non-empty string is a valid JSON Pointer.
 func isJSONPointer(s string) bool {
-	return s != "" && jsonpointer.Validate(s) == nil
+	if s == "" {
+		return false
+	}
+	_, err := jsonpointer.Parse(s)
+	return err == nil
 }

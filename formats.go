@@ -478,8 +478,8 @@ func IsJSONPointer(v any) bool {
 	if s == "" {
 		return true
 	}
-	// Use jsonpointer library for validation
-	return jsonpointer.Validate(s) == nil
+	_, err := jsonpointer.Parse(s)
+	return err == nil
 }
 
 // IsRelativeJSONPointer tells whether given string is a valid Relative JSON Pointer.
