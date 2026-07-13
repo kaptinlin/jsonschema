@@ -1,6 +1,6 @@
 module github.com/kaptinlin/jsonschema
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/kaptinlin/go-i18n v0.6.0
@@ -21,7 +21,7 @@ require github.com/go-json-experiment/json v0.0.0-20260623181947-01eb4420fa68
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/kaptinlin/jsonpointer v0.4.27
+	github.com/kaptinlin/jsonpointer v0.4.28
 )
 
 require (
