@@ -1,14 +1,14 @@
 module github.com/kaptinlin/jsonschema
 
-go 1.26.4
+go 1.26.5
 
 require (
-	github.com/kaptinlin/go-i18n v0.6.0
+	github.com/kaptinlin/go-i18n v0.6.3
 	github.com/stretchr/testify v1.11.1
 )
 
 require (
-	github.com/agentable/go-intl v0.2.11 // indirect
+	github.com/agentable/go-intl v0.2.13 // indirect
 	github.com/cockroachdb/apd/v3 v3.2.3 // indirect
 	github.com/kaptinlin/messageformat-go/mf1 v0.8.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -28,5 +28,5 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/goccy/go-yaml v1.19.2
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 )
