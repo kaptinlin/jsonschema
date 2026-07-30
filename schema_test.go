@@ -2,12 +2,18 @@ package jsonschema
 
 import (
 	"bytes"
+	"math"
 	"testing"
 
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	_ json.MarshalerTo = (*Schema)(nil)
+	_ json.MarshalerTo = (*SchemaMap)(nil)
 )
 
 func TestGetRootSchema(t *testing.T) {
@@ -266,6 +272,19 @@ func TestDeterministicMarshal(t *testing.T) {
 	assert.Contains(t, string(data), `"type":"object"`)
 }
 
+func TestSchemaMarshalPreservesLargeIntegerConstraint(t *testing.T) {
+	t.Parallel()
+
+	schema := &Schema{
+		Type:    SchemaType{"integer"},
+		Maximum: NewRat(uint64(math.MaxUint64)),
+	}
+
+	data, err := json.Marshal(schema)
+	require.NoError(t, err)
+	assert.Equal(t, `{"maximum":18446744073709551615,"type":"integer"}`, string(data))
+}
+
 func TestSchemaMarshalJSONToStreamsDeterministicSchema(t *testing.T) {
 	schema := &Schema{
 		Type:  SchemaType{"object"},
@@ -278,7 +297,7 @@ func TestSchemaMarshalJSONToStreamsDeterministicSchema(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := schema.MarshalJSONTo(jsontext.NewEncoder(&buf), json.DefaultOptionsV2())
+	err := json.MarshalEncode(jsontext.NewEncoder(&buf), schema, json.DefaultOptionsV2())
 	require.NoError(t, err)
 
 	assert.JSONEq(t, `{"const":null,"properties":{"alpha":{"type":"integer"},"zeta":{"type":"string"}},"type":"object","x-extension":"kept"}`, buf.String())
@@ -291,13 +310,13 @@ func TestSchemaMapMarshalJSONToStreamsMapAndNil(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := schemaMap.MarshalJSONTo(jsontext.NewEncoder(&buf), json.DefaultOptionsV2())
+	err := json.MarshalEncode(jsontext.NewEncoder(&buf), &schemaMap, json.DefaultOptionsV2())
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"alpha":{"type":"string"},"beta":{"type":"boolean"}}`, buf.String())
 
 	buf.Reset()
 	var nilMap *SchemaMap
-	err = nilMap.MarshalJSONTo(jsontext.NewEncoder(&buf), json.DefaultOptionsV2())
+	err = json.MarshalEncode(jsontext.NewEncoder(&buf), nilMap, json.DefaultOptionsV2())
 	require.NoError(t, err)
 	assert.JSONEq(t, `null`, buf.String())
 }
