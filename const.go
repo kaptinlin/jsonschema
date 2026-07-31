@@ -1,9 +1,5 @@
 package jsonschema
 
-import (
-	"reflect"
-)
-
 // evaluateConst checks if the data matches exactly the value specified in the schema's 'const' keyword.
 // According to the JSON Schema Draft 2020-12:
 //   - The value of the "const" keyword may be of any type, including null.
@@ -18,45 +14,12 @@ func evaluateConst(schema *Schema, instance any) *EvaluationError {
 		return nil
 	}
 
-	// Special handling for null value comparison
-	if schema.Const.Value == nil {
-		if instance != nil {
-			return NewEvaluationError("const", "const_mismatch_null", "Value should be null")
-		}
+	if valuesEqual(instance, schema.Const.Value) {
 		return nil
 	}
 
-	// Handle numeric type comparisons
-	switch constVal := schema.Const.Value.(type) {
-	case float64:
-		switch instVal := instance.(type) {
-		case float64:
-			if constVal == instVal {
-				return nil
-			}
-		case int:
-			if constVal == float64(instVal) {
-				return nil
-			}
-		}
-		return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value")
-	case int:
-		switch instVal := instance.(type) {
-		case float64:
-			if float64(constVal) == instVal {
-				return nil
-			}
-		case int:
-			if constVal == instVal {
-				return nil
-			}
-		}
-		return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value")
+	if schema.Const.Value == nil {
+		return NewEvaluationError("const", "const_mismatch_null", "Value should be null")
 	}
-
-	// Use deep comparison for other types
-	if !reflect.DeepEqual(instance, schema.Const.Value) {
-		return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value")
-	}
-	return nil
+	return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value")
 }

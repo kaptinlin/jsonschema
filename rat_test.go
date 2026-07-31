@@ -18,6 +18,7 @@ func TestRatJSONRoundTripAndErrors(t *testing.T) {
 	}{
 		{name: "integer", jsonValue: `12`, wantFormat: "12", wantJSON: `12`},
 		{name: "decimal", jsonValue: `1.25`, wantFormat: "1.25", wantJSON: `1.25`},
+		{name: "maximum uint64", jsonValue: `18446744073709551615`, wantFormat: "18446744073709551615", wantJSON: `18446744073709551615`},
 		{name: "fraction string", jsonValue: `"1/3"`, wantFormat: "0.3333333333", wantJSON: `0.3333333333`},
 	}
 

@@ -577,6 +577,7 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		Items            jsontext.Value `json:"items,omitempty"`
 		ExclusiveMinimum jsontext.Value `json:"exclusiveMinimum,omitempty"`
 		ExclusiveMaximum jsontext.Value `json:"exclusiveMaximum,omitempty"`
+		Enum             jsontext.Value `json:"enum,omitempty"`
 		// Const is captured as a raw token so "const": null is preserved
 		// (a *ConstValue field would be niled by the decoder, losing IsSet).
 		Const jsontext.Value            `json:"const,omitempty"`
@@ -594,6 +595,11 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	}
 	if err := decodeExclusiveBound("exclusiveMaximum", aux.ExclusiveMaximum, &s.ExclusiveMaximum, &s.legacyExclusiveMaximum); err != nil {
 		return err
+	}
+	if len(aux.Enum) > 0 {
+		if err := unmarshalJSONExact(aux.Enum, &s.Enum); err != nil {
+			return err
+		}
 	}
 
 	// "items" polymorphism (legacy tuple form vs 2020-12 list form). When items
@@ -724,7 +730,7 @@ func (cv *ConstValue) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return json.Unmarshal(data, &cv.Value)
+	return unmarshalJSONExact(data, &cv.Value)
 }
 
 // MarshalJSON handles marshaling the ConstValue type back to JSON.

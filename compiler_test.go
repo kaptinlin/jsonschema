@@ -516,6 +516,10 @@ func TestWithDecoderJSON(t *testing.T) {
 	// Verify the result
 	expectedValue := "value"
 	assert.Equal(t, expectedValue, result["test"], "Expected decoded result to be %s", expectedValue)
+
+	schema, err := compiler.Compile([]byte(`{"type":"object","required":["test"]}`))
+	require.NoError(t, err)
+	assert.True(t, schema.ValidateJSON(inputJSON).IsValid(), "custom decoder should be used by ValidateJSON")
 }
 
 // TestSchemaReferenceOrdering tests that schema references work correctly regardless

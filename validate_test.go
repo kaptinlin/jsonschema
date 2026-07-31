@@ -98,6 +98,152 @@ func TestValidateJSON(t *testing.T) {
 	}
 }
 
+func TestValidateJSONPreservesExactIntegerBoundaries(t *testing.T) {
+	signed := &Schema{
+		Type:    SchemaType{"integer"},
+		Minimum: NewRat(int64(-9223372036854775808)),
+		Maximum: NewRat(int64(9223372036854775807)),
+	}
+	unsigned := &Schema{
+		Type:    SchemaType{"integer"},
+		Maximum: NewRat(uint64(18446744073709551615)),
+	}
+
+	tests := []struct {
+		name      string
+		schema    *Schema
+		instance  string
+		wantValid bool
+	}{
+		{name: "minimum int64", schema: signed, instance: `-9223372036854775808`, wantValid: true},
+		{name: "maximum int64", schema: signed, instance: `9223372036854775807`, wantValid: true},
+		{name: "maximum uint64", schema: unsigned, instance: `18446744073709551615`, wantValid: true},
+		{name: "below minimum int64", schema: signed, instance: `-9223372036854775809`, wantValid: false},
+		{name: "above maximum int64", schema: signed, instance: `9223372036854775808`, wantValid: false},
+		{name: "above maximum uint64", schema: unsigned, instance: `18446744073709551616`, wantValid: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.schema.ValidateJSON([]byte(tt.instance))
+			assert.Equal(t, tt.wantValid, result.IsValid(), "validation errors: %v", result.Errors)
+		})
+	}
+}
+
+func TestValidateJSONPreservesExactNumberForms(t *testing.T) {
+	tests := []struct {
+		name      string
+		schema    *Schema
+		instance  string
+		wantValid bool
+	}{
+		{name: "decimal integer", schema: &Schema{Type: SchemaType{"integer"}}, instance: `1.0`, wantValid: true},
+		{name: "exponent integer", schema: &Schema{Type: SchemaType{"integer"}}, instance: `1e0`, wantValid: true},
+		{name: "fraction", schema: &Schema{Type: SchemaType{"integer"}}, instance: `1e-1`, wantValid: false},
+		{
+			name:      "long decimal",
+			schema:    &Schema{Type: SchemaType{"number"}, Maximum: NewRat("0.123456789012345678901")},
+			instance:  `0.123456789012345678901`,
+			wantValid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.schema.ValidateJSON([]byte(tt.instance))
+			assert.Equal(t, tt.wantValid, result.IsValid(), "validation errors: %v", result.Errors)
+		})
+	}
+}
+
+func TestValidateJSONPreservesNumericEnumEquality(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   string
+		instance string
+	}{
+		{name: "scalar", schema: `{"enum":[1]}`, instance: `1.0`},
+		{name: "nested", schema: `{"enum":[{"n":1}]}`, instance: `{"n":1.0}`},
+		{
+			name:     "large integer",
+			schema:   `{"enum":[18446744073709551615]}`,
+			instance: `18446744073709551615`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			schema, err := compiler.Compile([]byte(tt.schema))
+			require.NoError(t, err)
+
+			result := schema.ValidateJSON([]byte(tt.instance))
+
+			assert.True(t, result.IsValid(), "mathematically equal JSON numbers should match enum: %v", result.Errors)
+		})
+	}
+}
+
+func TestValidateJSONPreservesNumericConstEquality(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   string
+		instance string
+	}{
+		{
+			name:     "large integer",
+			schema:   `{"const":18446744073709551615}`,
+			instance: `18446744073709551615`,
+		},
+		{
+			name:     "nested",
+			schema:   `{"const":{"n":[1]}}`,
+			instance: `{"n":[1.0]}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+			schema, err := compiler.Compile([]byte(tt.schema))
+			require.NoError(t, err)
+
+			result := schema.ValidateJSON([]byte(tt.instance))
+
+			assert.True(t, result.IsValid(), "mathematically equal JSON numbers should match const: %v", result.Errors)
+		})
+	}
+}
+
+func TestValidateJSONPreservesNestedExactNumbers(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type":"object",
+		"properties":{
+			"values":{
+				"type":"array",
+				"items":{"type":"integer","maximum":18446744073709551615}
+			}
+		}
+	}`))
+	require.NoError(t, err)
+
+	result := schema.ValidateJSON([]byte(`{"values":[18446744073709551615]}`))
+
+	assert.True(t, result.IsValid(), "nested exact number should validate: %v", result.Errors)
+}
+
+func TestValidateJSONPreservesNumericUniqueItemsEquality(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{"type":"array","uniqueItems":true}`))
+	require.NoError(t, err)
+
+	result := schema.ValidateJSON([]byte(`[1,1.0]`))
+
+	assert.False(t, result.IsValid(), "mathematically equal JSON numbers should not be unique")
+}
+
 func TestValidateStructReportsInvalidJSONByteInput(t *testing.T) {
 	compiler := NewCompiler()
 	schema, err := compiler.Compile([]byte(`{"type":"object"}`))

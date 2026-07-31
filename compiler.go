@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,8 +13,22 @@ import (
 	"time"
 
 	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/goccy/go-yaml"
 )
+
+var exactNumberOptions = json.WithUnmarshalers(
+	json.UnmarshalFromFunc(func(decoder *jsontext.Decoder, value *any) error {
+		if decoder.PeekKind() == '0' {
+			*value = jsonNumber("")
+		}
+		return errors.ErrUnsupported
+	}),
+)
+
+func unmarshalJSONExact(data []byte, value any) error {
+	return json.Unmarshal(data, value, exactNumberOptions)
+}
 
 // FormatDef defines a custom format validation rule.
 type FormatDef struct {
@@ -42,8 +57,9 @@ type Compiler struct {
 	defaultDialect Dialect
 
 	// JSON encoder/decoder configuration
-	jsonEncoder func(v any) ([]byte, error)
-	jsonDecoder func(data []byte, v any) error
+	jsonEncoder           func(v any) ([]byte, error)
+	jsonDecoder           func(data []byte, v any) error
+	validationJSONDecoder func(data []byte, v any) error
 
 	// Default function registry
 	defaultFuncs map[string]DefaultFunc // Registry for dynamic default value functions
@@ -69,8 +85,9 @@ func NewCompiler() *Compiler {
 		defaultDialect: Draft202012,
 
 		// Default to go-json-experiment JSON implementation
-		jsonEncoder: func(v any) ([]byte, error) { return json.Marshal(v) },
-		jsonDecoder: func(data []byte, v any) error { return json.Unmarshal(data, v) },
+		jsonEncoder:           func(v any) ([]byte, error) { return json.Marshal(v) },
+		jsonDecoder:           func(data []byte, v any) error { return json.Unmarshal(data, v) },
+		validationJSONDecoder: unmarshalJSONExact,
 	}
 	compiler.initDefaults()
 	return compiler
@@ -85,6 +102,7 @@ func (c *Compiler) WithEncoderJSON(encoder func(v any) ([]byte, error)) *Compile
 // WithDecoderJSON configures custom JSON decoder implementation.
 func (c *Compiler) WithDecoderJSON(decoder func(data []byte, v any) error) *Compiler {
 	c.jsonDecoder = decoder
+	c.validationJSONDecoder = decoder
 	return c
 }
 

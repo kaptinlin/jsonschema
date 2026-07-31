@@ -26,7 +26,7 @@ func (s *Schema) Validate(instance any) *EvaluationResult {
 // The input is guaranteed to be treated as JSON data and parsed accordingly.
 func (s *Schema) ValidateJSON(data []byte) *EvaluationResult {
 	var parsed any
-	err := s.Compiler().jsonDecoder(data, &parsed)
+	err := s.Compiler().validationJSONDecoder(data, &parsed)
 	if err != nil {
 		result := NewEvaluationResult(s)
 		result.AddError(NewEvaluationError("format", "invalid_json", "Invalid JSON format"))
@@ -57,7 +57,7 @@ func (s *Schema) ValidateMap(data map[string]any) *EvaluationResult {
 // processJSONBytes handles []byte input with smart JSON parsing
 func (s *Schema) processJSONBytes(jsonBytes []byte) (any, error) {
 	var parsed any
-	err := s.Compiler().jsonDecoder(jsonBytes, &parsed)
+	err := s.Compiler().validationJSONDecoder(jsonBytes, &parsed)
 	if err == nil {
 		return parsed, nil
 	}

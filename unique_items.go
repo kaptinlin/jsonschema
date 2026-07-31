@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hash/maphash"
 	"maps"
-	"math"
 	"reflect"
 	"slices"
 	"strings"
@@ -74,6 +73,11 @@ func evaluateUniqueItems(schema *Schema, data []any) *EvaluationError {
 
 // hashJSONValue writes a deterministic hash of a JSON value to the hash.
 func hashJSONValue(h *maphash.Hash, v any) {
+	if number, ok := numberRat(v); ok {
+		_, _ = h.WriteString(number.RatString())
+		return
+	}
+
 	switch val := v.(type) {
 	case nil:
 		_ = h.WriteByte(0)
@@ -84,21 +88,6 @@ func hashJSONValue(h *maphash.Hash, v any) {
 		} else {
 			_ = h.WriteByte(0)
 		}
-
-	case float64:
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], math.Float64bits(val))
-		_, _ = h.Write(buf[:])
-
-	case int:
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], uint64(val)) //nolint:gosec // Overflow is acceptable for hashing
-		_, _ = h.Write(buf[:])
-
-	case int64:
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], uint64(val)) //nolint:gosec // Overflow is acceptable for hashing
-		_, _ = h.Write(buf[:])
 
 	case string:
 		_, _ = h.WriteString(val)
@@ -136,6 +125,12 @@ func hashJSONValueReflect(h *maphash.Hash, rv reflect.Value) {
 		_ = h.WriteByte(0)
 		return
 	}
+	if rv.CanInterface() {
+		if number, ok := numberRat(rv.Interface()); ok {
+			_, _ = h.WriteString(number.RatString())
+			return
+		}
+	}
 
 	switch rv.Kind() {
 	case reflect.Bool:
@@ -145,20 +140,10 @@ func hashJSONValueReflect(h *maphash.Hash, rv reflect.Value) {
 			_ = h.WriteByte(0)
 		}
 
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], uint64(rv.Int())) //nolint:gosec // Overflow is acceptable for hashing
-		_, _ = h.Write(buf[:])
-
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], rv.Uint())
-		_, _ = h.Write(buf[:])
-
-	case reflect.Float32, reflect.Float64:
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], math.Float64bits(rv.Float()))
-		_, _ = h.Write(buf[:])
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return // Numeric kinds are normalized before the switch.
 
 	case reflect.String:
 		_, _ = h.WriteString(rv.String())
@@ -207,6 +192,15 @@ func deepEqualJSON(a, b any) bool {
 	}
 	if a == nil || b == nil {
 		return false
+	}
+	if reflect.DeepEqual(a, b) {
+		return true
+	}
+
+	ra, aIsNumber := numberRat(a)
+	rb, bIsNumber := numberRat(b)
+	if aIsNumber || bIsNumber {
+		return aIsNumber && bIsNumber && ra.Cmp(rb.Rat) == 0
 	}
 
 	switch va := a.(type) {
@@ -264,6 +258,13 @@ func deepEqualJSON(a, b any) bool {
 func deepEqualJSONReflect(a, b reflect.Value) bool {
 	if !a.IsValid() || !b.IsValid() {
 		return a.IsValid() == b.IsValid()
+	}
+	if a.CanInterface() && b.CanInterface() {
+		ra, aIsNumber := numberRat(a.Interface())
+		rb, bIsNumber := numberRat(b.Interface())
+		if aIsNumber || bIsNumber {
+			return aIsNumber && bIsNumber && ra.Cmp(rb.Rat) == 0
+		}
 	}
 
 	if a.Kind() != b.Kind() {

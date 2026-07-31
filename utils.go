@@ -41,6 +41,12 @@ func getDataType(v any) string {
 		return "null"
 	case bool:
 		return "boolean"
+	case jsonNumber:
+		rat := NewRat(v)
+		if rat != nil && rat.IsInt() {
+			return "integer"
+		}
+		return "number"
 	case float32, float64:
 		// Convert to big.Float to check if it can be considered an integer
 		bigFloat := new(big.Float).SetFloat64(reflect.ValueOf(v).Float())

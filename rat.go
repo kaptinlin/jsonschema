@@ -3,6 +3,7 @@ package jsonschema
 import (
 	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 
 	"github.com/go-json-experiment/json"
@@ -13,10 +14,22 @@ type Rat struct {
 	*big.Rat
 }
 
+// jsonNumber preserves the source representation of numbers decoded into any.
+type jsonNumber string
+
+func (n *jsonNumber) UnmarshalJSON(data []byte) error {
+	*n = jsonNumber(data)
+	return nil
+}
+
+func (n jsonNumber) MarshalJSON() ([]byte, error) {
+	return []byte(n), nil
+}
+
 // UnmarshalJSON implements the json.Unmarshaler interface for Rat.
 func (r *Rat) UnmarshalJSON(data []byte) error {
 	var tmp any
-	if err := json.Unmarshal(data, &tmp); err != nil {
+	if err := unmarshalJSONExact(data, &tmp); err != nil {
 		return err
 	}
 
@@ -46,6 +59,8 @@ func convertToBigRat(data any) (*big.Rat, error) {
 	switch v := data.(type) {
 	case float64, float32, int, int64, int32, int16, int8, uint, uint64, uint32, uint16, uint8:
 		str = fmt.Sprint(v)
+	case jsonNumber:
+		str = string(v)
 	case string:
 		str = v
 	default:
@@ -66,6 +81,31 @@ func NewRat(value any) *Rat {
 		return nil
 	}
 	return &Rat{converted}
+}
+
+func numberRat(value any) (*Rat, bool) {
+	if number, ok := value.(jsonNumber); ok {
+		rat := NewRat(number)
+		return rat, rat != nil
+	}
+
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() {
+		return nil, false
+	}
+
+	var rat *Rat
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		rat = NewRat(rv.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		rat = NewRat(rv.Uint())
+	case reflect.Float32, reflect.Float64:
+		rat = NewRat(rv.Float())
+	default:
+		return nil, false
+	}
+	return rat, rat != nil
 }
 
 // FormatRat formats a Rat as a string.
