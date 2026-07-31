@@ -1,12 +1,13 @@
 package jsonschema
 
 import (
+	stdjson "encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
-	"strings"
+	"strconv"
 
-	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 )
 
 // Rat wraps a big.Rat to enable custom JSON marshaling and unmarshaling.
@@ -14,79 +15,51 @@ type Rat struct {
 	*big.Rat
 }
 
-// jsonNumber preserves the source representation of numbers decoded into any.
-type jsonNumber string
-
-func (n *jsonNumber) UnmarshalJSON(data []byte) error {
-	*n = jsonNumber(data)
-	return nil
-}
-
-func (n jsonNumber) MarshalJSON() ([]byte, error) {
-	return []byte(n), nil
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface for Rat.
+// UnmarshalJSON decodes a JSON number into r. Quoted numeric strings are rejected.
 func (r *Rat) UnmarshalJSON(data []byte) error {
-	var tmp any
-	if err := unmarshalJSONExact(data, &tmp); err != nil {
+	var number stdjson.Number
+	if err := unmarshalJSON(data, &number); err != nil {
 		return err
 	}
 
-	converted, err := convertToBigRat(tmp)
-	if err != nil {
-		return err
+	converted, ok := numberRat(number)
+	if !ok {
+		return ErrUnsupportedRatType
 	}
-
-	r.Rat = converted
+	if converted == nil {
+		return ErrRatConversion
+	}
+	r.Rat = converted.Rat
 	return nil
 }
 
-// MarshalJSON implements the json.Marshaler interface for Rat.
+// MarshalJSON encodes r as an exact JSON number. It returns an error when r has
+// no finite decimal representation.
 func (r *Rat) MarshalJSON() ([]byte, error) {
-	formattedValue := FormatRat(r)
-	if strings.Contains(formattedValue, "/") {
-		// Output as a JSON string if it still contains a fraction
-		return json.Marshal(formattedValue)
+	formatted, err := formatRatJSON(r)
+	if err != nil {
+		return nil, err
 	}
-	// Output as a JSON number
-	return []byte(formattedValue), nil
-}
-
-// convertToBigRat converts various types to big.Rat.
-func convertToBigRat(data any) (*big.Rat, error) {
-	var str string
-	switch v := data.(type) {
-	case float64, float32, int, int64, int32, int16, int8, uint, uint64, uint32, uint16, uint8:
-		str = fmt.Sprint(v)
-	case jsonNumber:
-		str = string(v)
-	case string:
-		str = v
-	default:
-		return nil, ErrUnsupportedRatType
-	}
-
-	numRat := new(big.Rat)
-	if _, ok := numRat.SetString(str); !ok {
-		return nil, ErrRatConversion
-	}
-	return numRat, nil
+	return []byte(formatted), nil
 }
 
 // NewRat creates a new Rat instance from a given value.
 func NewRat(value any) *Rat {
-	converted, err := convertToBigRat(value)
-	if err != nil {
-		return nil
+	if text, ok := value.(string); ok {
+		rat, _ := parseRat(text)
+		return rat
 	}
-	return &Rat{converted}
+	rat, _ := numberRat(value)
+	return rat
 }
 
 func numberRat(value any) (*Rat, bool) {
-	if number, ok := value.(jsonNumber); ok {
-		rat := NewRat(number)
-		return rat, rat != nil
+	if number, ok := value.(stdjson.Number); ok {
+		if _, ok := jsonNumberToken(number); !ok {
+			return nil, true
+		}
+		rat, _ := parseRat(number.String())
+		return rat, true
 	}
 
 	rv := reflect.ValueOf(value)
@@ -94,41 +67,79 @@ func numberRat(value any) (*Rat, bool) {
 		return nil, false
 	}
 
-	var rat *Rat
+	var text string
 	switch rv.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		rat = NewRat(rv.Int())
+		text = strconv.FormatInt(rv.Int(), 10)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		rat = NewRat(rv.Uint())
+		text = strconv.FormatUint(rv.Uint(), 10)
 	case reflect.Float32, reflect.Float64:
-		rat = NewRat(rv.Float())
+		text = strconv.FormatFloat(rv.Float(), 'g', -1, rv.Type().Bits())
 	default:
 		return nil, false
 	}
-	return rat, rat != nil
+	rat, _ := parseRat(text)
+	return rat, true
 }
 
-// FormatRat formats a Rat as a string.
-func FormatRat(r *Rat) string {
-	if r == nil {
-		return "null"
+func jsonNumberToken(number stdjson.Number) (jsontext.Value, bool) {
+	raw := jsontext.Value(number.String())
+	if len(raw) == 0 || (raw[0] != '-' && (raw[0] < '0' || raw[0] > '9')) ||
+		raw[len(raw)-1] < '0' || raw[len(raw)-1] > '9' {
+		return nil, false
 	}
+	return raw, raw.Kind() == '0' && raw.IsValid()
+}
 
-	// Check if the Rat is an integer
+func parseRat(text string) (*Rat, bool) {
+	number := new(big.Rat)
+	if _, ok := number.SetString(text); !ok {
+		return nil, false
+	}
+	return &Rat{number}, true
+}
+
+func formatRatJSON(r *Rat) (string, error) {
+	if r == nil || r.Rat == nil {
+		return "null", nil
+	}
 	if r.IsInt() {
-		return r.Num().String() // Output as a plain integer string
+		return r.Num().String(), nil
 	}
 
-	// Format as a decimal maintaining precision
-	dec := r.FloatString(10) // You might adjust precision as needed
+	denominator := new(big.Int).Set(r.Denom())
+	twos := denominator.TrailingZeroBits()
+	denominator.Rsh(denominator, twos)
 
-	// Trim unnecessary trailing zeros and decimal point if no fractional part
-	trimmedDec := strings.TrimRight(dec, "0")
-	trimmedDec = strings.TrimRight(trimmedDec, ".")
-
-	if trimmedDec == "" {
-		return "0" // correct trimming edge case of "0.0000"
+	five := big.NewInt(5)
+	quotient := new(big.Int)
+	remainder := new(big.Int)
+	var fives uint
+	for {
+		quotient.QuoRem(denominator, five, remainder)
+		if remainder.Sign() != 0 {
+			break
+		}
+		denominator.Set(quotient)
+		fives++
+	}
+	if !denominator.IsInt64() || denominator.Int64() != 1 {
+		return "", fmt.Errorf("%w: %s has no finite decimal representation", ErrRatConversion, r.RatString())
 	}
 
-	return trimmedDec
+	precision := max(twos, fives)
+	if precision > uint(^uint(0)>>1) {
+		return "", fmt.Errorf("%w: decimal precision exceeds int range", ErrRatConversion)
+	}
+	return r.FloatString(int(precision)), nil
+}
+
+// FormatRat formats r without losing its mathematical value. Non-terminating
+// decimals use fraction notation.
+func FormatRat(r *Rat) string {
+	formatted, err := formatRatJSON(r)
+	if err == nil {
+		return formatted
+	}
+	return r.RatString()
 }

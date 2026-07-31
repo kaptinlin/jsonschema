@@ -9,54 +9,43 @@ import (
 	"github.com/kaptinlin/jsonschema"
 )
 
+var (
+	minInt32   = jsonschema.NewRat(math.MinInt32)
+	maxInt32   = jsonschema.NewRat(math.MaxInt32)
+	minInt64   = jsonschema.NewRat(int64(math.MinInt64))
+	maxInt64   = jsonschema.NewRat(int64(math.MaxInt64))
+	minFloat32 = jsonschema.NewRat(-math.MaxFloat32)
+	maxFloat32 = jsonschema.NewRat(math.MaxFloat32)
+	minFloat64 = jsonschema.NewRat(-math.MaxFloat64)
+	maxFloat64 = jsonschema.NewRat(math.MaxFloat64)
+)
+
 // --- OpenAPI Format Validators ---
 
 // validateInt32 checks if the value is a valid 32-bit integer.
 func validateInt32(v any) bool {
-	switch val := v.(type) {
-	case int:
-		return val >= math.MinInt32 && val <= math.MaxInt32
-	case int32:
-		return true
-	case int64:
-		return val >= math.MinInt32 && val <= math.MaxInt32
-	case float64:
-		// Check if it's a whole number in valid range
-		return val == float64(int64(val)) && val >= math.MinInt32 && val <= math.MaxInt32
-	default:
-		return false
-	}
+	value := jsonschema.NewRat(v)
+	return value != nil && value.IsInt() &&
+		value.Cmp(minInt32.Rat) >= 0 && value.Cmp(maxInt32.Rat) <= 0
 }
 
 // validateInt64 checks if the value is a valid 64-bit integer.
 func validateInt64(v any) bool {
-	switch val := v.(type) {
-	case int, int32, int64:
-		return true
-	case float64:
-		// Check if it's a whole number
-		return val == float64(int64(val))
-	default:
-		return false
-	}
+	value := jsonschema.NewRat(v)
+	return value != nil && value.IsInt() &&
+		value.Cmp(minInt64.Rat) >= 0 && value.Cmp(maxInt64.Rat) <= 0
 }
 
 // validateFloat checks if the value is a valid 32-bit float.
 func validateFloat(v any) bool {
-	switch val := v.(type) {
-	case float32:
-		return true
-	case float64:
-		return val >= -math.MaxFloat32 && val <= math.MaxFloat32
-	default:
-		return false
-	}
+	value := jsonschema.NewRat(v)
+	return value != nil && value.Cmp(minFloat32.Rat) >= 0 && value.Cmp(maxFloat32.Rat) <= 0
 }
 
 // validateDouble checks if the value is a valid 64-bit float (double).
 func validateDouble(v any) bool {
-	_, ok := v.(float64)
-	return ok
+	value := jsonschema.NewRat(v)
+	return value != nil && value.Cmp(minFloat64.Rat) >= 0 && value.Cmp(maxFloat64.Rat) <= 0
 }
 
 // validateByte checks if the value is a valid base64 string.

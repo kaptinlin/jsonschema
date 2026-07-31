@@ -2,13 +2,33 @@ package jsonschema
 
 import (
 	"encoding/binary"
-	"fmt"
 	"hash/maphash"
-	"maps"
 	"reflect"
 	"slices"
-	"strings"
 )
+
+const (
+	hashNull byte = iota
+	hashFalse
+	hashTrue
+	hashNumber
+	hashString
+	hashArray
+	hashObject
+	hashUnsupported
+)
+
+type jsonVisit struct {
+	typeOf   reflect.Type
+	pointer  uintptr
+	length   int
+	capacity int
+}
+
+type jsonComparisonState struct {
+	a []jsonVisit
+	b []jsonVisit
+}
 
 // evaluateUniqueItems checks if all elements in the array are unique when the "uniqueItems" property is set to true.
 // According to the JSON Schema Draft 2020-12:
@@ -73,61 +93,101 @@ func evaluateUniqueItems(schema *Schema, data []any) *EvaluationError {
 
 // hashJSONValue writes a deterministic hash of a JSON value to the hash.
 func hashJSONValue(h *maphash.Hash, v any) {
+	var inline [8]jsonVisit
+	hashJSONValueState(h, v, inline[:0])
+}
+
+func hashJSONValueState(h *maphash.Hash, v any, active []jsonVisit) {
 	if number, ok := numberRat(v); ok {
-		_, _ = h.WriteString(number.RatString())
+		if number == nil {
+			_ = h.WriteByte(hashUnsupported)
+			return
+		}
+		writeHashString(h, hashNumber, number.RatString())
 		return
 	}
 
 	switch val := v.(type) {
 	case nil:
-		_ = h.WriteByte(0)
+		_ = h.WriteByte(hashNull)
 
 	case bool:
 		if val {
-			_ = h.WriteByte(1)
+			_ = h.WriteByte(hashTrue)
 		} else {
-			_ = h.WriteByte(0)
+			_ = h.WriteByte(hashFalse)
 		}
 
 	case string:
-		_, _ = h.WriteString(val)
+		writeHashString(h, hashString, val)
 
 	case []any:
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], uint64(len(val)))
-		_, _ = h.Write(buf[:])
+		var ok bool
+		active, ok = enterJSONValue(active, reflect.ValueOf(val))
+		if !ok {
+			_ = h.WriteByte(hashUnsupported)
+			return
+		}
+		writeHashLength(h, hashArray, len(val))
 		for _, item := range val {
-			hashJSONValue(h, item)
+			hashJSONValueState(h, item, active)
 		}
 
 	case map[string]any:
-		// Sort keys for deterministic hashing
-		keys := slices.Sorted(maps.Keys(val))
-
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], uint64(len(keys)))
-		_, _ = h.Write(buf[:])
-
-		for _, k := range keys {
-			_, _ = h.WriteString(k)
-			hashJSONValue(h, val[k])
+		var ok bool
+		active, ok = enterJSONValue(active, reflect.ValueOf(val))
+		if !ok {
+			_ = h.WriteByte(hashUnsupported)
+			return
+		}
+		keys := make([]string, 0, len(val))
+		for key := range val {
+			keys = append(keys, key)
+		}
+		slices.Sort(keys)
+		writeHashLength(h, hashObject, len(keys))
+		for _, key := range keys {
+			writeHashString(h, hashString, key)
+			hashJSONValueState(h, val[key], active)
 		}
 
 	default:
-		// Fallback to reflection for other types
-		hashJSONValueReflect(h, reflect.ValueOf(v))
+		hashJSONValueReflect(h, reflect.ValueOf(v), active)
 	}
 }
 
+func writeHashLength(h *maphash.Hash, tag byte, length int) {
+	_ = h.WriteByte(tag)
+	var buf [8]byte
+	binary.BigEndian.PutUint64(buf[:], uint64(length)) //nolint:gosec // Length framing only.
+	_, _ = h.Write(buf[:])
+}
+
+func writeHashString(h *maphash.Hash, tag byte, value string) {
+	writeHashLength(h, tag, len(value))
+	_, _ = h.WriteString(value)
+}
+
 // hashJSONValueReflect handles hashing for types that need reflection.
-func hashJSONValueReflect(h *maphash.Hash, rv reflect.Value) {
-	if !rv.IsValid() {
-		_ = h.WriteByte(0)
+func hashJSONValueReflect(h *maphash.Hash, rv reflect.Value, active []jsonVisit) {
+	var ok bool
+	rv, ok = indirectJSONValue(rv)
+	if !ok {
+		_ = h.WriteByte(hashUnsupported)
 		return
 	}
+	if !rv.IsValid() {
+		_ = h.WriteByte(hashNull)
+		return
+	}
+
 	if rv.CanInterface() {
 		if number, ok := numberRat(rv.Interface()); ok {
-			_, _ = h.WriteString(number.RatString())
+			if number == nil {
+				_ = h.WriteByte(hashUnsupported)
+				return
+			}
+			writeHashString(h, hashNumber, number.RatString())
 			return
 		}
 	}
@@ -135,9 +195,9 @@ func hashJSONValueReflect(h *maphash.Hash, rv reflect.Value) {
 	switch rv.Kind() {
 	case reflect.Bool:
 		if rv.Bool() {
-			_ = h.WriteByte(1)
+			_ = h.WriteByte(hashTrue)
 		} else {
-			_ = h.WriteByte(0)
+			_ = h.WriteByte(hashFalse)
 		}
 
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -146,181 +206,177 @@ func hashJSONValueReflect(h *maphash.Hash, rv reflect.Value) {
 		return // Numeric kinds are normalized before the switch.
 
 	case reflect.String:
-		_, _ = h.WriteString(rv.String())
+		writeHashString(h, hashString, rv.String())
 
 	case reflect.Slice, reflect.Array:
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], uint64(rv.Len())) //nolint:gosec // Overflow is acceptable for hashing
-		_, _ = h.Write(buf[:])
+		var ok bool
+		active, ok = enterJSONValue(active, rv)
+		if !ok {
+			_ = h.WriteByte(hashUnsupported)
+			return
+		}
+		writeHashLength(h, hashArray, rv.Len())
 		for i := range rv.Len() {
-			hashJSONValueReflect(h, rv.Index(i))
+			hashJSONValueReflect(h, rv.Index(i), active)
 		}
 
 	case reflect.Map:
-		keys := rv.MapKeys()
-		slices.SortFunc(keys, func(a, b reflect.Value) int {
-			return strings.Compare(fmt.Sprint(a.Interface()), fmt.Sprint(b.Interface()))
-		})
-
-		var buf [8]byte
-		binary.BigEndian.PutUint64(buf[:], uint64(len(keys)))
-		_, _ = h.Write(buf[:])
-
-		for _, k := range keys {
-			hashJSONValueReflect(h, k)
-			hashJSONValueReflect(h, rv.MapIndex(k))
+		if rv.Type().Key().Kind() != reflect.String {
+			_ = h.WriteByte(hashUnsupported)
+			return
+		}
+		active, ok = enterJSONValue(active, rv)
+		if !ok {
+			_ = h.WriteByte(hashUnsupported)
+			return
+		}
+		keys := make([]string, 0, rv.Len())
+		for _, key := range rv.MapKeys() {
+			keys = append(keys, key.String())
+		}
+		slices.Sort(keys)
+		writeHashLength(h, hashObject, len(keys))
+		for _, key := range keys {
+			writeHashString(h, hashString, key)
+			hashJSONValueReflect(h, mapValueByString(rv, key), active)
 		}
 
-	case reflect.Interface, reflect.Pointer:
-		if rv.IsNil() {
-			_ = h.WriteByte(0)
-		} else {
-			hashJSONValueReflect(h, rv.Elem())
-		}
-
-	case reflect.Invalid, reflect.Uintptr, reflect.Complex64, reflect.Complex128,
+	case reflect.Invalid, reflect.Interface, reflect.Pointer, reflect.Uintptr, reflect.Complex64, reflect.Complex128,
 		reflect.Chan, reflect.Func, reflect.Struct, reflect.UnsafePointer:
-		// For unsupported types, use string representation as fallback
-		_, _ = fmt.Fprint(h, rv.Interface())
+		_ = h.WriteByte(hashUnsupported)
 	}
 }
 
 // deepEqualJSON performs deep equality comparison for JSON values.
 func deepEqualJSON(a, b any) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	if reflect.DeepEqual(a, b) {
-		return true
-	}
-
-	ra, aIsNumber := numberRat(a)
-	rb, bIsNumber := numberRat(b)
-	if aIsNumber || bIsNumber {
-		return aIsNumber && bIsNumber && ra.Cmp(rb.Rat) == 0
-	}
-
-	switch va := a.(type) {
-	case bool:
-		vb, ok := b.(bool)
-		return ok && va == vb
-
-	case float64:
-		vb, ok := b.(float64)
-		return ok && va == vb
-
-	case int:
-		vb, ok := b.(int)
-		return ok && va == vb
-
-	case int64:
-		vb, ok := b.(int64)
-		return ok && va == vb
-
-	case string:
-		vb, ok := b.(string)
-		return ok && va == vb
-
-	case []any:
-		vb, ok := b.([]any)
-		if !ok || len(va) != len(vb) {
-			return false
-		}
-		for i := range va {
-			if !deepEqualJSON(va[i], vb[i]) {
-				return false
-			}
-		}
-		return true
-
-	case map[string]any:
-		vb, ok := b.(map[string]any)
-		if !ok || len(va) != len(vb) {
-			return false
-		}
-		for k, v := range va {
-			vbVal, exists := vb[k]
-			if !exists || !deepEqualJSON(v, vbVal) {
-				return false
-			}
-		}
-		return true
-	}
-
-	// Fallback to reflection-based comparison
-	return deepEqualJSONReflect(reflect.ValueOf(a), reflect.ValueOf(b))
+	var aInline, bInline [8]jsonVisit
+	state := jsonComparisonState{a: aInline[:0], b: bInline[:0]}
+	return deepEqualJSONReflect(reflect.ValueOf(a), reflect.ValueOf(b), state)
 }
 
 // deepEqualJSONReflect performs reflection-based deep equality.
-func deepEqualJSONReflect(a, b reflect.Value) bool {
-	if !a.IsValid() || !b.IsValid() {
-		return a.IsValid() == b.IsValid()
+func deepEqualJSONReflect(a, b reflect.Value, state jsonComparisonState) bool {
+	var aOK, bOK bool
+	a, aOK = indirectJSONValue(a)
+	b, bOK = indirectJSONValue(b)
+	if !aOK || !bOK {
+		return false
 	}
+	if !a.IsValid() || !b.IsValid() {
+		return !a.IsValid() && !b.IsValid()
+	}
+
 	if a.CanInterface() && b.CanInterface() {
 		ra, aIsNumber := numberRat(a.Interface())
 		rb, bIsNumber := numberRat(b.Interface())
 		if aIsNumber || bIsNumber {
-			return aIsNumber && bIsNumber && ra.Cmp(rb.Rat) == 0
+			return aIsNumber && bIsNumber && ra != nil && rb != nil && ra.Cmp(rb.Rat) == 0
 		}
 	}
 
-	if a.Kind() != b.Kind() {
-		return false
-	}
-
-	switch a.Kind() {
-	case reflect.Bool:
+	switch {
+	case a.Kind() == reflect.Bool && b.Kind() == reflect.Bool:
 		return a.Bool() == b.Bool()
 
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return a.Int() == b.Int()
-
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return a.Uint() == b.Uint()
-
-	case reflect.Float32, reflect.Float64:
-		return a.Float() == b.Float()
-
-	case reflect.String:
+	case a.Kind() == reflect.String && b.Kind() == reflect.String:
 		return a.String() == b.String()
 
-	case reflect.Slice, reflect.Array:
+	case isArrayKind(a.Kind()) && isArrayKind(b.Kind()):
 		if a.Len() != b.Len() {
+			return false
+		}
+		if !state.enter(a, b) {
 			return false
 		}
 		for i := range a.Len() {
-			if !deepEqualJSONReflect(a.Index(i), b.Index(i)) {
+			if !deepEqualJSONReflect(a.Index(i), b.Index(i), state) {
 				return false
 			}
 		}
 		return true
 
-	case reflect.Map:
-		if a.Len() != b.Len() {
+	case a.Kind() == reflect.Map && b.Kind() == reflect.Map:
+		if a.Type().Key().Kind() != reflect.String || b.Type().Key().Kind() != reflect.String || a.Len() != b.Len() {
 			return false
 		}
-		for _, k := range a.MapKeys() {
-			aVal := a.MapIndex(k)
-			bVal := b.MapIndex(k)
-			if !bVal.IsValid() || !deepEqualJSONReflect(aVal, bVal) {
+		if !state.enter(a, b) {
+			return false
+		}
+		for _, key := range a.MapKeys() {
+			bValue := mapValueByString(b, key.String())
+			if !bValue.IsValid() || !deepEqualJSONReflect(a.MapIndex(key), bValue, state) {
 				return false
 			}
 		}
 		return true
-
-	case reflect.Interface, reflect.Pointer:
-		if a.IsNil() || b.IsNil() {
-			return a.IsNil() == b.IsNil()
-		}
-		return deepEqualJSONReflect(a.Elem(), b.Elem())
-
-	case reflect.Invalid, reflect.Uintptr, reflect.Complex64, reflect.Complex128,
-		reflect.Chan, reflect.Func, reflect.Struct, reflect.UnsafePointer:
-		return false
 	}
 
 	return false
+}
+
+func indirectJSONValue(value reflect.Value) (reflect.Value, bool) {
+	var inline [8]jsonVisit
+	pointers := inline[:0]
+	for value.IsValid() && (value.Kind() == reflect.Interface || value.Kind() == reflect.Pointer) {
+		if value.IsNil() {
+			return reflect.Value{}, true
+		}
+		if value.Kind() == reflect.Pointer {
+			var ok bool
+			pointers, ok = enterJSONValue(pointers, value)
+			if !ok {
+				return reflect.Value{}, false
+			}
+		}
+		value = value.Elem()
+	}
+	return value, true
+}
+
+func (state *jsonComparisonState) enter(a, b reflect.Value) bool {
+	var aOK bool
+	state.a, aOK = enterJSONValue(state.a, a)
+	if !aOK {
+		return false
+	}
+	var bOK bool
+	state.b, bOK = enterJSONValue(state.b, b)
+	return bOK
+}
+
+func referenceJSONVisit(value reflect.Value) (jsonVisit, bool) {
+	if value.Kind() != reflect.Map && value.Kind() != reflect.Pointer && value.Kind() != reflect.Slice {
+		return jsonVisit{}, false
+	}
+	return makeJSONVisit(value), true
+}
+
+func makeJSONVisit(value reflect.Value) jsonVisit {
+	visit := jsonVisit{typeOf: value.Type(), pointer: value.Pointer()}
+	if value.Kind() == reflect.Slice {
+		visit.length = value.Len()
+		visit.capacity = value.Cap()
+	}
+	return visit
+}
+
+func enterJSONValue(active []jsonVisit, value reflect.Value) ([]jsonVisit, bool) {
+	visit, tracked := referenceJSONVisit(value)
+	if !tracked {
+		return active, true
+	}
+	if slices.Contains(active, visit) {
+		return active, false
+	}
+	return append(active, visit), true
+}
+
+func isArrayKind(kind reflect.Kind) bool {
+	return kind == reflect.Array || kind == reflect.Slice
+}
+
+func mapValueByString(value reflect.Value, key string) reflect.Value {
+	mapKey := reflect.New(value.Type().Key()).Elem()
+	mapKey.SetString(key)
+	return value.MapIndex(mapKey)
 }

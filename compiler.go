@@ -3,6 +3,7 @@ package jsonschema
 import (
 	"context"
 	"encoding/base64"
+	stdjson "encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -17,17 +18,59 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-var exactNumberOptions = json.WithUnmarshalers(
+var numberUnmarshalOptions = json.WithUnmarshalers(json.JoinUnmarshalers(
 	json.UnmarshalFromFunc(func(decoder *jsontext.Decoder, value *any) error {
-		if decoder.PeekKind() == '0' {
-			*value = jsonNumber("")
+		if decoder.PeekKind() != '0' {
+			return errors.ErrUnsupported
 		}
-		return errors.ErrUnsupported
+		number, err := decodeJSONNumber(decoder)
+		if err != nil {
+			return err
+		}
+		*value = number
+		return nil
+	}),
+	json.UnmarshalFromFunc(func(decoder *jsontext.Decoder, value *stdjson.Number) error {
+		number, err := decodeJSONNumber(decoder)
+		if err != nil {
+			return err
+		}
+		*value = number
+		return nil
+	}),
+))
+
+func decodeJSONNumber(decoder *jsontext.Decoder) (stdjson.Number, error) {
+	raw, err := decoder.ReadValue()
+	if err != nil {
+		return "", err
+	}
+	switch raw.Kind() {
+	case '0':
+		return stdjson.Number(raw), nil
+	case 'n':
+		return "", nil
+	default:
+		return "", fmt.Errorf("expected JSON number, got %q", raw.Kind())
+	}
+}
+
+var numberMarshalOptions = json.WithMarshalers(
+	json.MarshalToFunc(func(encoder *jsontext.Encoder, number stdjson.Number) error {
+		raw, ok := jsonNumberToken(number)
+		if !ok {
+			return fmt.Errorf("invalid JSON number %q", number)
+		}
+		return encoder.WriteValue(raw)
 	}),
 )
 
-func unmarshalJSONExact(data []byte, value any) error {
-	return json.Unmarshal(data, value, exactNumberOptions)
+func marshalJSON(value any, options ...json.Options) ([]byte, error) {
+	return json.Marshal(value, append(options, numberMarshalOptions)...)
+}
+
+func unmarshalJSON(data []byte, value any) error {
+	return json.Unmarshal(data, value, numberUnmarshalOptions)
 }
 
 // FormatDef defines a custom format validation rule.
@@ -57,9 +100,8 @@ type Compiler struct {
 	defaultDialect Dialect
 
 	// JSON encoder/decoder configuration
-	jsonEncoder           func(v any) ([]byte, error)
-	jsonDecoder           func(data []byte, v any) error
-	validationJSONDecoder func(data []byte, v any) error
+	jsonEncoder func(v any) ([]byte, error)
+	jsonDecoder func(data []byte, v any) error
 
 	// Default function registry
 	defaultFuncs map[string]DefaultFunc // Registry for dynamic default value functions
@@ -85,24 +127,26 @@ func NewCompiler() *Compiler {
 		defaultDialect: Draft202012,
 
 		// Default to go-json-experiment JSON implementation
-		jsonEncoder:           func(v any) ([]byte, error) { return json.Marshal(v) },
-		jsonDecoder:           func(data []byte, v any) error { return json.Unmarshal(data, v) },
-		validationJSONDecoder: unmarshalJSONExact,
+		jsonEncoder: func(v any) ([]byte, error) { return marshalJSON(v) },
+		jsonDecoder: unmarshalJSON,
 	}
 	compiler.initDefaults()
 	return compiler
 }
 
-// WithEncoderJSON configures custom JSON encoder implementation.
+// WithEncoderJSON configures JSON encoding. Schema.Unmarshal uses the encoder
+// when converting intermediate values, so custom encoders must preserve
+// encoding/json.Number when exact untyped numbers are required.
 func (c *Compiler) WithEncoderJSON(encoder func(v any) ([]byte, error)) *Compiler {
 	c.jsonEncoder = encoder
 	return c
 }
 
-// WithDecoderJSON configures custom JSON decoder implementation.
+// WithDecoderJSON configures JSON decoding for instances, Schema.Unmarshal,
+// and the built-in application/json media handler. Schema documents always use
+// the package's exact decoder so their untyped keyword values remain consistent.
 func (c *Compiler) WithDecoderJSON(decoder func(data []byte, v any) error) *Compiler {
 	c.jsonDecoder = decoder
-	c.validationJSONDecoder = decoder
 	return c
 }
 

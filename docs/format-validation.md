@@ -48,6 +48,31 @@ schema.Validate("ID-123")   // valid=true
 schema.Validate("ABC-123")  // valid=false
 ```
 
+## Numeric Custom Formats
+
+Numeric callbacks may receive native or named Go numeric types for direct Go
+inputs and `encoding/json.Number` for JSON input. Normalize them with `NewRat`
+instead of switching on concrete Go types:
+
+```go
+compiler := jsonschema.NewCompiler()
+compiler.SetAssertFormat(true)
+
+zero := jsonschema.NewRat(0)
+hundred := jsonschema.NewRat(100)
+compiler.RegisterFormat("percentage", func(v any) bool {
+    value := jsonschema.NewRat(v)
+    return value != nil &&
+        value.Cmp(zero.Rat) >= 0 &&
+        value.Cmp(hundred.Rat) <= 0
+}, "number")
+```
+
+`NewRat` preserves exact `encoding/json.Number` values and supports native and
+named integers and floats. It returns `nil` when a value cannot be converted.
+The format's `"number"` type filter ensures the callback is not invoked for JSON
+strings; `NewRat`'s explicit numeric-string constructor support remains separate.
+
 ## Built-in Formats
 
 | Format | Description |

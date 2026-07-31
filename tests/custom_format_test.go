@@ -14,34 +14,23 @@ import (
 
 // --- Test Helpers for OpenAPI Formats ---
 
+var (
+	testMinInt32 = jsonschema.NewRat(math.MinInt32)
+	testMaxInt32 = jsonschema.NewRat(math.MaxInt32)
+	testMinInt64 = jsonschema.NewRat(int64(math.MinInt64))
+	testMaxInt64 = jsonschema.NewRat(int64(math.MaxInt64))
+)
+
 func validateTestInt32(v any) bool {
-	switch val := v.(type) {
-	case int:
-		return val >= math.MinInt32 && val <= math.MaxInt32
-	case int64:
-		return val >= math.MinInt32 && val <= math.MaxInt32
-	case float64:
-		return val == float64(int64(val)) && val >= math.MinInt32 && val <= math.MaxInt32
-	default:
-		return false
-	}
+	value := jsonschema.NewRat(v)
+	return value != nil && value.IsInt() &&
+		value.Cmp(testMinInt32.Rat) >= 0 && value.Cmp(testMaxInt32.Rat) <= 0
 }
 
 func validateTestInt64(v any) bool {
-	switch val := v.(type) {
-	case int, int64:
-		// Any int/int64 fits into int64 range and is already integral
-		return true
-	case float64:
-		// Must be an integer value
-		if val != float64(int64(val)) {
-			return false
-		}
-		// Check bounds using float64 limits of int64
-		return val >= float64(math.MinInt64) && val <= float64(math.MaxInt64)
-	default:
-		return false
-	}
+	value := jsonschema.NewRat(v)
+	return value != nil && value.IsInt() &&
+		value.Cmp(testMinInt64.Rat) >= 0 && value.Cmp(testMaxInt64.Rat) <= 0
 }
 
 func registerTestOpenAPIFormats(c *jsonschema.Compiler) {
@@ -72,15 +61,12 @@ func TestCustomFormatRegistration(t *testing.T) {
 func TestTypeSpecificFormats(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.SetAssertFormat(true)
+	zero := jsonschema.NewRat(0)
+	hundred := jsonschema.NewRat(100)
 
 	compiler.RegisterFormat("percentage", func(v any) bool {
-		switch val := v.(type) {
-		case float64:
-			return val >= 0 && val <= 100
-		case int:
-			return val >= 0 && val <= 100
-		}
-		return false
+		value := jsonschema.NewRat(v)
+		return value != nil && value.Cmp(zero.Rat) >= 0 && value.Cmp(hundred.Rat) <= 0
 	}, "number")
 
 	schema, err := compiler.Compile([]byte(`{"properties": {"score": {"type": "number", "format": "percentage"}, "name": {"type": "string", "format": "percentage"}}}`))
@@ -88,20 +74,16 @@ func TestTypeSpecificFormats(t *testing.T) {
 
 	assert.True(t, schema.Validate(map[string]any{"score": 85.5, "name": "test"}).IsValid())
 	assert.False(t, schema.Validate(map[string]any{"score": 150.0, "name": "test"}).IsValid())
+	assert.True(t, schema.ValidateJSON([]byte(`{"score":85.5,"name":"test"}`)).IsValid())
+	assert.False(t, schema.ValidateJSON([]byte(`{"score":150,"name":"test"}`)).IsValid())
 }
 
 func TestTypeSpecificNumberFormatAcceptsIntegerValues(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	compiler.SetAssertFormat(true)
 	compiler.RegisterFormat("whole-number", func(v any) bool {
-		switch value := v.(type) {
-		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-			return true
-		case float64:
-			return value == math.Trunc(value)
-		default:
-			return false
-		}
+		value := jsonschema.NewRat(v)
+		return value != nil && value.IsInt()
 	}, "number")
 
 	schema, err := compiler.Compile([]byte(`{"properties": {"count": {"type": "integer", "format": "whole-number"}, "name": {"type": "string", "format": "whole-number"}}}`))
@@ -150,7 +132,9 @@ func TestOpenAPICustomFormatValidation(t *testing.T) {
 
 		assert.True(t, schema.Validate(123).IsValid())
 		assert.True(t, schema.Validate(float64(2147483647)).IsValid())
+		assert.True(t, schema.ValidateJSON([]byte(`2147483647`)).IsValid())
 		assert.False(t, schema.Validate(float64(2147483648)).IsValid(), "int32 overflow")
+		assert.False(t, schema.ValidateJSON([]byte(`2147483648`)).IsValid(), "JSON int32 overflow")
 		assert.False(t, schema.Validate(123.45).IsValid(), "int32 with fraction")
 	})
 
@@ -159,6 +143,8 @@ func TestOpenAPICustomFormatValidation(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.True(t, schema.Validate(1234567890).IsValid())
+		assert.True(t, schema.ValidateJSON([]byte(`9223372036854775807`)).IsValid())
+		assert.False(t, schema.ValidateJSON([]byte(`9223372036854775808`)).IsValid(), "JSON int64 overflow")
 		assert.False(t, schema.Validate(float64(math.MaxInt64)*2).IsValid(), "int64 overflow")
 		assert.False(t, schema.Validate(12345.67).IsValid(), "int64 with fraction")
 	})

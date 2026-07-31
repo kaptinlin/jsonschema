@@ -16,6 +16,28 @@ task bench         # Run benchmarks
 task verify        # Run deps, fmt, vet, lint, test, and govulncheck
 ```
 
+## Agent Operating Rules
+
+- Read the relevant source, tests, and SPECS before changing behavior.
+- Think through the user-visible contract and failure cases before coding.
+- Apply KISS, DRY, and YAGNI; prefer the standard library and existing project utilities.
+- Reproduce bugs through the affected public entry point before changing internals.
+- Implement the smallest vertical slice that proves the requested behavior end to end.
+- Keep edits surgical and preserve unrelated worktree changes.
+- Verify against the task's actual acceptance criteria, not a generic command checklist.
+- Load only the context needed for the current decision and follow references on demand.
+- Resolve conflicting evidence in favor of runtime behavior, tests, and the owning SPEC; surface unresolved contract conflicts.
+- Write behavior tests that explain the regression and fail loudly on unsupported states.
+- Do not add policy-only gate scripts that merely restate documentation.
+- Do not add spec-mirror tests when stronger public-behavior coverage already proves the contract.
+
+## Agent Workflow
+
+Before designing or modifying behavior, identify and read the relevant document
+in `SPECS/`. Confirm the current implementation and tests against that contract,
+then make the smallest coherent change. If the code and SPEC disagree, resolve
+which reflects the intended public behavior before editing either one.
+
 ## Architecture
 
 ```text
@@ -25,6 +47,7 @@ jsonschema/
 ├── docs/                   # Human-facing guides for API, validation, unmarshal, formats, and tags
 ├── examples/               # Runnable examples for the major workflows
 ├── pkg/tagparser/          # Shared struct-tag parsing used by runtime generation and schemagen
+├── SPECS/                  # Durable behavioral contracts and design decisions
 ├── tests/                  # Integration tests and official JSON Schema suite coverage
 └── testdata/               # Test fixtures and external suite data
 ```
@@ -58,6 +81,9 @@ Key entry points:
 - Use the Go version declared in `go.mod`; use the modern features already present in this repository when they simplify code.
 - Keep validation and unmarshaling separate. `Schema.Unmarshal` applies defaults but must not silently become a validator.
 - Keep validation entry points behaviorally aligned. When a change affects validation semantics, add coverage for the relevant combination of `Validate`, `ValidateJSON`, `ValidateStruct`, and `ValidateMap`.
+- Preserve untyped JSON numbers as `encoding/json.Number` on package-owned decode paths; route numeric classification, constraints, equality, and hashing through the shared rational conversion semantics in [SPECS/01-exact-json-numbers.md](SPECS/01-exact-json-numbers.md).
+- Keep JSON equality and hashing total and consistent: caller-provided values must not panic, and equal supported values must hash equally.
+- Treat custom JSON codecs as caller-owned policy. Do not silently restore package precision semantics behind an explicit codec override.
 - Preserve JSON Schema Draft 2020-12 semantics. `format` remains annotation-only unless the caller opts in with `Compiler.SetAssertFormat(true)`.
 - Keep constructor helpers chainable and close to JSON Schema vocabulary.
 - Preserve deterministic generated schema output unless an option explicitly allows otherwise, such as `RequiredSortNone`.
@@ -70,6 +96,8 @@ Key entry points:
 - No `panic` in library code — return errors and wrap with context.
 - No silent behavior changes to `required`, `omitempty`, or `omitzero` semantics without targeted tests.
 - No duplicate validation logic paths that drift between JSON, map, and struct workflows.
+- No documentation masquerading as code; only encode a policy in code when runtime behavior consumes it.
+- No policy-only gates or tests that only mirror prose in README, AGENTS.md, or SPECS.
 - No premature abstraction — three similar lines are better than a helper used once.
 - No feature creep — add only behavior the package needs today.
 - No working around dependency bugs — if a dependency is broken, report it instead of reimplementing it inline.
@@ -98,6 +126,13 @@ go test -race ./tests/...           # Integration and official suite coverage
 go test -race -run TestName ./...   # Focused test execution
 task bench                           # Package benchmarks
 ```
+
+## SPECS Index
+
+| Document | Contract |
+|----------|----------|
+| [SPECS/README.md](SPECS/README.md) | Specification ownership and navigation. |
+| [SPECS/01-exact-json-numbers.md](SPECS/01-exact-json-numbers.md) | Exact number representation, conversion, equality, hashing, unmarshaling, and codec ownership. |
 
 ## Dependencies
 

@@ -2,6 +2,7 @@ package jsonschema
 
 import (
 	"bytes"
+	stdjson "encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -24,9 +25,9 @@ const (
 func TestDefaultMediaTypeHandlersDecodeAndWrapErrors(t *testing.T) {
 	compiler := NewCompiler()
 
-	jsonValue, err := compiler.MediaTypes["application/json"]([]byte(`{"name":"alice"}`))
+	jsonValue, err := compiler.MediaTypes["application/json"]([]byte(`{"name":"alice","limit":18446744073709551615}`))
 	require.NoError(t, err)
-	assert.Equal(t, map[string]any{"name": "alice"}, jsonValue)
+	assert.Equal(t, map[string]any{"name": "alice", "limit": stdjson.Number("18446744073709551615")}, jsonValue)
 
 	_, err = compiler.MediaTypes["application/json"]([]byte(`{`))
 	require.ErrorIs(t, err, ErrJSONUnmarshal)
@@ -72,6 +73,19 @@ func TestCompileWithID(t *testing.T) {
 	require.NoError(t, err, "Failed to compile schema with $id")
 
 	assert.Equal(t, "http://example.com/schema", schema.ID, "Expected $id to be 'http://example.com/schema'")
+}
+
+func TestCompileRejectsQuotedNumericKeywords(t *testing.T) {
+	t.Parallel()
+
+	for _, keyword := range []string{"multipleOf", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"} {
+		t.Run(keyword, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := NewCompiler().Compile([]byte(fmt.Sprintf(`{"type":"number",%q:"1.25"}`, keyword)))
+			require.Error(t, err)
+		})
+	}
 }
 
 func TestCompileWithIDAddsMissingID(t *testing.T) {
@@ -520,6 +534,14 @@ func TestWithDecoderJSON(t *testing.T) {
 	schema, err := compiler.Compile([]byte(`{"type":"object","required":["test"]}`))
 	require.NoError(t, err)
 	assert.True(t, schema.ValidateJSON(inputJSON).IsValid(), "custom decoder should be used by ValidateJSON")
+
+	mediaValue, err := compiler.MediaTypes["application/json"](inputJSON)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"test": "value"}, mediaValue)
+
+	var unmarshaled map[string]string
+	require.NoError(t, schema.Unmarshal(&unmarshaled, inputJSON))
+	assert.Equal(t, map[string]string{"test": "value"}, unmarshaled)
 }
 
 // TestSchemaReferenceOrdering tests that schema references work correctly regardless

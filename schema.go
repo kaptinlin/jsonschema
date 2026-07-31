@@ -517,7 +517,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 
 	// Preserve raw values while merging const and extension keywords so numeric
 	// tokens are not decoded through float64.
-	data, err := json.Marshal(alias, json.Deterministic(true))
+	data, err := marshalJSON(alias, json.Deterministic(true))
 	if err != nil {
 		return nil, err
 	}
@@ -528,7 +528,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	}
 
 	if s.Const != nil {
-		value, err := json.Marshal(s.Const.Value)
+		value, err := marshalJSON(s.Const.Value)
 		if err != nil {
 			return nil, err
 		}
@@ -536,7 +536,7 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 	}
 
 	for name, extra := range s.Extra {
-		value, err := json.Marshal(extra)
+		value, err := marshalJSON(extra)
 		if err != nil {
 			return nil, err
 		}
@@ -577,7 +577,6 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		Items            jsontext.Value `json:"items,omitempty"`
 		ExclusiveMinimum jsontext.Value `json:"exclusiveMinimum,omitempty"`
 		ExclusiveMaximum jsontext.Value `json:"exclusiveMaximum,omitempty"`
-		Enum             jsontext.Value `json:"enum,omitempty"`
 		// Const is captured as a raw token so "const": null is preserved
 		// (a *ConstValue field would be niled by the decoder, losing IsSet).
 		Const jsontext.Value            `json:"const,omitempty"`
@@ -587,7 +586,7 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		Alias: (*Alias)(s),
 	}
 
-	if err := json.Unmarshal(data, &aux); err != nil {
+	if err := unmarshalJSON(data, &aux); err != nil {
 		return err
 	}
 	if err := decodeExclusiveBound("exclusiveMinimum", aux.ExclusiveMinimum, &s.ExclusiveMinimum, &s.legacyExclusiveMinimum); err != nil {
@@ -596,12 +595,6 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	if err := decodeExclusiveBound("exclusiveMaximum", aux.ExclusiveMaximum, &s.ExclusiveMaximum, &s.legacyExclusiveMaximum); err != nil {
 		return err
 	}
-	if len(aux.Enum) > 0 {
-		if err := unmarshalJSONExact(aux.Enum, &s.Enum); err != nil {
-			return err
-		}
-	}
-
 	// "items" polymorphism (legacy tuple form vs 2020-12 list form). When items
 	// is an array, the sibling "additionalItems" (legacy) validates the rest;
 	// consume it from Rest so it is not later treated as an extension keyword.
@@ -730,7 +723,7 @@ func (cv *ConstValue) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	return unmarshalJSONExact(data, &cv.Value)
+	return unmarshalJSON(data, &cv.Value)
 }
 
 // MarshalJSON handles marshaling the ConstValue type back to JSON.
@@ -738,7 +731,7 @@ func (cv ConstValue) MarshalJSON() ([]byte, error) {
 	if cv.Value == nil {
 		return []byte("null"), nil
 	}
-	return json.Marshal(cv.Value)
+	return marshalJSON(cv.Value)
 }
 
 // SetCompiler sets a custom Compiler for the Schema and returns the Schema itself to support method chaining

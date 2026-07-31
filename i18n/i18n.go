@@ -23,15 +23,16 @@ var ErrUnsupportedLocale = errors.New("unsupported locale")
 //go:embed locales/*.json
 var localesFS embed.FS
 
-// locales lists the built-in translation catalogs; "en" first is the default
-// fallback locale for the bundle.
-var locales = []string{"en", "de-DE", "es-ES", "fr-FR", "ja-JP", "ko-KR", "pt-BR", "zh-Hans", "zh-Hant"}
+const defaultLocale = "en"
+
+// locales lists the built-in translation catalogs; the default locale is first.
+var locales = []string{defaultLocale, "de-DE", "es-ES", "fr-FR", "ja-JP", "ko-KR", "pt-BR", "zh-Hans", "zh-Hant"}
 
 // loadBundle parses the embedded catalogs once; the bundle is read-only afterwards.
 var loadBundle = sync.OnceValues(func() (*goi18n.I18n, error) {
 	bundle, err := goi18n.NewBundle(
-		goi18n.WithDefaultLocale("en"),
-		goi18n.WithLocales(locales...),
+		defaultLocale,
+		goi18n.WithLocales(locales[1:]...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create locale bundle: %w", err)
@@ -66,9 +67,12 @@ type translator struct {
 }
 
 func (t *translator) Translate(code string, params map[string]any) (string, bool) {
-	result := t.localizer.Lookup(code, goi18n.Vars(params))
+	result, err := t.localizer.Lookup(code, goi18n.Vars(params))
 	if result.Source == goi18n.TranslationSourceMissing {
 		return "", false
+	}
+	if err != nil {
+		return result.Template, true
 	}
 	return result.Text, true
 }

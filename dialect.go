@@ -200,7 +200,7 @@ func (s *Schema) finalizeExtra() error {
 	extra := make(map[string]any, len(rest))
 	for key, value := range rest {
 		var v any
-		if err := json.Unmarshal(value, &v); err != nil {
+		if err := unmarshalJSON(value, &v); err != nil {
 			return fmt.Errorf("extra keyword %q: %w", key, err)
 		}
 		extra[key] = v

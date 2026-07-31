@@ -89,21 +89,47 @@ result := schema.ValidateMap(data)
 
 ### JSON Bytes ([]byte)
 
-The validator intelligently handles `[]byte` input:
+`Validate` and `ValidateJSON` always interpret `[]byte` input as JSON:
 
 ```go
 // Valid JSON - parsed as JSON object/array
 jsonBytes := []byte(`{"name": "John", "age": 25}`)
 result := schema.Validate(jsonBytes)
 
-// Invalid JSON starting with { or [ - returns parse error
+// Invalid JSON returns an invalid EvaluationResult
 malformedJSON := []byte(`{"name": "John", "age":`)
 result := schema.Validate(malformedJSON)
-
-// Binary data - treated as byte array
-binaryBytes := []byte{1, 2, 3, 4, 5}
-result := schema.Validate(binaryBytes)
 ```
+
+### Exact JSON Numbers
+
+The default JSON decoder preserves untyped numbers as `encoding/json.Number`.
+Validation converts that exact token to a rational value, so integer boundaries,
+long decimals, and exponent forms are not rounded through `float64`.
+
+```go
+import stdjson "encoding/json"
+
+schema, _ := jsonschema.NewCompiler().Compile([]byte(`{
+    "type": "integer",
+    "maximum": 18446744073709551615
+}`))
+
+result := schema.ValidateJSON([]byte(`18446744073709551615`))
+fmt.Println(result.IsValid()) // true
+
+data := map[string]any{"value": stdjson.Number("18446744073709551615")}
+```
+
+Direct Go inputs keep their native numeric types. Numeric constraints, enum,
+const, uniqueItems, and numeric format callbacks normalize native and named Go
+numbers plus `encoding/json.Number` through `jsonschema.NewRat`.
+
+For `ValidateMap`, the caller owns the precision of already-parsed values. Use
+`encoding/json.Number` when constructing or decoding untyped maps that must
+retain exact decimal text. A decoder installed with `Compiler.WithDecoderJSON`
+replaces the default policy; that decoder is responsible for its dynamic number
+types and precision semantics.
 
 ### Go Structs
 

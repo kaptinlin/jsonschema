@@ -1,6 +1,7 @@
 package tests
 
 import (
+	stdjson "encoding/json"
 	"reflect"
 	"testing"
 
@@ -25,7 +26,8 @@ func TestConstValueUnmarshalJSON(t *testing.T) {
 		err      error
 	}{
 		{`null`, &jsonschema.ConstValue{Value: nil, IsSet: true}, nil},
-		{`123`, &jsonschema.ConstValue{Value: 123.0, IsSet: true}, nil}, // JSON numbers are decoded as float64 by default
+		{`123`, &jsonschema.ConstValue{Value: stdjson.Number("123"), IsSet: true}, nil},
+		{`18446744073709551615`, &jsonschema.ConstValue{Value: stdjson.Number("18446744073709551615"), IsSet: true}, nil},
 		{`"hello"`, &jsonschema.ConstValue{Value: "hello", IsSet: true}, nil},
 		{``, nil, &jsontext.SyntacticError{}}, // Expecting syntax error due to empty string
 	}
@@ -68,7 +70,7 @@ func TestUnmarshalJSON(t *testing.T) {
 			jsonStr: `{"const": 42}`,
 			expected: &jsonschema.Schema{
 				Const: &jsonschema.ConstValue{
-					Value: float64(42), // JSON unmarshals numbers into float64 by default
+					Value: stdjson.Number("42"),
 					IsSet: true,
 				},
 			},
@@ -107,6 +109,24 @@ func TestUnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestSchemaUntypedNumbersUseJSONNumber(t *testing.T) {
+	compiler := jsonschema.NewCompiler().SetPreserveExtra(true)
+	schema, err := compiler.Compile([]byte(`{
+		"enum":[1,{"nested":[2]}],
+		"default":3,
+		"examples":[4,{"nested":5}],
+		"x-number":{"nested":6}
+	}`))
+	require.NoError(t, err)
+
+	assert.Equal(t, stdjson.Number("1"), schema.Enum[0])
+	assert.Equal(t, stdjson.Number("2"), schema.Enum[1].(map[string]any)["nested"].([]any)[0])
+	assert.Equal(t, stdjson.Number("3"), schema.Default)
+	assert.Equal(t, stdjson.Number("4"), schema.Examples[0])
+	assert.Equal(t, stdjson.Number("5"), schema.Examples[1].(map[string]any)["nested"])
+	assert.Equal(t, stdjson.Number("6"), schema.Extra["x-number"].(map[string]any)["nested"])
+}
+
 func TestConstValidation(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -136,7 +156,7 @@ func TestConstValidation(t *testing.T) {
 			expectedSchema: jsonschema.Schema{
 				Schema: "https://json-schema.org/draft/2020-12/schema",
 				Const: &jsonschema.ConstValue{
-					Value: float64(42),
+					Value: stdjson.Number("42"),
 					IsSet: true,
 				},
 			},

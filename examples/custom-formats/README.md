@@ -15,6 +15,7 @@ The core library does not include these formats by default to remain lightweight
 
 The `main.go` file contains:
 -   Validation functions (e.g., `validateInt32`, `validateInt64`).
+-   `jsonschema.NewRat` normalization so JSON and native Go numbers share exact semantics.
 -   A helper function `registerOpenAPIFormats` that registers all the formats.
 -   A `main` function that uses these formats to validate a sample schema.
 
@@ -74,4 +75,3 @@ compiler.UnregisterFormat(name)
 ```
 
 - `name`: The name of the format to remove.
-

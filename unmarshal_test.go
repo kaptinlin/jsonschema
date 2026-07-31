@@ -1,6 +1,7 @@
 package jsonschema
 
 import (
+	stdjson "encoding/json"
 	"reflect"
 	"testing"
 	"time"
@@ -287,9 +288,67 @@ func TestUnmarshalToMap(t *testing.T) {
 	err = schema.Unmarshal(&result, []byte(input))
 	require.NoError(t, err)
 
-	assert.Equal(t, float64(1), result["id"]) // JSON numbers are float64
+	assert.Equal(t, stdjson.Number("1"), result["id"])
 	assert.Equal(t, "Anonymous", result["name"])
 	assert.Equal(t, true, result["active"])
+}
+
+func TestUnmarshalJSONNumberRespectsDestinationTypes(t *testing.T) {
+	schema := Object()
+
+	t.Run("JSON number scalar", func(t *testing.T) {
+		var dst stdjson.Number
+		require.NoError(t, schema.Unmarshal(&dst, []byte(`123`)))
+		assert.Equal(t, stdjson.Number("123"), dst)
+	})
+
+	t.Run("JSON number map value", func(t *testing.T) {
+		var dst map[string]stdjson.Number
+		require.NoError(t, schema.Unmarshal(&dst, []byte(`{"value":123}`)))
+		assert.Equal(t, map[string]stdjson.Number{"value": "123"}, dst)
+	})
+
+	t.Run("JSON number rejects string", func(t *testing.T) {
+		var dst stdjson.Number
+		assert.Error(t, schema.Unmarshal(&dst, []byte(`"123"`)))
+	})
+
+	t.Run("numeric struct field", func(t *testing.T) {
+		var dst struct {
+			Value int `json:"value"`
+		}
+		require.NoError(t, schema.Unmarshal(&dst, []byte(`{"value":123}`)))
+		assert.Equal(t, 123, dst.Value)
+	})
+
+	t.Run("string struct field", func(t *testing.T) {
+		var dst struct {
+			Value string `json:"value"`
+		}
+		assert.Error(t, schema.Unmarshal(&dst, []byte(`{"value":123}`)))
+	})
+
+	t.Run("string pointer field", func(t *testing.T) {
+		var dst struct {
+			Value *string `json:"value"`
+		}
+		assert.Error(t, schema.Unmarshal(&dst, []byte(`{"value":123}`)))
+	})
+
+	t.Run("numeric map value", func(t *testing.T) {
+		var dst map[string]int
+		var err error
+		require.NotPanics(t, func() {
+			err = schema.Unmarshal(&dst, []byte(`{"value":123}`))
+		})
+		require.NoError(t, err)
+		assert.Equal(t, map[string]int{"value": 123}, dst)
+	})
+
+	t.Run("string map value", func(t *testing.T) {
+		var dst map[string]string
+		assert.Error(t, schema.Unmarshal(&dst, []byte(`{"value":123}`)))
+	})
 }
 
 // TestUnmarshalWithoutValidation tests that unmarshal works without validation

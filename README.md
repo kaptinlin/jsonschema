@@ -9,6 +9,7 @@ A high-performance JSON Schema validator for Go with direct struct validation, d
 
 - **Multiple dialects**: Validate Draft 2020-12, Draft 2019-09, Draft-07, Draft-06, and Draft-04 schemas.
 - **One main entry point**: `schema.Validate(input)` accepts raw JSON, maps, or Go structs.
+- **Exact JSON numbers**: Untyped JSON numbers remain `encoding/json.Number` instead of being rounded through `float64`.
 - **Defaults without surprises**: `schema.Unmarshal` applies schema defaults; validation stays a separate step.
 - **Constructor API**: Build schemas in Go with `Object`, `Prop`, `String`, `Required`, and composition helpers.
 - **Struct tags**: Generate schemas from Go types with `FromStruct`.
@@ -87,6 +88,31 @@ When the input type is known and you want to skip the dispatch and any extra con
 | `ValidateJSON([]byte)` | Hot paths handling raw JSON request bodies or stored documents |
 | `ValidateMap(map[string]any)` | Already-decoded JSON objects you do not want re-encoded |
 | `ValidateStruct(any)` | Go values, when you want to avoid a JSON round-trip |
+
+### Exact JSON numbers
+
+The package's default JSON codec preserves every untyped number as
+`encoding/json.Number`. Numeric constraints, `enum`, `const`, `uniqueItems`,
+and numeric format callbacks compare values mathematically, including integers
+beyond the exact range of `float64`.
+
+```go
+import stdjson "encoding/json"
+
+numberSchema := jsonschema.Number()
+var value any
+if err := numberSchema.Unmarshal(&value, []byte(`18446744073709551615`)); err != nil {
+	log.Fatal(err)
+}
+number := value.(stdjson.Number)
+fmt.Println(number.String()) // 18446744073709551615
+```
+
+Direct Go inputs retain their native numeric types. Use `jsonschema.NewRat` in
+numeric custom formats when the callback must accept both native Go numbers and
+`encoding/json.Number`. A codec installed with `WithDecoderJSON` or
+`WithEncoderJSON` replaces the corresponding default behavior, so the caller
+owns its dynamic number types and precision guarantees.
 
 ## Dialect Support
 
@@ -247,6 +273,7 @@ Don't want `go-i18n`? Implement the one-method `jsonschema.Translator` interface
 - [docs/format-validation.md](docs/format-validation.md) — format behavior and custom validators
 - [docs/error-handling.md](docs/error-handling.md) — error patterns
 - [examples/README.md](examples/README.md) — runnable examples
+- [SPECS/README.md](SPECS/README.md) — durable behavioral contracts
 
 ## Development
 

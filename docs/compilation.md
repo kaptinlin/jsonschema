@@ -203,6 +203,15 @@ compiler.WithEncoderJSON(sonic.Marshal)
 compiler.WithDecoderJSON(sonic.Unmarshal)
 ```
 
+The default codec preserves untyped JSON numbers as `encoding/json.Number` and
+writes them back as JSON number tokens. Replacing the decoder also replaces
+that precision policy for instance validation, `Schema.Unmarshal`, and the
+built-in `application/json` media handler. `Schema.Unmarshal` may use the
+encoder for intermediate values, so a replacement encoder must also preserve
+`encoding/json.Number` when exact numbers are required. Schema documents always
+use the package's exact codec, including nested `enum`, `const`, default,
+example, and extension values.
+
 ### Custom JSON Functions
 
 ```go

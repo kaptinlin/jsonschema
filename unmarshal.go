@@ -1,7 +1,9 @@
 package jsonschema
 
 import (
+	stdjson "encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"time"
 )
@@ -647,7 +649,14 @@ func (s *Schema) unmarshalToDestination(dst any, data map[string]any) error {
 
 	switch dstVal.Kind() {
 	case reflect.Map:
-		return s.unmarshalToMap(dstVal, data)
+		if dstVal.Type() == reflect.TypeFor[map[string]any]() {
+			if dstVal.IsNil() {
+				dstVal.Set(reflect.MakeMap(dstVal.Type()))
+			}
+			maps.Copy(dstVal.Interface().(map[string]any), data)
+			return nil
+		}
+		return s.unmarshalViaJSON(dst, data)
 	case reflect.Struct:
 		return s.unmarshalToStruct(dstVal, data)
 	case reflect.Pointer:
@@ -668,27 +677,6 @@ func (s *Schema) unmarshalViaJSON(dst any, data map[string]any) error {
 		return fmt.Errorf("%w: %w", ErrDataEncode, err)
 	}
 	return s.Compiler().jsonDecoder(jsonData, dst)
-}
-
-// unmarshalToMap converts data to a map destination
-func (s *Schema) unmarshalToMap(dstVal reflect.Value, data map[string]any) error {
-	if dstVal.IsNil() {
-		dstVal.Set(reflect.MakeMap(dstVal.Type()))
-	}
-
-	for key, value := range data {
-		keyVal := reflect.ValueOf(key)
-		valueVal := reflect.ValueOf(value)
-
-		// Convert value type if necessary
-		if valueVal.IsValid() && valueVal.Type().ConvertibleTo(dstVal.Type().Elem()) {
-			valueVal = valueVal.Convert(dstVal.Type().Elem())
-		}
-
-		dstVal.SetMapIndex(keyVal, valueVal)
-	}
-
-	return nil
 }
 
 // unmarshalToStruct converts data to a struct destination
@@ -724,15 +712,18 @@ func (s *Schema) setFieldValue(fieldVal reflect.Value, value any) error {
 	valueVal := reflect.ValueOf(value)
 	fieldType := fieldVal.Type()
 
-	// Handle pointer fields
-	if fieldType.Kind() == reflect.Pointer {
-		return s.setPointerValue(fieldVal, valueVal, fieldType)
-	}
-
 	// Direct assignment for compatible types
 	if valueVal.Type().AssignableTo(fieldType) {
 		fieldVal.Set(valueVal)
 		return nil
+	}
+	if _, ok := value.(stdjson.Number); ok {
+		return s.setComplexValue(fieldVal, value)
+	}
+
+	// Handle pointer fields
+	if fieldType.Kind() == reflect.Pointer {
+		return s.setPointerValue(fieldVal, valueVal, fieldType)
 	}
 
 	// Type conversion for compatible types
@@ -740,7 +731,6 @@ func (s *Schema) setFieldValue(fieldVal reflect.Value, value any) error {
 		fieldVal.Set(valueVal.Convert(fieldType))
 		return nil
 	}
-
 	// Special handling for time.Time
 	if fieldType == reflect.TypeFor[time.Time]() {
 		return s.setTimeValue(fieldVal, value)

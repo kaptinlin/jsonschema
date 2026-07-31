@@ -1,6 +1,7 @@
 package tests
 
 import (
+	stdjson "encoding/json"
 	"testing"
 
 	"github.com/go-json-experiment/json"
@@ -57,7 +58,7 @@ func TestExtraFields(t *testing.T) {
 
 		val, ok = schema.Extra["x-version"]
 		assert.True(t, ok)
-		assert.Equal(t, 1.0, val) // JSON numbers are float64
+		assert.Equal(t, stdjson.Number("1.0"), val)
 
 		// Nested extra
 		propSchema := (*schema.Properties)["name"]
@@ -171,12 +172,12 @@ func TestExtraFields(t *testing.T) {
 		s1 := schemas["schema1"]
 		val, ok := s1.Extra["x-batch"]
 		assert.True(t, ok)
-		assert.Equal(t, 1.0, val)
+		assert.Equal(t, stdjson.Number("1"), val)
 
 		s2 := schemas["schema2"]
 		val, ok = s2.Extra["x-batch"]
 		assert.True(t, ok)
-		assert.Equal(t, 2.0, val)
+		assert.Equal(t, stdjson.Number("2"), val)
 	})
 
 	t.Run("Standard Fields Masking", func(t *testing.T) {

@@ -3,7 +3,6 @@ package jsonschema
 import (
 	"fmt"
 	"maps"
-	"math/big"
 	"net/url"
 	"path"
 	"reflect"
@@ -36,26 +35,21 @@ func mergeStringMaps(map1, map2 map[string]bool) map[string]bool {
 
 // getDataType identifies the JSON schema type for a given Go value.
 func getDataType(v any) string {
-	switch v := v.(type) {
+	if number, ok := numberRat(v); ok {
+		if number == nil {
+			return "unknown"
+		}
+		if number.IsInt() {
+			return "integer"
+		}
+		return "number"
+	}
+
+	switch v.(type) {
 	case nil:
 		return "null"
 	case bool:
 		return "boolean"
-	case jsonNumber:
-		rat := NewRat(v)
-		if rat != nil && rat.IsInt() {
-			return "integer"
-		}
-		return "number"
-	case float32, float64:
-		// Convert to big.Float to check if it can be considered an integer
-		bigFloat := new(big.Float).SetFloat64(reflect.ValueOf(v).Float())
-		if _, acc := bigFloat.Int(nil); acc == big.Exact {
-			return "integer"
-		}
-		return "number"
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		return "integer"
 	case string:
 		return "string"
 	case []any:
@@ -80,21 +74,21 @@ func getDataTypeReflect(v any) string {
 		}
 		rv = rv.Elem()
 	}
+	if number, ok := numberRat(rv.Interface()); ok {
+		if number == nil {
+			return "unknown"
+		}
+		if number.IsInt() {
+			return "integer"
+		}
+		return "number"
+	}
 
 	switch rv.Kind() {
 	case reflect.Invalid:
 		return "null"
 	case reflect.Bool:
 		return "boolean"
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return "integer"
-	case reflect.Float32, reflect.Float64:
-		f := rv.Float()
-		if f == float64(int64(f)) {
-			return "integer"
-		}
-		return "number"
 	case reflect.String:
 		return "string"
 	case reflect.Slice, reflect.Array:

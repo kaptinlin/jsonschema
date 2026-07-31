@@ -285,6 +285,40 @@ func TestSchemaMarshalPreservesLargeIntegerConstraint(t *testing.T) {
 	assert.Equal(t, `{"maximum":18446744073709551615,"type":"integer"}`, string(data))
 }
 
+func TestSchemaNumericKeywordsRoundTripExactly(t *testing.T) {
+	t.Parallel()
+
+	compiler := NewCompiler()
+	original, err := compiler.Compile([]byte(`{
+		"type":"number",
+		"multipleOf":0.000000000000000000001,
+		"minimum":-0.123456789012345678901,
+		"maximum":10.123456789012345678901,
+		"exclusiveMinimum":-0.123456789012345678900,
+		"exclusiveMaximum":10.123456789012345678900
+	}`))
+	require.NoError(t, err)
+
+	data, err := json.Marshal(original)
+	require.NoError(t, err)
+	roundTrip, err := compiler.Compile(data)
+	require.NoError(t, err)
+
+	assert.Zero(t, original.MultipleOf.Cmp(roundTrip.MultipleOf.Rat))
+	assert.Zero(t, original.Minimum.Cmp(roundTrip.Minimum.Rat))
+	assert.Zero(t, original.Maximum.Cmp(roundTrip.Maximum.Rat))
+	assert.Zero(t, original.ExclusiveMinimum.Cmp(roundTrip.ExclusiveMinimum.Rat))
+	assert.Zero(t, original.ExclusiveMaximum.Cmp(roundTrip.ExclusiveMaximum.Rat))
+}
+
+func TestSchemaMarshalRejectsNonTerminatingNumericKeyword(t *testing.T) {
+	t.Parallel()
+
+	data, err := json.Marshal(&Schema{Type: SchemaType{"number"}, Minimum: NewRat("1/3")})
+	require.ErrorIs(t, err, ErrRatConversion)
+	assert.Empty(t, data)
+}
+
 func TestSchemaMarshalJSONToStreamsDeterministicSchema(t *testing.T) {
 	schema := &Schema{
 		Type:  SchemaType{"object"},

@@ -1,6 +1,7 @@
 package main
 
 import (
+	stdjson "encoding/json"
 	"strings"
 	"testing"
 
@@ -19,11 +20,14 @@ func TestValidateHelpers(t *testing.T) {
 		{name: "int32 accepts int in range", fn: validateInt32, in: 123, want: true},
 		{name: "int32 rejects float fraction", fn: validateInt32, in: 12.5, want: false},
 		{name: "int64 accepts whole float", fn: validateInt64, in: 12.0, want: true},
-		{name: "int64 rejects string", fn: validateInt64, in: "12", want: false},
+		{name: "int64 accepts exact JSON boundary", fn: validateInt64, in: stdjson.Number("9223372036854775807"), want: true},
+		{name: "int64 rejects JSON overflow", fn: validateInt64, in: stdjson.Number("9223372036854775808"), want: false},
+		{name: "int64 rejects object", fn: validateInt64, in: struct{}{}, want: false},
 		{name: "float accepts float32", fn: validateFloat, in: float32(1.25), want: true},
 		{name: "float rejects overflow", fn: validateFloat, in: 1e40, want: false},
 		{name: "double accepts float64", fn: validateDouble, in: 1.25, want: true},
-		{name: "double rejects int", fn: validateDouble, in: 1, want: false},
+		{name: "double accepts integer representation", fn: validateDouble, in: 1, want: true},
+		{name: "double rejects JSON overflow", fn: validateDouble, in: stdjson.Number("1e1000"), want: false},
 		{name: "byte accepts base64", fn: validateByte, in: "SGVsbG8=", want: true},
 		{name: "byte rejects invalid base64", fn: validateByte, in: "not-base64", want: false},
 		{name: "byte ignores non-string", fn: validateByte, in: 42, want: true},

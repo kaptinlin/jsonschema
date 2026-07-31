@@ -102,6 +102,12 @@ var result map[string]interface{}
 err := schema.Unmarshal(&result, data)
 ```
 
+Untyped JSON numbers are preserved as `encoding/json.Number`. Concrete scalar,
+struct, pointer, and typed-map destinations receive numbers according to their
+declared Go types. Number tokens are not silently coerced into strings. If a
+custom encoder or decoder is installed on the compiler, it owns the number
+representation and conversion behavior used by `Schema.Unmarshal`.
+
 ### Slices
 ```go
 var numbers []int

@@ -1,6 +1,9 @@
 package jsonschema
 
 import (
+	stdjson "encoding/json"
+	"math"
+	"reflect"
 	"testing"
 
 	"github.com/go-json-experiment/json/jsontext"
@@ -131,6 +134,70 @@ func TestValidateJSONPreservesExactIntegerBoundaries(t *testing.T) {
 	}
 }
 
+func TestValidateJSONPreservesAdjacentUnsafeIntegers(t *testing.T) {
+	compiler := NewCompiler().SetAssertFormat(true)
+	schema, err := compiler.Compile([]byte(`{
+		"type":"object",
+		"properties":{"value":{"type":"integer","minimum":9007199254740993}}
+	}`))
+	require.NoError(t, err)
+
+	assert.True(t, schema.ValidateJSON([]byte(`{"value":9007199254740993}`)).IsValid())
+	assert.False(t, schema.ValidateJSON([]byte(`{"value":9007199254740992}`)).IsValid())
+}
+
+func TestExactIntegerBoundaryAcrossValidationEntryPoints(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type":"object",
+		"properties":{"value":{"type":"integer","maximum":18446744073709551615}},
+		"required":["value"]
+	}`))
+	require.NoError(t, err)
+
+	type document struct {
+		Value any `json:"value"`
+	}
+	validMap := map[string]any{"value": stdjson.Number("18446744073709551615")}
+	invalidMap := map[string]any{"value": stdjson.Number("18446744073709551616")}
+	tests := []struct {
+		name     string
+		validate func() *EvaluationResult
+		valid    bool
+	}{
+		{name: "Validate valid JSON", validate: func() *EvaluationResult {
+			return schema.Validate([]byte(`{"value":18446744073709551615}`))
+		}, valid: true},
+		{name: "Validate invalid JSON", validate: func() *EvaluationResult {
+			return schema.Validate([]byte(`{"value":18446744073709551616}`))
+		}, valid: false},
+		{name: "ValidateJSON valid", validate: func() *EvaluationResult {
+			return schema.ValidateJSON([]byte(`{"value":18446744073709551615}`))
+		}, valid: true},
+		{name: "ValidateJSON invalid", validate: func() *EvaluationResult {
+			return schema.ValidateJSON([]byte(`{"value":18446744073709551616}`))
+		}, valid: false},
+		{name: "ValidateMap valid", validate: func() *EvaluationResult {
+			return schema.ValidateMap(validMap)
+		}, valid: true},
+		{name: "ValidateMap invalid", validate: func() *EvaluationResult {
+			return schema.ValidateMap(invalidMap)
+		}, valid: false},
+		{name: "ValidateStruct valid", validate: func() *EvaluationResult {
+			return schema.ValidateStruct(document{Value: uint64(math.MaxUint64)})
+		}, valid: true},
+		{name: "ValidateStruct invalid", validate: func() *EvaluationResult {
+			return schema.ValidateStruct(document{Value: stdjson.Number("18446744073709551616")})
+		}, valid: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.valid, test.validate().IsValid())
+		})
+	}
+}
+
 func TestValidateJSONPreservesExactNumberForms(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -242,6 +309,74 @@ func TestValidateJSONPreservesNumericUniqueItemsEquality(t *testing.T) {
 	result := schema.ValidateJSON([]byte(`[1,1.0]`))
 
 	assert.False(t, result.IsValid(), "mathematically equal JSON numbers should not be unique")
+}
+
+func TestNamedNumericValueUsesNumericConstraints(t *testing.T) {
+	type Count int64
+
+	schema := &Schema{
+		Type:    SchemaType{"integer"},
+		Minimum: NewRat(40),
+		Maximum: NewRat(50),
+	}
+
+	assert.True(t, schema.ValidateStruct(Count(42)).IsValid())
+	assert.False(t, schema.ValidateStruct(Count(39)).IsValid())
+}
+
+func TestNamedLargeIntegralFloatIsInteger(t *testing.T) {
+	type Measurement float64
+
+	schema := &Schema{Type: SchemaType{"integer"}}
+
+	assert.True(t, schema.ValidateStruct(Measurement(math.MaxFloat64)).IsValid())
+}
+
+func TestNumericRepresentationsShareValidationSemantics(t *testing.T) {
+	type (
+		namedInt     int
+		namedInt8    int8
+		namedInt16   int16
+		namedInt32   int32
+		namedInt64   int64
+		namedUint    uint
+		namedUint8   uint8
+		namedUint16  uint16
+		namedUint32  uint32
+		namedUint64  uint64
+		namedFloat32 float32
+		namedFloat64 float64
+	)
+
+	values := []any{
+		int(6), int8(6), int16(6), int32(6), int64(6),
+		uint(6), uint8(6), uint16(6), uint32(6), uint64(6),
+		float32(6), float64(6), stdjson.Number("6"),
+		namedInt(6), namedInt8(6), namedInt16(6), namedInt32(6), namedInt64(6),
+		namedUint(6), namedUint8(6), namedUint16(6), namedUint32(6), namedUint64(6),
+		namedFloat32(6), namedFloat64(6),
+	}
+	numericSchema := &Schema{
+		Type:       SchemaType{"integer"},
+		Minimum:    NewRat(6),
+		Maximum:    NewRat(6),
+		MultipleOf: NewRat(3),
+		Enum:       []any{stdjson.Number("6")},
+		Const:      &ConstValue{Value: int64(6), IsSet: true},
+	}
+	uniqueSchema := Array(UniqueItems(true))
+
+	for _, value := range values {
+		t.Run(reflect.TypeOf(value).String(), func(t *testing.T) {
+			assert.True(t, numericSchema.ValidateStruct(value).IsValid())
+			assert.False(t, uniqueSchema.Validate([]any{value, stdjson.Number("6")}).IsValid())
+		})
+	}
+}
+
+func TestNewRatStringParsingDoesNotChangeValidationType(t *testing.T) {
+	assert.Equal(t, "1/3", NewRat("1/3").RatString())
+	assert.False(t, (&Schema{Type: SchemaType{"number"}}).Validate("1/3").IsValid())
 }
 
 func TestValidateStructReportsInvalidJSONByteInput(t *testing.T) {
@@ -1201,6 +1336,19 @@ func TestContentValidation(t *testing.T) {
 	}
 }
 
+func TestContentValidationPreservesExactJSONNumbers(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{"type":"string","contentMediaType":"application/json"}`))
+	require.NoError(t, err)
+	schema.ContentSchema = &Schema{
+		Type:    SchemaType{"integer"},
+		Maximum: NewRat(uint64(18446744073709551615)),
+	}
+
+	assert.True(t, schema.ValidateJSON([]byte(`"18446744073709551615"`)).IsValid())
+	assert.False(t, schema.ValidateJSON([]byte(`"18446744073709551616"`)).IsValid())
+}
+
 func TestFormatTypeMatching(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.SetAssertFormat(true)
@@ -1296,6 +1444,17 @@ func TestUniqueItemsWithTypedValues(t *testing.T) {
 	assert.False(t, schema.Validate([]any{[]any{"a"}, []any{"a"}}).IsValid())
 	assert.False(t, schema.Validate([]any{NamedInts{1, 2}, NamedInts{1, 2}}).IsValid())
 	assert.False(t, schema.Validate([]any{NamedObject{"a": 1}, NamedObject{"a": 1}}).IsValid())
+}
+
+func TestJSONEqualityUsesNamedStringMapKeysByText(t *testing.T) {
+	type JSONKey string
+
+	plain := map[string]int{"answer": 42}
+	named := map[JSONKey]int{"answer": 42}
+
+	assert.True(t, Enum(plain).Validate(named).IsValid())
+	assert.True(t, Const(plain).Validate(named).IsValid())
+	assert.False(t, Array(UniqueItems(true)).Validate([]any{plain, named}).IsValid())
 }
 
 func TestBooleanSchemasEvaluateObjectAndArrayInputs(t *testing.T) {
