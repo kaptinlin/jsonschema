@@ -114,6 +114,10 @@ numeric custom formats when the callback must accept both native Go numbers and
 `WithEncoderJSON` replaces the corresponding default behavior, so the caller
 owns its dynamic number types and precision guarantees.
 
+When passing untyped values to a non-JSON serializer, adapt
+`encoding/json.Number` at that serializer boundary. Do not convert through
+`float64`; emit an exact target-format number or return an error.
+
 ## Dialect Support
 
 Schemas are compiled using the dialect declared by `$schema`. When `$schema` is absent, the compiler defaults to Draft 2020-12.

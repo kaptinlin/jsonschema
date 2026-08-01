@@ -108,6 +108,11 @@ declared Go types. Number tokens are not silently coerced into strings. If a
 custom encoder or decoder is installed on the compiler, it owns the number
 representation and conversion behavior used by `Schema.Unmarshal`.
 
+If an untyped result is passed to a non-JSON serializer, that serializer
+boundary must preserve `encoding/json.Number` as an exact number or return an
+error. Converting through `float64` or silently changing the value to a string
+is not a compatible representation.
+
 ### Slices
 ```go
 var numbers []int

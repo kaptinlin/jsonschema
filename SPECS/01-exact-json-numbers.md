@@ -117,6 +117,17 @@ Validation strings remain JSON strings and are not reclassified as numbers.
   `encoding/json.Number`; the package does not add a hidden fallback path that
   changes the explicit override.
 
+### Foreign serialization boundaries
+
+- `encoding/json.Number` remains the package-owned representation until the
+  value crosses into another format.
+- A serializer for another format owns the exact target representation. It must
+  emit a valid number without precision loss or return an error; compatibility
+  with that serializer is not a reason to coerce the upstream value to
+  `float64` or string.
+- Exact output means preserving the mathematical value and number type at that
+  boundary. A later decoder owns the concrete in-memory type it chooses.
+
 ## Failure Semantics
 
 - Invalid JSON produces the existing compilation, validation, or unmarshal
@@ -157,6 +168,8 @@ Validation strings remain JSON strings and are not reclassified as numbers.
   or hashing.
 - Do not make `Schema.Unmarshal` perform validation.
 - Do not override caller-installed codec semantics with a hidden exact decoder.
+- Do not weaken package-owned number representation to accommodate a foreign
+  serializer; adapt or reject the value at that serializer's boundary.
 
 ## Acceptance Criteria
 
@@ -178,3 +191,5 @@ Validation strings remain JSON strings and are not reclassified as numbers.
   Go version declared in `go.mod`.
 - Custom decoder and encoder hooks remain authoritative. Verification:
   compiler, validation, media handler, and unmarshal override tests.
+- Foreign serializers preserve exact numeric value and number type or fail
+  explicitly. Verification: integration tests owned by the serializer adapter.
