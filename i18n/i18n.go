@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	goi18n "github.com/kaptinlin/go-i18n"
+	goi18n "github.com/agentable/go-i18n"
 
 	"github.com/kaptinlin/jsonschema"
 )
@@ -29,7 +29,7 @@ const defaultLocale = "en"
 var locales = []string{defaultLocale, "de-DE", "es-ES", "fr-FR", "ja-JP", "ko-KR", "pt-BR", "zh-Hans", "zh-Hant"}
 
 // loadBundle parses the embedded catalogs once; the bundle is read-only afterwards.
-var loadBundle = sync.OnceValues(func() (*goi18n.I18n, error) {
+var loadBundle = sync.OnceValues(func() (*goi18n.Bundle, error) {
 	bundle, err := goi18n.NewBundle(
 		defaultLocale,
 		goi18n.WithLocales(locales[1:]...),
@@ -68,7 +68,7 @@ type translator struct {
 
 func (t *translator) Translate(code string, params map[string]any) (string, bool) {
 	result, err := t.localizer.Lookup(code, goi18n.Vars(params))
-	if result.Source == goi18n.TranslationSourceMissing {
+	if result.Source == goi18n.SourceMissing {
 		return "", false
 	}
 	if err != nil {
