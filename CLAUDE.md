@@ -140,7 +140,7 @@ task bench                           # Package benchmarks
 |------------|---------|
 | `github.com/go-json-experiment/json` | Primary JSON encoder/decoder backend and streaming support. |
 | `github.com/kaptinlin/jsonpointer` | JSON Pointer parsing and reference resolution. |
-| `github.com/agentable/go-i18n` | Localized validation messages and result rendering. |
+| `github.com/kaptinlin/go-i18n` | Localized validation messages and result rendering. |
 | `github.com/goccy/go-yaml` | YAML decoding support for content-related workflows. |
 
 ## Error Handling
