@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/kaptinlin/go-i18n v0.6.3
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.0
 )
 
 require (
@@ -25,8 +25,6 @@ require (
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/goccy/go-yaml v1.19.2
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )
