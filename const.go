@@ -19,7 +19,13 @@ func evaluateConst(schema *Schema, instance any) *EvaluationError {
 	}
 
 	if schema.Const.Value == nil {
-		return NewEvaluationError("const", "const_mismatch_null", "Value should be null")
+		return NewEvaluationError("const", "const_mismatch_null", "Value should be null", map[string]any{
+			"expected": nil,
+			"received": instance,
+		})
 	}
-	return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value")
+	return NewEvaluationError("const", "const_mismatch", "Value does not match the constant value", map[string]any{
+		"expected": schema.Const.Value,
+		"received": instance,
+	})
 }
