@@ -192,6 +192,7 @@ func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolv
 
 	// Initialize nested schemas
 	initializeNestedSchemasCore(s, compiler, resolveRefs)
+	s.compileRegexCaches()
 	if resolveRefs {
 		s.resolveReferences()
 	}
@@ -200,6 +201,17 @@ func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolv
 	if effectiveCompiler != nil && !effectiveCompiler.PreserveExtra {
 		s.Extra = nil
 	}
+}
+
+// compileRegexCaches prepares immutable regular-expression state before a
+// compiled schema is published for validation. Invalid expressions are left
+// unset and reported by validateRegexSyntax.
+func (s *Schema) compileRegexCaches() {
+	if s.Pattern != nil {
+		s.compiledStringPattern, _ = regexp.Compile(*s.Pattern)
+	}
+
+	s.compilePatterns()
 }
 
 // resolveBaseURI resolves the base URI for the schema

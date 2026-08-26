@@ -96,10 +96,6 @@ func (s *Schema) evaluate(instance any, dynamicScope *DynamicScope) (*Evaluation
 		return result, evaluatedProps, evaluatedItems
 	}
 
-	if s.PatternProperties != nil {
-		s.compilePatterns()
-	}
-
 	s.processReferences(instance, dynamicScope, result, evaluatedProps, evaluatedItems)
 	if s.Ref != "" && s.Dialect().refIgnoresSiblings() {
 		return result, evaluatedProps, evaluatedItems
