@@ -4,6 +4,7 @@ import (
 	stdjson "encoding/json"
 	"math"
 	"reflect"
+	"sync"
 	"testing"
 
 	"encoding/json/jsontext"
@@ -520,8 +521,9 @@ func TestValidateRequiredPropertyWithDefault(t *testing.T) {
 	})
 }
 
-func TestEvaluatePatternCachesCompiledPattern(t *testing.T) {
+func TestEvaluatePatternUsesPrecompiledPattern(t *testing.T) {
 	schema := &Schema{Pattern: new("^[A-Za-z]+$")}
+	schema.compileRegexCaches()
 
 	err := evaluatePattern(schema, "Alice")
 	require.Nil(t, err)
@@ -541,6 +543,34 @@ func TestEvaluatePatternCachesCompiledPattern(t *testing.T) {
 		"pattern": "^[A-Za-z]+$",
 		"value":   "Bob123",
 	}, err.Params)
+}
+
+func TestValidateJSONConcurrentSafe(t *testing.T) {
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string", "pattern": "^[A-Za-z]+$"}
+		},
+		"patternProperties": {
+			"^x-": {"type": "string"}
+		}
+	}`))
+	require.NoError(t, err)
+
+	const workers = 32
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			for range 100 {
+				result := schema.ValidateJSON([]byte(`{"name":"Alice","x-label":"ok"}`))
+				assert.True(t, result.IsValid())
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func TestEvaluatePatternInvalidPattern(t *testing.T) {

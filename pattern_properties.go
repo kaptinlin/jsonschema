@@ -52,7 +52,6 @@ func evaluatePatternProperties(
 				}
 				continue
 			}
-			schema.compiledPatterns[patternKey] = regex
 		}
 
 		for propName, propValue := range object {
