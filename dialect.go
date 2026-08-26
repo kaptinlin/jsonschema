@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 )
 
 const recursiveDynamicAnchor = "__jsonschema_recursive_anchor__"

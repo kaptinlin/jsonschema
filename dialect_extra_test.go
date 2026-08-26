@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/go-json-experiment/json"
+	"encoding/json/v2"
 )
 
 // compileWithExtra compiles doc under dialect d while preserving extension

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-json-experiment/json"
+	"encoding/json/v2"
 
 	"github.com/kaptinlin/jsonschema"
 )

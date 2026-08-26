@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/go-json-experiment/json/jsontext"
+	"encoding/json/jsontext"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

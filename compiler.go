@@ -13,8 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
+
 	"github.com/goccy/go-yaml"
 )
 
@@ -126,7 +127,7 @@ func NewCompiler() *Compiler {
 		customFormats:  make(map[string]*FormatDef),
 		defaultDialect: Draft202012,
 
-		// Default to go-json-experiment JSON implementation
+		// Default to the standard library JSON v2 implementation.
 		jsonEncoder: func(v any) ([]byte, error) { return marshalJSON(v) },
 		jsonDecoder: unmarshalJSON,
 	}
