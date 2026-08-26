@@ -38,6 +38,7 @@ func evaluateEnum(schema *Schema, instance any) *EvaluationError {
 
 	return NewEvaluationError("enum", "value_not_in_enum", "Value {received} should be one of the allowed values: {expected}", map[string]any{
 		"expected": strings.Join(allowed, ", "),
+		"allowed":  schema.Enum,
 		"received": instance,
 	})
 }
