@@ -12,7 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-json-experiment/json"
+	"encoding/json/v2"
+
 	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

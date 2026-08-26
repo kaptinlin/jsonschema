@@ -1,7 +1,7 @@
 package jsonschema
 
 import (
-	"github.com/go-json-experiment/json"
+	"encoding/json/v2"
 )
 
 // evaluateDependentRequired checks that if a specified property is present, all its dependent properties are also present.

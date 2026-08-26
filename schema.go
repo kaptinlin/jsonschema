@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-json-experiment/json"
-	"github.com/go-json-experiment/json/jsontext"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
+
 	"github.com/kaptinlin/jsonpointer"
 )
 
@@ -580,7 +581,7 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 		// Const is captured as a raw token so "const": null is preserved
 		// (a *ConstValue field would be niled by the decoder, losing IsSet).
 		Const jsontext.Value            `json:"const,omitempty"`
-		Rest  map[string]jsontext.Value `json:",embed"` //nolint:staticcheck // go-json-experiment/json v2 uses embed for fallback fields.
+		Rest  map[string]jsontext.Value `json:",embed"` // encoding/json/v2 uses embed for fallback fields.
 		*Alias
 	}{
 		Alias: (*Alias)(s),
