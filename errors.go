@@ -118,6 +118,9 @@ var (
 
 	// ErrRegexValidation reports an invalid regular expression in a schema.
 	ErrRegexValidation = errors.New("regex validation failed")
+
+	// ErrUnsupportedVocabulary reports a required vocabulary the compiler does not support.
+	ErrUnsupportedVocabulary = errors.New("unsupported required vocabulary")
 )
 
 // RegexPatternError provides structured context for invalid regular expressions discovered during schema compilation.

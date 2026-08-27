@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -58,6 +59,20 @@ func contentValidationExclusions() []string {
 func schemaMetaValidationExclusions() []string {
 	return []string{
 		"validate definition against metaschema/invalid definition schema",
+	}
+}
+
+func compileTestSuiteRemotes(t *testing.T, compiler *jsonschema.Compiler, draft string, names ...string) {
+	t.Helper()
+	for _, name := range names {
+		path := filepath.Join("..", "testdata", "JSON-Schema-Test-Suite", "remotes", draft, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("Failed to read remote schema %s: %v", name, err)
+		}
+		if _, err := compiler.Compile(data); err != nil {
+			t.Fatalf("Failed to compile remote schema %s: %v", name, err)
+		}
 	}
 }
 

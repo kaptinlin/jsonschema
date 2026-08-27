@@ -3,6 +3,8 @@ package tests
 import (
 	"testing"
 
+	"encoding/json/v2"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -86,6 +88,57 @@ func TestFormatUriForTestSuite(t *testing.T) {
 
 func TestFormatUuidForTestSuite(t *testing.T) {
 	testJSONSchemaTestSuiteWithFilePath(t, "../testdata/JSON-Schema-Test-Suite/tests/draft2020-12/optional/format/uuid.json")
+}
+
+func TestFormatAssertionVocabulary(t *testing.T) {
+	const (
+		formatAssertion = "https://json-schema.org/draft/2020-12/vocab/format-assertion"
+		metaSchemaURI   = "https://example.com/meta/format-assertion"
+	)
+
+	compileMetaSchema := func(t *testing.T, required bool) *jsonschema.Compiler {
+		t.Helper()
+		compiler := jsonschema.NewCompiler()
+		metaSchema, err := json.Marshal(map[string]any{
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"$id":     metaSchemaURI,
+			"$vocabulary": map[string]bool{
+				"https://json-schema.org/draft/2020-12/vocab/core": true,
+				formatAssertion: required,
+			},
+		})
+		require.NoError(t, err)
+		_, err = compiler.Compile(metaSchema)
+		require.NoError(t, err)
+		return compiler
+	}
+	compileSchema := func(t *testing.T, compiler *jsonschema.Compiler) (*jsonschema.Schema, error) {
+		t.Helper()
+		schemaJSON, err := json.Marshal(map[string]any{
+			"$schema": metaSchemaURI,
+			"type":    "string",
+			"format":  "date-time",
+		})
+		require.NoError(t, err)
+		return compiler.Compile(schemaJSON)
+	}
+
+	t.Run("required", func(t *testing.T) {
+		compiler := compileMetaSchema(t, true)
+		_, err := compileSchema(t, compiler)
+		require.ErrorIs(t, err, jsonschema.ErrUnsupportedVocabulary)
+		assert.ErrorContains(t, err, formatAssertion)
+	})
+
+	t.Run("optional", func(t *testing.T) {
+		compiler := compileMetaSchema(t, false)
+		schema, err := compileSchema(t, compiler)
+		require.NoError(t, err)
+		assert.True(t, schema.Validate("not-a-date").IsValid())
+
+		compiler.SetAssertFormat(true)
+		assert.False(t, schema.Validate("not-a-date").IsValid())
+	})
 }
 
 // TestCompileBatchFormatValidation tests that format validation works correctly

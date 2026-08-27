@@ -11,7 +11,10 @@ import (
 
 const recursiveDynamicAnchor = "__jsonschema_recursive_anchor__"
 
-const draft201909ValidationVocabulary = "https://json-schema.org/draft/2019-09/vocab/validation"
+const (
+	draft201909ValidationVocabulary = "https://json-schema.org/draft/2019-09/vocab/validation"
+	draft202012ValidationVocabulary = "https://json-schema.org/draft/2020-12/vocab/validation"
+)
 
 // Dialect identifies the JSON Schema dialect used to compile a schema resource.
 type Dialect string
@@ -70,7 +73,11 @@ func (s *Schema) applyDialect(inherited Dialect, inheritedValidationDisabled boo
 	}
 	s.disableValidation = inheritedValidationDisabled
 	if s.Schema != "" && compiler != nil {
-		s.disableValidation = !compiler.schemaHasValidationVocabulary(s.Schema)
+		hasValidationVocabulary, err := compiler.schemaUsesValidationVocabulary(s.Schema)
+		if err != nil {
+			return err
+		}
+		s.disableValidation = !hasValidationVocabulary
 	}
 
 	if err := s.applyDialectCompatibility(); err != nil {
@@ -86,18 +93,50 @@ func (s *Schema) applyDialect(inherited Dialect, inheritedValidationDisabled boo
 	return err
 }
 
-func (c *Compiler) schemaHasValidationVocabulary(schemaURI string) bool {
+func (c *Compiler) schemaUsesValidationVocabulary(schemaURI string) (bool, error) {
 	if c == nil || schemaURI == "" || dialectFromSchemaURI(schemaURI, "") != "" {
-		return true
+		return true, nil
 	}
 
 	c.mu.RLock()
 	metaschema := c.schemas[schemaURI]
 	c.mu.RUnlock()
 	if metaschema == nil || len(metaschema.Vocabulary) == 0 {
-		return true
+		return true, nil
 	}
-	return metaschema.Vocabulary[draft201909ValidationVocabulary]
+
+	for vocabulary, required := range metaschema.Vocabulary {
+		if required && !supportsVocabulary(vocabulary) {
+			return false, fmt.Errorf("%w: %s", ErrUnsupportedVocabulary, vocabulary)
+		}
+	}
+
+	_, usesDraft201909Validation := metaschema.Vocabulary[draft201909ValidationVocabulary]
+	_, usesDraft202012Validation := metaschema.Vocabulary[draft202012ValidationVocabulary]
+	return usesDraft201909Validation || usesDraft202012Validation, nil
+}
+
+func supportsVocabulary(uri string) bool {
+	// Format-Assertion remains unsupported until every standard format is implemented.
+	switch uri {
+	case
+		"https://json-schema.org/draft/2019-09/vocab/core",
+		"https://json-schema.org/draft/2019-09/vocab/applicator",
+		draft201909ValidationVocabulary,
+		"https://json-schema.org/draft/2019-09/vocab/meta-data",
+		"https://json-schema.org/draft/2019-09/vocab/format",
+		"https://json-schema.org/draft/2019-09/vocab/content",
+		"https://json-schema.org/draft/2020-12/vocab/core",
+		"https://json-schema.org/draft/2020-12/vocab/applicator",
+		"https://json-schema.org/draft/2020-12/vocab/unevaluated",
+		draft202012ValidationVocabulary,
+		"https://json-schema.org/draft/2020-12/vocab/meta-data",
+		"https://json-schema.org/draft/2020-12/vocab/format-annotation",
+		"https://json-schema.org/draft/2020-12/vocab/content":
+		return true
+	default:
+		return false
+	}
 }
 
 func dialectFromSchemaURI(uri string, fallback Dialect) Dialect {

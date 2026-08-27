@@ -210,7 +210,7 @@ func (s *Schema) processBasicValidationWithoutRefs(instance any, result *Evaluat
 		s.addErrors(result, errors)
 	}
 
-	if !s.disableValidation && s.Format != nil {
+	if s.Format != nil {
 		if err := evaluateFormat(s, instance); err != nil {
 			result.AddError(err)
 		}
@@ -304,7 +304,7 @@ func (s *Schema) processTypeSpecificValidation(instance any, dynamicScope *Dynam
 		s.addErrors(result, errors)
 	}
 
-	if !s.disableValidation && s.Format != nil {
+	if s.Format != nil {
 		if err := evaluateFormat(s, instance); err != nil {
 			result.AddError(err)
 		}

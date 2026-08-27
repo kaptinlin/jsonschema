@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -51,14 +50,8 @@ func configureDraft201909Compiler(t *testing.T, compiler *jsonschema.Compiler, f
 		return
 	}
 
-	for _, metaschema := range []string{"metaschema-no-validation.json", "metaschema-optional-vocabulary.json"} {
-		path := filepath.Join("..", "testdata", "JSON-Schema-Test-Suite", "remotes", "draft2019-09", metaschema)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("Failed to read metaschema %s: %v", metaschema, err)
-		}
-		if _, err := compiler.Compile(data); err != nil {
-			t.Fatalf("Failed to compile metaschema %s: %v", metaschema, err)
-		}
-	}
+	compileTestSuiteRemotes(t, compiler, "draft2019-09",
+		"metaschema-no-validation.json",
+		"metaschema-optional-vocabulary.json",
+	)
 }
