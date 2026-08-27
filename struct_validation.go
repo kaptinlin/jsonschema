@@ -422,8 +422,8 @@ func evaluatePatternPropertiesStruct(schema *Schema, structValue reflect.Value, 
 		}
 
 		for pattern, patternSchema := range *schema.PatternProperties {
-			re, ok := schema.compiledPatterns[pattern]
-			if !ok {
+			re := schema.regexpForPatternProperty(pattern)
+			if re == nil {
 				continue
 			}
 			if re.MatchString(jsonName) {

@@ -22,17 +22,23 @@ func evaluateAdditionalProperties(
 	var results []*EvaluationResult
 	var invalidProperties []string
 
-	properties := make(map[string]bool)
+	// Only sibling properties and patternProperties cover names here. The shared
+	// evaluatedProps map also contains annotations from other applicators.
+	coveredProperties := make(map[string]bool)
 	if schema.Properties != nil {
 		for propName := range *schema.Properties {
-			properties[propName] = true
+			coveredProperties[propName] = true
 		}
 	}
 	if schema.PatternProperties != nil {
-		for _, regex := range schema.compiledPatterns {
+		for pattern := range *schema.PatternProperties {
+			regex := schema.regexpForPatternProperty(pattern)
+			if regex == nil {
+				continue
+			}
 			for propName := range object {
 				if regex.MatchString(propName) {
-					properties[propName] = true
+					coveredProperties[propName] = true
 				}
 			}
 		}
@@ -40,7 +46,7 @@ func evaluateAdditionalProperties(
 
 	if schema.AdditionalProperties != nil {
 		for propName, propValue := range object {
-			if !properties[propName] {
+			if !coveredProperties[propName] {
 				result, _, _ := schema.AdditionalProperties.evaluate(propValue, dynamicScope)
 				if result != nil {
 					result.SetEvaluationPath(fmt.Sprintf("/additionalProperties/%s", propName)).

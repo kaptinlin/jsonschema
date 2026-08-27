@@ -21,6 +21,15 @@ func (s *Schema) compilePatterns() {
 	}
 }
 
+func (s *Schema) regexpForPatternProperty(pattern string) *regexp.Regexp {
+	if regex := s.compiledPatterns[pattern]; regex != nil {
+		return regex
+	}
+
+	regex, _ := regexp.Compile(pattern)
+	return regex
+}
+
 // evaluatePatternProperties checks if properties in the data object that match regex patterns conform to the schemas specified in the schema's patternProperties attribute.
 // According to the JSON Schema Draft 2020-12:
 //   - Each property name in "patternProperties" must be a valid regex and each property value must be a valid JSON Schema.
@@ -42,16 +51,10 @@ func evaluatePatternProperties(
 	var results []*EvaluationResult
 
 	for patternKey, patternSchema := range *schema.PatternProperties {
-		regex, ok := schema.compiledPatterns[patternKey]
-		if !ok {
-			var err error
-			regex, err = regexp.Compile(patternKey)
-			if err != nil {
-				if !slices.Contains(invalidPatterns, patternKey) {
-					invalidPatterns = append(invalidPatterns, patternKey)
-				}
-				continue
-			}
+		regex := schema.regexpForPatternProperty(patternKey)
+		if regex == nil {
+			invalidPatterns = append(invalidPatterns, patternKey)
+			continue
 		}
 
 		for propName, propValue := range object {

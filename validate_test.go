@@ -103,6 +103,58 @@ func TestValidateJSON(t *testing.T) {
 	}
 }
 
+func TestValidationErrorsExposeStructuredValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   *Schema
+		instance any
+		keyword  string
+		params   map[string]any
+	}{
+		{
+			name:     "const",
+			schema:   Const("expected"),
+			instance: "received",
+			keyword:  "const",
+			params: map[string]any{
+				"expected": "expected",
+				"received": "received",
+			},
+		},
+		{
+			name:     "null const",
+			schema:   Const(nil),
+			instance: "received",
+			keyword:  "const",
+			params: map[string]any{
+				"expected": nil,
+				"received": "received",
+			},
+		},
+		{
+			name:     "enum",
+			schema:   Enum("red", "green"),
+			instance: "blue",
+			keyword:  "enum",
+			params: map[string]any{
+				"expected": "red, green",
+				"allowed":  []any{"red", "green"},
+				"received": "blue",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := test.schema.Validate(test.instance)
+			require.False(t, result.IsValid())
+			err := result.Errors[test.keyword]
+			require.NotNil(t, err)
+			assert.Equal(t, test.params, err.Params)
+		})
+	}
+}
+
 func TestValidateJSONPreservesExactIntegerBoundaries(t *testing.T) {
 	signed := &Schema{
 		Type:    SchemaType{"integer"},
@@ -545,9 +597,47 @@ func TestEvaluatePatternUsesPrecompiledPattern(t *testing.T) {
 	}, err.Params)
 }
 
+func TestDirectSchemaPatternPropertiesAcrossValidationMethods(t *testing.T) {
+	patterns := SchemaMap{
+		"^x-": {Type: SchemaType{"string"}},
+	}
+	schema := &Schema{
+		PatternProperties:    &patterns,
+		AdditionalProperties: &Schema{Boolean: new(false)},
+	}
+	type object struct {
+		Label string `json:"x-label"`
+	}
+
+	tests := []struct {
+		name     string
+		validate func() *EvaluationResult
+	}{
+		{name: "Validate", validate: func() *EvaluationResult {
+			return schema.Validate(object{Label: "ok"})
+		}},
+		{name: "ValidateJSON", validate: func() *EvaluationResult {
+			return schema.ValidateJSON([]byte(`{"x-label":"ok"}`))
+		}},
+		{name: "ValidateMap", validate: func() *EvaluationResult {
+			return schema.ValidateMap(map[string]any{"x-label": "ok"})
+		}},
+		{name: "ValidateStruct", validate: func() *EvaluationResult {
+			return schema.ValidateStruct(object{Label: "ok"})
+		}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := test.validate()
+			assert.True(t, result.IsValid(), "unexpected validation errors: %v", result.Errors)
+		})
+	}
+}
+
 func TestValidateJSONConcurrentSafe(t *testing.T) {
 	compiler := NewCompiler()
-	schema, err := compiler.Compile([]byte(`{
+	compiled, err := compiler.Compile([]byte(`{
 		"type": "object",
 		"properties": {
 			"name": {"type": "string", "pattern": "^[A-Za-z]+$"}
@@ -558,19 +648,36 @@ func TestValidateJSONConcurrentSafe(t *testing.T) {
 	}`))
 	require.NoError(t, err)
 
-	const workers = 32
-	var wg sync.WaitGroup
-	wg.Add(workers)
-	for range workers {
-		go func() {
-			defer wg.Done()
-			for range 100 {
-				result := schema.ValidateJSON([]byte(`{"name":"Alice","x-label":"ok"}`))
-				assert.True(t, result.IsValid())
-			}
-		}()
+	patterns := SchemaMap{"^x-": {Type: SchemaType{"string"}}}
+	direct := &Schema{
+		PatternProperties:    &patterns,
+		AdditionalProperties: &Schema{Boolean: new(false)},
 	}
-	wg.Wait()
+
+	for _, test := range []struct {
+		name   string
+		schema *Schema
+		data   []byte
+	}{
+		{name: "compiled", schema: compiled, data: []byte(`{"name":"Alice","x-label":"ok"}`)},
+		{name: "direct", schema: direct, data: []byte(`{"x-label":"ok"}`)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			const workers = 32
+			var wg sync.WaitGroup
+			wg.Add(workers)
+			for range workers {
+				go func() {
+					defer wg.Done()
+					for range 100 {
+						result := test.schema.ValidateJSON(test.data)
+						assert.True(t, result.IsValid())
+					}
+				}()
+			}
+			wg.Wait()
+		})
+	}
 }
 
 func TestEvaluatePatternInvalidPattern(t *testing.T) {
