@@ -107,6 +107,12 @@ func (s *Schema) schemaForPointerSegment(segment string, segments []string, inde
 		return schemaMapPointerTarget(s.Defs, segments, index)
 	case "dependentSchemas":
 		return schemaMapPointerTarget(s.DependentSchemas, segments, index)
+	case "dependencies":
+		// Draft 4-2019 spelling; the parser folds it into DependentSchemas.
+		if !s.Dialect().supportsLegacyDependencies() {
+			return nil, ErrJSONPointerSegmentNotFound
+		}
+		return schemaMapPointerTarget(s.DependentSchemas, segments, index)
 	case "prefixItems":
 		return schemaSlicePointerTarget(s.PrefixItems, segments, index)
 	case "allOf":
@@ -126,6 +132,12 @@ func (s *Schema) schemaForPointerSegment(segment string, segments []string, inde
 	case "items":
 		if s.Dialect().usesLegacyTupleItems() && len(s.PrefixItems) > 0 {
 			return schemaSlicePointerTarget(s.PrefixItems, segments, index)
+		}
+		return schemaPointerTarget(s.Items)
+	case "additionalItems":
+		// Legacy sibling of a tuple "items"; the parser folds it into Items.
+		if !s.Dialect().usesLegacyTupleItems() || len(s.PrefixItems) == 0 {
+			return nil, ErrJSONPointerSegmentNotFound
 		}
 		return schemaPointerTarget(s.Items)
 	case "contains":
