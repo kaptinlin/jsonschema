@@ -234,22 +234,9 @@ func TestConstructorCompilerBehavior(t *testing.T) {
 }
 
 func TestSchemaUnresolvedRefs(t *testing.T) {
-	compiler := NewCompiler()
-
-	refSchemaJSON := `{
-		"$id": "http://example.com/ref",
-		"type": "object",
-		"properties": {
-			"userInfo": {"$ref": "http://example.com/base"}
-		}
-	}`
-
-	schema, err := compiler.Compile([]byte(refSchemaJSON))
-	require.NoError(t, err, "Failed to resolve reference")
-
-	unresolved := schema.UnresolvedReferenceURIs()
-	assert.Len(t, unresolved, 1, "Should have 1 unresolved ref")
-	assert.Equal(t, []string{"http://example.com/base"}, unresolved, "Should have correct unresolved schema")
+	schema := Object(Prop("userInfo", Ref("urn:test:missing")))
+	assert.Equal(t, []string{"urn:test:missing"}, schema.UnresolvedReferenceURIs())
+	assert.False(t, schema.ValidateMap(map[string]any{}).IsValid())
 }
 
 func TestDeterministicMarshal(t *testing.T) {

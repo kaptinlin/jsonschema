@@ -37,8 +37,23 @@ Compatibility behavior is normalized during compilation:
 - Draft-04 `id` is used as the schema identifier.
 - Draft-07, Draft-06, and Draft-04 `$ref` ignore sibling keywords.
 
-`format` remains annotation-only unless `Compiler.SetAssertFormat(true)` is
-enabled. `Compile` does not perform schema meta-validation by default; call
+Serialization preserves the source paths for tuple `items`, `additionalItems`,
+and schema-form `dependencies`, so references to them survive recompilation.
+Direct JSON decoding retains tuple `additionalItems` constraints; use `Compile`
+to resolve references and inherited dialects.
+
+`format` remains annotation-only in the standard Draft 2020-12 dialect. A
+custom dialect that declares the Draft 2020-12 Format-Assertion vocabulary
+asserts recognized formats automatically; the declaration's `true` or `false`
+value does not change the behavior. `Compiler.SetAssertFormat(true)` separately
+enables best-effort assertion for recognized formats in any accepted dialect.
+
+Custom meta-schemas must be registered before `Compile` selects them. A
+`CompileBatch` call can include a custom meta-schema and schemas that select it
+in the same batch. Required unsupported vocabularies and unknown formats under
+Format-Assertion are compilation errors.
+
+`Compile` does not perform schema meta-validation by default; call
 `ValidateSchema` when the schema document itself is untrusted.
 
 ```go

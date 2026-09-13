@@ -135,17 +135,16 @@ func TestValidateRemoteSchema(t *testing.T) {
 	assert.Equal(t, expectedID, metaSchema.ID, "Expected schema with ID %s", expectedID)
 }
 
-func TestCompileCache(t *testing.T) {
+func TestCompileRejectsDuplicateDefinition(t *testing.T) {
 	compiler := NewCompiler()
-	schemaJSON := createTestSchemaJSON("http://example.com/schema", map[string]string{"name": "string"}, []string{"name"})
-	_, err := compiler.Compile([]byte(schemaJSON))
-	require.NoError(t, err, "Failed to compile schema")
-
-	// Attempt to compile the same schema again
-	_, err = compiler.Compile([]byte(schemaJSON))
-	require.NoError(t, err, "Failed to compile schema a second time")
-
-	assert.Len(t, compiler.schemas, 1, "Schema should be compiled once and cached")
+	data := []byte(createTestSchemaJSON("http://example.com/schema", map[string]string{"name": "string"}, []string{"name"}))
+	schema, err := compiler.Compile(data)
+	require.NoError(t, err)
+	_, err = compiler.Compile(data)
+	require.ErrorIs(t, err, ErrSchemaConflict)
+	cached, err := compiler.Schema("http://example.com/schema")
+	require.NoError(t, err)
+	require.Same(t, schema, cached)
 }
 
 func TestResolveReferences(t *testing.T) {
@@ -165,21 +164,6 @@ func TestResolveReferences(t *testing.T) {
 
 	_, err = compiler.Compile([]byte(refSchemaJSON))
 	require.NoError(t, err, "Failed to resolve reference")
-}
-
-func TestCompileClonesWaitingSchemasBeforeClearingQueue(t *testing.T) {
-	compiler := NewCompiler()
-
-	waiting := []*Schema{{ID: "one"}, {ID: "two"}}
-	compiler.unresolvedRefs["http://example.com/base"] = waiting
-
-	_, err := compiler.Compile([]byte(`{"$id":"http://example.com/base","type":"object"}`))
-	require.NoError(t, err)
-
-	require.Empty(t, compiler.unresolvedRefs["http://example.com/base"])
-	require.Len(t, waiting, 2)
-	assert.Equal(t, "one", waiting[0].ID)
-	assert.Equal(t, "two", waiting[1].ID)
 }
 
 func TestResolveReferencesCorrectly(t *testing.T) {
@@ -226,94 +210,27 @@ func TestResolveReferencesCorrectly(t *testing.T) {
 	assert.Same(t, baseSchema, userInfoProp.ResolvedRef, "ResolvedRef for userInfo does not match the base schema")
 }
 
-func TestCompileReresolvesDelayedRelativeReferenceWithFragment(t *testing.T) {
-	compiler := NewCompiler().SetDefaultBaseURI("http://example.com/schemas/")
-
-	schema, err := compiler.Compile([]byte(`{
-		"$id": "root.json",
-		"type": "object",
-		"properties": {
-			"child": {"$ref": "defs.json#/$defs/positive"}
-		}
-	}`))
-	require.NoError(t, err)
-
-	result := schema.Validate(map[string]any{"child": 0})
-	assert.True(t, result.IsValid(), "unresolved references are ignored until their target schema is compiled")
-
-	_, err = compiler.Compile([]byte(`{
-		"$id": "defs.json",
-		"$defs": {
-			"positive": {"type": "integer", "minimum": 1}
-		}
-	}`))
-	require.NoError(t, err)
-
-	result = schema.Validate(map[string]any{"child": 0})
-	assert.False(t, result.IsValid(), "compiling the resolved target schema should re-resolve the waiting relative reference")
-	assert.Contains(t, result.DetailedErrors(), "/child/minimum")
-}
-
-func TestCompileReresolvesDelayedReferenceInsideDependentSchemas(t *testing.T) {
-	compiler := NewCompiler().SetDefaultBaseURI("http://example.com/schemas/")
-
-	schema, err := compiler.Compile([]byte(`{
-		"$id": "root.json",
-		"type": "object",
-		"dependentSchemas": {
-			"credit_card": {
-				"properties": {
-					"billing_code": {"$ref": "defs.json#/$defs/positive"}
-				}
-			}
-		}
-	}`))
-	require.NoError(t, err)
-
-	result := schema.Validate(map[string]any{"credit_card": "4111", "billing_code": 0})
-	assert.True(t, result.IsValid(), "unresolved nested references are ignored until their target schema is compiled")
-
-	_, err = compiler.Compile([]byte(`{
-		"$id": "defs.json",
-		"$defs": {
-			"positive": {"type": "integer", "minimum": 1}
-		}
-	}`))
-	require.NoError(t, err)
-
-	result = schema.Validate(map[string]any{"credit_card": "4111", "billing_code": 0})
-	assert.False(t, result.IsValid(), "dependentSchemas should re-resolve delayed nested references")
-	assert.Contains(t, result.DetailedErrors(), "/credit_card/billing_code/minimum")
-}
-
-func TestCompileReresolvesDelayedConditionalReferenceWithFragment(t *testing.T) {
-	compiler := NewCompiler().SetDefaultBaseURI("http://example.com/schemas/")
-
-	schema, err := compiler.Compile([]byte(`{
-		"$id": "root.json",
-		"if": {"properties": {"kind": {"const": "positive"}}},
-		"then": {"$ref": "defs.json#/$defs/positiveValue"}
-	}`))
-	require.NoError(t, err)
-
-	instance := map[string]any{"kind": "positive", "value": 0}
-	result := schema.Validate(instance)
-	assert.True(t, result.IsValid(), "unresolved conditional references are ignored until their target schema is compiled")
-
-	_, err = compiler.Compile([]byte(`{
-		"$id": "defs.json",
-		"$defs": {
-			"positiveValue": {
-				"type": "object",
-				"properties": {"value": {"type": "integer", "minimum": 1}}
-			}
-		}
-	}`))
-	require.NoError(t, err)
-
-	result = schema.Validate(instance)
-	assert.False(t, result.IsValid(), "compiling the resolved target schema should re-resolve refs under conditional schemas")
-	assert.Contains(t, result.DetailedErrors(), "/value/minimum")
+func TestCompileReferencesRequireReadyDependencies(t *testing.T) {
+	for name, keywords := range map[string]string{
+		"property":    `"properties":{"value":{"$ref":"defs.json#/$defs/positive"}}`,
+		"dependency":  `"dependentSchemas":{"value":{"properties":{"value":{"$ref":"defs.json#/$defs/positive"}}}}`,
+		"conditional": `"if":{"required":["value"]},"then":{"properties":{"value":{"$ref":"defs.json#/$defs/positive"}}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := NewCompiler().SetDefaultBaseURI("https://example.com/schemas/")
+			c.RegisterLoader("https", func(string) (io.ReadCloser, error) { return nil, ErrNoLoaderRegistered })
+			data := fmt.Appendf(nil, `{"$id":"root.json",%s}`, keywords)
+			schema, err := c.Compile(data)
+			require.ErrorIs(t, err, ErrReferenceResolution)
+			require.Nil(t, schema)
+			_, err = c.Compile([]byte(`{"$id":"defs.json","$defs":{"positive":{"type":"integer","minimum":1}}}`))
+			require.NoError(t, err)
+			schema, err = c.Compile(data)
+			require.NoError(t, err)
+			require.False(t, schema.ValidateMap(map[string]any{"value": 0}).IsValid())
+			require.True(t, schema.ValidateMap(map[string]any{"value": 1}).IsValid())
+		})
+	}
 }
 
 func TestSetDefaultBaseURI(t *testing.T) {
@@ -545,8 +462,7 @@ func TestWithDecoderJSON(t *testing.T) {
 	assert.Equal(t, map[string]string{"test": "value"}, unmarshaled)
 }
 
-// TestSchemaReferenceOrdering tests that schema references work correctly regardless
-// of compilation order - parent schema can be compiled before referenced child schema
+// TestSchemaReferenceOrdering uses one batch for mutually available resources.
 func TestSchemaReferenceOrdering(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -565,12 +481,12 @@ func TestSchemaReferenceOrdering(t *testing.T) {
 		}
 	}`)
 
-	// Compile parent first, then child - this should now work correctly
-	parentCompiledSchema, err := compiler.Compile(parentSchema)
-	require.NoError(t, err, "Failed to compile parent schema")
-
-	_, err = compiler.Compile(childSchema)
-	require.NoError(t, err, "Failed to compile child schema")
+	compiled, err := compiler.CompileBatch(map[string][]byte{
+		"urn:test:parent":          parentSchema,
+		"http://example.com/child": childSchema,
+	})
+	require.NoError(t, err)
+	parentCompiledSchema := compiled["urn:test:parent"]
 
 	// Verify that reference is now resolved
 	require.NotNil(t, parentCompiledSchema.Properties, "Properties should not be nil")
@@ -855,7 +771,7 @@ func TestNestedRegexValidation(t *testing.T) {
 		var regexErr *RegexPatternError
 		require.ErrorAs(t, err, &regexErr)
 		assert.Equal(t, "pattern", regexErr.Keyword)
-		assert.Equal(t, "#/properties/spec/$ref/properties/appId/pattern", regexErr.Location)
+		assert.Equal(t, "#/$defs/Spec/properties/appId/pattern", regexErr.Location)
 		assert.Equal(t, "^(?!x).*$", regexErr.Pattern)
 	})
 
@@ -889,7 +805,7 @@ func TestNestedRegexValidation(t *testing.T) {
 		var regexErr *RegexPatternError
 		require.ErrorAs(t, err, &regexErr)
 		assert.Equal(t, "pattern", regexErr.Keyword)
-		assert.Equal(t, "#/properties/metadata/$ref/properties/id/pattern", regexErr.Location)
+		assert.Equal(t, "#/$defs/ManifestMetadata/properties/id/pattern", regexErr.Location)
 		assert.Equal(t, "(?!invalid).*", regexErr.Pattern)
 	})
 

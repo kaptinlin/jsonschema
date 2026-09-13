@@ -238,7 +238,7 @@ jsonschema.String(
 
 The Constructor API integrates with the compiler system for schema registration and reuse:
 
-#### Direct Registration
+#### Compile a Standalone Document
 
 ```go
 // Create a reusable schema with ID
@@ -250,10 +250,49 @@ userSchema := jsonschema.Object(
     jsonschema.Required("id", "name", "email"),
 )
 
-// Register schema with compiler
+// Serialize this standalone document and compile it once.
+data, err := userSchema.MarshalJSON()
+if err != nil {
+    log.Fatal(err)
+}
 compiler := jsonschema.NewCompiler()
-compiler.SetSchema("https://example.com/schemas/user", userSchema)
+compiledUser, err := compiler.Compile(data)
+if err != nil {
+    log.Fatal(err)
+}
+_ = compiledUser // Reuse this graph for repeated validation.
 ```
+
+Compilation creates an independent graph and returns errors for unresolved
+references, invalid patterns, and duplicate resource URIs. Use
+`compiler.Schema(uri)` to obtain the compiled copy. Editing the input afterward
+does not change the registered result.
+
+Constructors still return `*Schema`. Direct validation of an unresolved reference
+returns an `unresolved_reference` schema-processing error before evaluating any
+branches; validation does not load or bind references. Compose and edit schemas
+before sharing them for validation. A published child used in a constructor keeps
+its existing resource scope and compiler. This is also how to reuse a compiled
+subschema that references definitions in its original resource:
+
+```go
+child, err := compiler.Schema("https://example.com/source#/$defs/alias")
+if err != nil {
+    log.Fatal(err)
+}
+wrapper := jsonschema.Object(jsonschema.Prop("value", child))
+_ = wrapper
+```
+
+Serialization of an extracted node does not include its parent resource, inherited
+dialect, or compiler policy. Use direct composition to preserve those semantics.
+There is no implicit graph import through `SetSchema`.
+
+Direct validation of mutable builders checks the entire graph, including unused
+`$defs`, for unresolved references on every call. Large graphs intended for repeated
+validation should be assembled as standalone documents and compiled once as above.
+Compiled nodes skip that readiness traversal. See `BenchmarkConstructorLifecycle`
+for comparisons of building, compiling, and validating graphs of different sizes.
 
 #### Using Registered Schemas
 

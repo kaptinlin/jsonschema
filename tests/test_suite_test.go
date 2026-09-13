@@ -140,8 +140,9 @@ func testJSONSchemaTestSuiteWithCompiler(
 				configure(compiler)
 			}
 
-			// Assert format for optional/format test cases.
-			if strings.Contains(filePath, "optional/format") {
+			// Assert format only for files inside optional/format/. The sibling
+			// optional/format-assertion.json selects assertion through its dialect.
+			if strings.Contains(filepath.ToSlash(filePath), "/optional/format/") {
 				compiler.SetAssertFormat(true)
 			}
 

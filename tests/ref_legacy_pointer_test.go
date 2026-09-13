@@ -48,19 +48,23 @@ func TestRefToLegacyKeywordPointer(t *testing.T) {
 			valid:  true,
 		},
 		{
-			// additionalItems is inert when items is not an array, so the pointer
-			// must not fall through to the schema items was parsed into.
-			name:   "draft7 additionalItems beside a non-tuple items does not resolve",
+			// Applicator behavior does not affect whether the subschema is addressable.
+			name:   "draft7 additionalItems beside a non-tuple items",
 			schema: `{"$schema":"http://json-schema.org/draft-07/schema#","items":{"type":"string"},"additionalItems":{"type":"integer"},"properties":{"bar":{"$ref":"#/additionalItems"}}}`,
 			data:   map[string]any{"bar": true},
-			valid:  true,
+			valid:  false,
 		},
 		{
-			// 2020-12 has no "dependencies" member, so the pointer must not alias dependentSchemas.
-			name:   "2020-12 dependencies does not alias dependentSchemas",
-			schema: `{"$schema":"https://json-schema.org/draft/2020-12/schema","dependentSchemas":{"foo":{"type":"integer"}},"properties":{"bar":{"$ref":"#/dependencies/foo"}}}`,
+			name:   "draft7 additionalItems without items",
+			schema: `{"$schema":"http://json-schema.org/draft-07/schema#","additionalItems":{"type":"integer"},"properties":{"bar":{"$ref":"#/additionalItems"}}}`,
 			data:   map[string]any{"bar": true},
-			valid:  true,
+			valid:  false,
+		},
+		{
+			name:   "draft7 nested ref inside inert additionalItems",
+			schema: `{"$schema":"http://json-schema.org/draft-07/schema#","definitions":{"integer":{"type":"integer"}},"items":{"type":"string"},"additionalItems":{"$ref":"#/definitions/integer"},"properties":{"bar":{"$ref":"#/additionalItems"}}}`,
+			data:   map[string]any{"bar": true},
+			valid:  false,
 		},
 	}
 
@@ -73,18 +77,49 @@ func TestRefToLegacyKeywordPointer(t *testing.T) {
 	}
 }
 
-// A reference to a URI registered after compilation must still resolve.
-func TestRefToLaterRegisteredSchemaStillResolves(t *testing.T) {
+func TestLegacyKeywordPointerDoesNotAliasDifferentSourceKeyword(t *testing.T) {
+	tests := []struct {
+		name   string
+		schema string
+	}{
+		{
+			name:   "draft7 items does not alias prefixItems",
+			schema: `{"$schema":"http://json-schema.org/draft-07/schema#","prefixItems":[{"type":"integer"}],"properties":{"bar":{"$ref":"#/items/0"}}}`,
+		},
+		{
+			name:   "2020-12 dependencies does not alias dependentSchemas",
+			schema: `{"$schema":"https://json-schema.org/draft/2020-12/schema","dependentSchemas":{"foo":{"type":"integer"}},"properties":{"bar":{"$ref":"#/dependencies/foo"}}}`,
+		},
+		{
+			name:   "draft7 dependencies does not alias dependentSchemas",
+			schema: `{"$schema":"http://json-schema.org/draft-07/schema#","dependentSchemas":{"foo":{"type":"integer"}},"properties":{"bar":{"$ref":"#/dependencies/foo"}}}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema, err := jsonschema.NewCompiler().Compile([]byte(tt.schema))
+			require.ErrorIs(t, err, jsonschema.ErrReferenceResolution)
+			require.Nil(t, schema)
+		})
+	}
+}
+
+func TestRefInsideInertAdditionalItemsRequiresReadyTarget(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
-
-	schema, err := compiler.Compile([]byte(`{"$id":"http://example.com/ref","properties":{"bar":{"$ref":"http://example.com/base"}}}`))
+	data := []byte(`{
+		"$schema":"http://json-schema.org/draft-07/schema#",
+		"items":{"type":"string"},
+		"additionalItems":{"$ref":"urn:legacy:base"},
+		"properties":{"bar":{"$ref":"#/additionalItems"}}
+	}`)
+	schema, err := compiler.Compile(data)
+	require.ErrorIs(t, err, jsonschema.ErrReferenceResolution)
+	require.Nil(t, schema)
+	_, err = compiler.Compile([]byte(`{"$id":"urn:legacy:base","type":"integer"}`))
 	require.NoError(t, err)
-	require.Equal(t, []string{"http://example.com/base"}, schema.UnresolvedReferenceURIs())
-	require.True(t, schema.Validate(map[string]any{"bar": true}).IsValid())
-
-	_, err = compiler.Compile([]byte(`{"$id":"http://example.com/base","type":"integer"}`))
+	schema, err = compiler.Compile(data)
 	require.NoError(t, err)
-
 	require.Empty(t, schema.UnresolvedReferenceURIs())
 	require.False(t, schema.Validate(map[string]any{"bar": true}).IsValid())
 	require.True(t, schema.Validate(map[string]any{"bar": 3}).IsValid())

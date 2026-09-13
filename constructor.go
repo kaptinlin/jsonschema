@@ -180,7 +180,7 @@ func (cs *ConditionalSchema) ToSchema() *Schema {
 
 // Ref returns a schema with `$ref` set to ref.
 func Ref(ref string) *Schema {
-	schema := &Schema{Ref: ref}
+	schema := &Schema{Ref: normalizeRef(ref)}
 	schema.initializeSchema(nil, nil)
 	return schema
 }

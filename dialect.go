@@ -3,6 +3,7 @@ package jsonschema
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"encoding/json/jsontext"
@@ -12,9 +13,16 @@ import (
 const recursiveDynamicAnchor = "__jsonschema_recursive_anchor__"
 
 const (
-	draft201909ValidationVocabulary = "https://json-schema.org/draft/2019-09/vocab/validation"
-	draft202012ValidationVocabulary = "https://json-schema.org/draft/2020-12/vocab/validation"
+	draft201909ValidationVocabulary       = "https://json-schema.org/draft/2019-09/vocab/validation"
+	draft202012ValidationVocabulary       = "https://json-schema.org/draft/2020-12/vocab/validation"
+	draft202012FormatAnnotationVocabulary = "https://json-schema.org/draft/2020-12/vocab/format-annotation"
+	draft202012FormatAssertionVocabulary  = "https://json-schema.org/draft/2020-12/vocab/format-assertion"
 )
+
+type vocabularyBehavior struct {
+	validation      bool
+	formatAssertion bool
+}
 
 // Dialect identifies the JSON Schema dialect used to compile a schema resource.
 type Dialect string
@@ -57,12 +65,22 @@ func (s *Schema) Dialect() Dialect {
 	return s.dialect
 }
 
-func (s *Schema) applyDialects(compiler *Compiler) error {
+func (s *Schema) applyDialectsWithResources(compiler *Compiler, resources map[string]*Schema) error {
 	defaultDialect := compiler.schemaDialect()
-	return s.applyDialect(defaultDialect, false, compiler)
+	behavior, err := compiler.schemaVocabularyBehavior(string(defaultDialect), resources)
+	if err != nil {
+		return err
+	}
+	return s.applyDialect(defaultDialect, !behavior.validation, behavior.formatAssertion, compiler, resources)
 }
 
-func (s *Schema) applyDialect(inherited Dialect, inheritedValidationDisabled bool, compiler *Compiler) error {
+func (s *Schema) applyDialect(
+	inherited Dialect,
+	inheritedValidationDisabled bool,
+	inheritedFormatAssertion bool,
+	compiler *Compiler,
+	resources map[string]*Schema,
+) error {
 	if s == nil {
 		return nil
 	}
@@ -72,12 +90,19 @@ func (s *Schema) applyDialect(inherited Dialect, inheritedValidationDisabled boo
 		s.dialect = Draft202012
 	}
 	s.disableValidation = inheritedValidationDisabled
+	s.formatAssertion = inheritedFormatAssertion
 	if s.Schema != "" && compiler != nil {
-		hasValidationVocabulary, err := compiler.schemaUsesValidationVocabulary(s.Schema)
+		behavior, err := compiler.schemaVocabularyBehavior(s.Schema, resources)
 		if err != nil {
 			return err
 		}
-		s.disableValidation = !hasValidationVocabulary
+		s.disableValidation = !behavior.validation
+		s.formatAssertion = behavior.formatAssertion
+	}
+	if s.formatAssertion && s.Format != nil {
+		if _, _, ok := lookupFormat(compiler, *s.Format); !ok {
+			return fmt.Errorf("%w: %s", ErrUnknownFormat, *s.Format)
+		}
 	}
 
 	if err := s.applyDialectCompatibility(); err != nil {
@@ -87,37 +112,42 @@ func (s *Schema) applyDialect(inherited Dialect, inheritedValidationDisabled boo
 	var err error
 	s.forEachChild(func(child *Schema) {
 		if err == nil {
-			err = child.applyDialect(s.dialect, s.disableValidation, compiler)
+			err = child.applyDialect(s.dialect, s.disableValidation, s.formatAssertion, compiler, resources)
 		}
 	})
 	return err
 }
 
-func (c *Compiler) schemaUsesValidationVocabulary(schemaURI string) (bool, error) {
+func (c *Compiler) schemaVocabularyBehavior(schemaURI string, resources map[string]*Schema) (vocabularyBehavior, error) {
+	behavior := vocabularyBehavior{validation: true}
 	if c == nil || schemaURI == "" || dialectFromSchemaURI(schemaURI, "") != "" {
-		return true, nil
+		return behavior, nil
 	}
 
-	c.mu.RLock()
-	metaschema := c.schemas[schemaURI]
-	c.mu.RUnlock()
+	metaschema := resources[schemaURI]
+	if metaschema == nil {
+		c.mu.RLock()
+		metaschema = c.schemas[schemaURI]
+		c.mu.RUnlock()
+	}
 	if metaschema == nil || len(metaschema.Vocabulary) == 0 {
-		return true, nil
+		return behavior, nil
 	}
 
 	for vocabulary, required := range metaschema.Vocabulary {
 		if required && !supportsVocabulary(vocabulary) {
-			return false, fmt.Errorf("%w: %s", ErrUnsupportedVocabulary, vocabulary)
+			return vocabularyBehavior{}, fmt.Errorf("%w: %s", ErrUnsupportedVocabulary, vocabulary)
 		}
 	}
 
 	_, usesDraft201909Validation := metaschema.Vocabulary[draft201909ValidationVocabulary]
 	_, usesDraft202012Validation := metaschema.Vocabulary[draft202012ValidationVocabulary]
-	return usesDraft201909Validation || usesDraft202012Validation, nil
+	_, behavior.formatAssertion = metaschema.Vocabulary[draft202012FormatAssertionVocabulary]
+	behavior.validation = usesDraft201909Validation || usesDraft202012Validation
+	return behavior, nil
 }
 
 func supportsVocabulary(uri string) bool {
-	// Format-Assertion remains unsupported until every standard format is implemented.
 	switch uri {
 	case
 		"https://json-schema.org/draft/2019-09/vocab/core",
@@ -131,7 +161,8 @@ func supportsVocabulary(uri string) bool {
 		"https://json-schema.org/draft/2020-12/vocab/unevaluated",
 		draft202012ValidationVocabulary,
 		"https://json-schema.org/draft/2020-12/vocab/meta-data",
-		"https://json-schema.org/draft/2020-12/vocab/format-annotation",
+		draft202012FormatAnnotationVocabulary,
+		draft202012FormatAssertionVocabulary,
 		"https://json-schema.org/draft/2020-12/vocab/content":
 		return true
 	default:
@@ -189,6 +220,15 @@ func (s *Schema) claimLegacyKeywords() error {
 			s.ID = id
 		}
 		delete(s.rawExtra, "id")
+	}
+
+	// "additionalItems" remains an addressable subschema even when a sibling
+	// schema-valued "items" makes it inert for array validation.
+	if raw, ok := s.rawExtra["additionalItems"]; ok && s.dialect.usesLegacyTupleItems() {
+		if err := s.applyLegacyAdditionalItems(raw); err != nil {
+			return err
+		}
+		delete(s.rawExtra, "additionalItems")
 	}
 
 	// "dependencies" splits into dependentRequired/dependentSchemas (Draft 4-2019).
@@ -273,6 +313,18 @@ func (s *Schema) applyLegacyExclusiveBounds() error {
 	return nil
 }
 
+func (s *Schema) applyLegacyAdditionalItems(raw jsontext.Value) error {
+	additionalItems := &Schema{}
+	if err := json.Unmarshal(raw, additionalItems); err != nil {
+		return fmt.Errorf("additionalItems: %w", err)
+	}
+	s.legacyAdditionalItems = additionalItems
+	if s.legacyTupleItems {
+		s.Items = additionalItems
+	}
+	return nil
+}
+
 func (s *Schema) applyLegacyDependencies(rawDependencies jsontext.Value) error {
 	var dependencies map[string]jsontext.Value
 	if err := json.Unmarshal(rawDependencies, &dependencies); err != nil {
@@ -301,6 +353,10 @@ func (s *Schema) applyLegacyDependencies(rawDependencies jsontext.Value) error {
 		if err := json.Unmarshal(raw, dependentSchema); err != nil {
 			return fmt.Errorf("dependencies %q: %w", property, err)
 		}
+		if s.legacyDependentSchemas == nil {
+			s.legacyDependentSchemas = make(map[string]*Schema)
+		}
+		s.legacyDependentSchemas[property] = dependentSchema
 		if s.DependentSchemas == nil {
 			s.DependentSchemas = make(map[string]*Schema)
 		}
@@ -349,52 +405,76 @@ func isJSONTrue(raw []byte) bool {
 	return bytes.Equal(bytes.TrimSpace(raw), []byte("true"))
 }
 
-// forEachChild invokes fn for every non-nil immediate subschema, without
-// allocating an intermediate slice. It mirrors the traversal in
-// initializeNestedSchemasCore.
+// forEachChild invokes fn for every non-nil immediate subschema without
+// allocating an intermediate slice.
 func (s *Schema) forEachChild(fn func(*Schema)) {
+	s.forEachChildPath(func(child *Schema, _ schemaPath) { fn(child) })
+}
+
+// schemaPath identifies a child without allocating token slices for visitors
+// that only need the node. A map member may have an empty name.
+type schemaPath struct {
+	keyword   string
+	member    string
+	hasMember bool
+}
+
+// forEachChildPath supplies source locations for diagnostics as well as traversal.
+func (s *Schema) forEachChildPath(fn func(*Schema, schemaPath)) {
 	if s == nil {
 		return
 	}
-
-	add := func(schema *Schema) {
+	add := func(schema *Schema, keyword string) {
 		if schema != nil {
-			fn(schema)
+			fn(schema, schemaPath{keyword: keyword})
 		}
 	}
-	addMap := func(schemas map[string]*Schema) {
-		for _, schema := range schemas {
-			add(schema)
+	addMap := func(schemas map[string]*Schema, keyword string) {
+		for key, schema := range schemas {
+			if schema != nil {
+				fn(schema, schemaPath{keyword: keyword, member: key, hasMember: true})
+			}
 		}
 	}
-	addSchemaMap := func(schemas *SchemaMap) {
-		if schemas != nil {
-			addMap(map[string]*Schema(*schemas))
+	addSlice := func(schemas []*Schema, keyword string) {
+		for i, schema := range schemas {
+			if schema != nil {
+				fn(schema, schemaPath{keyword: keyword, member: strconv.Itoa(i), hasMember: true})
+			}
 		}
 	}
-	addSlice := func(schemas []*Schema) {
-		for _, schema := range schemas {
-			add(schema)
-		}
+	addMap(s.Defs, "$defs")
+	if s.Properties != nil {
+		addMap(map[string]*Schema(*s.Properties), "properties")
 	}
-
-	addMap(s.Defs)
-	addMap(s.DependentSchemas)
-	addSchemaMap(s.Properties)
-	addSchemaMap(s.PatternProperties)
-	addSlice(s.AllOf)
-	addSlice(s.AnyOf)
-	addSlice(s.OneOf)
-	addSlice(s.PrefixItems)
-	add(s.Not)
-	add(s.If)
-	add(s.Then)
-	add(s.Else)
-	add(s.Items)
-	add(s.Contains)
-	add(s.AdditionalProperties)
-	add(s.PropertyNames)
-	add(s.UnevaluatedItems)
-	add(s.UnevaluatedProperties)
-	add(s.ContentSchema)
+	if s.PatternProperties != nil {
+		addMap(map[string]*Schema(*s.PatternProperties), "patternProperties")
+	}
+	addMap(s.DependentSchemas, "dependentSchemas")
+	addSlice(s.AllOf, "allOf")
+	addSlice(s.AnyOf, "anyOf")
+	addSlice(s.OneOf, "oneOf")
+	if s.legacyTupleItems {
+		addSlice(s.PrefixItems, "items")
+	} else {
+		addSlice(s.PrefixItems, "prefixItems")
+	}
+	add(s.Not, "not")
+	add(s.If, "if")
+	add(s.Then, "then")
+	add(s.Else, "else")
+	if s.legacyTupleItems {
+		add(s.Items, "additionalItems")
+	} else {
+		add(s.Items, "items")
+	}
+	if s.legacyAdditionalItems != s.Items {
+		add(s.legacyAdditionalItems, "additionalItems")
+	}
+	add(s.Contains, "contains")
+	add(s.AdditionalProperties, "additionalProperties")
+	add(s.PropertyNames, "propertyNames")
+	add(s.UnevaluatedItems, "unevaluatedItems")
+	add(s.UnevaluatedProperties, "unevaluatedProperties")
+	add(s.ContentSchema, "contentSchema")
 }

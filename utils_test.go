@@ -1,6 +1,7 @@
 package jsonschema
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -184,6 +185,20 @@ func TestPublicFormatHelpers(t *testing.T) {
 		{name: "relative json pointer path", validate: IsRelativeJSONPointer, input: "1/foo", want: true},
 		{name: "relative json pointer invalid", validate: IsRelativeJSONPointer, input: "foo", want: false},
 		{name: "regex valid", validate: IsRegex, input: "^[a-z]+$", want: true},
+		{name: "regex portable alternation", validate: IsRegex, input: `^(cat|dog){1,3}?$`, want: true},
+		{name: "regex portable complemented class", validate: IsRegex, input: `^[^a-z]+?$`, want: true},
+		{name: "regex unicode characters", validate: IsRegex, input: `^(\p{Letter}+|例子)$`, want: true},
+		{name: "regex large counted repeat", validate: IsRegex, input: `a{1001}`, want: true},
+		{name: "regex nested counted repeat", validate: IsRegex, input: `(a{1000}){2}`, want: true},
+		{name: "regex lazy large counted repeat", validate: IsRegex, input: `a{1001}?`, want: true},
+		{name: "regex quoted counted text", validate: IsRegex, input: `\Q{2,1}\Ea{1001}`, want: true},
+		{name: "regex POSIX class counted text", validate: IsRegex, input: `[[:alpha:]{2,1}]a{1001}`, want: true},
+		{name: "regex invalid counted repeat range", validate: IsRegex, input: `a{1001,1000}`, want: false},
+		{name: "regex stacked counted repeats", validate: IsRegex, input: `a{1001}{2}`, want: false},
+		{name: "regex unsupported lookahead", validate: IsRegex, input: "^(?!reserved$).+$", want: false},
+		{name: "regex unsupported lookbehind", validate: IsRegex, input: `(?<=prefix)value`, want: false},
+		{name: "regex unsupported backreference", validate: IsRegex, input: `^(a)\1$`, want: false},
+		{name: "regex unsupported atomic group", validate: IsRegex, input: `(?>a)`, want: false},
 		{name: "regex invalid", validate: IsRegex, input: "[a-z", want: false},
 	}
 
@@ -207,8 +222,20 @@ func TestIPAndURIHelpers(t *testing.T) {
 		{name: "ipv6 missing colon", validate: IsIPV6, input: "2001db81", want: false},
 		{name: "uri reference relative", validate: IsURIReference, input: "/relative/path", want: true},
 		{name: "uri reference backslash rejected", validate: IsURIReference, input: `https://example.com\\path`, want: false},
+		{name: "uri rejects unicode", validate: IsURI, input: "https://example.com/caf\u00e9", want: false},
+		{name: "uri rejects raw spaces", validate: IsURI, input: "https://example.com/a b", want: false},
+		{name: "uri rejects bracket in path", validate: IsURI, input: "https://example.com/a[b]", want: false},
+		{name: "uri rejects second fragment delimiter", validate: IsURI, input: "https://example.com/#a#b", want: false},
+		{name: "uri accepts IPvFuture", validate: IsURI, input: "https://[v1.future:value]/", want: true},
+		{name: "uri rejects escaped IPvFuture address", validate: IsURI, input: "https://[v1.%41]/", want: false},
+		{name: "iri accepts unicode", validate: IsIRI, input: "https://example.com/caf\u00e9", want: true},
+		{name: "iri requires a scheme", validate: IsIRI, input: "caf\u00e9", want: false},
+		{name: "iri reference accepts unicode", validate: IsIRIReference, input: "caf\u00e9", want: true},
+		{name: "iri permits private characters in query", validate: IsIRI, input: "https://example.com/?q=\ue000", want: true},
+		{name: "iri rejects private characters in path", validate: IsIRI, input: "https://example.com/\ue000", want: false},
 		{name: "uri template valid", validate: IsURITemplate, input: "https://example.com/{id}", want: true},
 		{name: "uri template unbalanced braces", validate: IsURITemplate, input: "https://example.com/{id", want: false},
+		{name: "uri template invalid variable", validate: IsURITemplate, input: "https://example.com/{id:}", want: false},
 	}
 
 	for _, tt := range tests {
@@ -216,4 +243,14 @@ func TestIPAndURIHelpers(t *testing.T) {
 			assert.Equal(t, tt.want, tt.validate(tt.input))
 		})
 	}
+}
+
+func TestIDNEmailUsesHostnameValidation(t *testing.T) {
+	tooLongDomain := strings.Repeat("例.", 31) + "例"
+	assert.False(t, IsIDNHostname(tooLongDomain))
+	assert.False(t, IsIDNEmail("用户@"+tooLongDomain))
+	assert.True(t, IsIDNEmail("user@[IPv6:2001:db8::1]"))
+	assert.False(t, IsIDNEmail("user..name@[IPv6:2001:db8::1]"))
+	assert.False(t, IsEmail("用户@example.com"))
+	assert.True(t, IsIDNEmail("用户@例子.测试"))
 }

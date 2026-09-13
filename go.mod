@@ -1,6 +1,6 @@
 module github.com/kaptinlin/jsonschema
 
-go 1.27
+go 1.27.0
 
 require (
 	github.com/agentable/go-intl v0.2.14 // indirect
@@ -11,7 +11,7 @@ require (
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
@@ -22,4 +22,6 @@ require (
 	github.com/kaptinlin/go-i18n v0.6.3
 	github.com/kaptinlin/jsonpointer v0.4.28
 	github.com/stretchr/testify v1.11.1
+	github.com/yosida95/uritemplate/v3 v3.0.2
+	golang.org/x/net v0.58.0
 )

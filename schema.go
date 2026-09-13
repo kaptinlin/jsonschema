@@ -23,15 +23,21 @@ type Schema struct {
 	parent                 *Schema                   // Parent schema for hierarchical resolution.
 	uri                    string                    // Internal schema identifier resolved during compilation.
 	baseURI                string                    // Base URI for resolving relative references within the schema.
+	retrievalURI           string                    // Address used to retrieve the root document before applying its $id.
 	anchors                map[string]*Schema        // Anchors for quick lookup of internal schema references.
 	dynamicAnchors         map[string]*Schema        // Dynamic anchors for more flexible schema references.
 	schemas                map[string]*Schema        // Cache of compiled schemas.
 	compiledStringPattern  *regexp.Regexp            // Cached compiled regular expressions for string patterns.
 	dialect                Dialect                   // JSON Schema dialect selected for this schema resource.
 	rawExtra               map[string]jsontext.Value // Members not bound to a typed field; dialect layer claims known ones, the rest become Extra.
+	legacyAdditionalItems  *Schema                   // Draft 4-2019 additionalItems target retained independently from Items.
+	legacyDependentSchemas map[string]*Schema        // Schema-form dependencies retained under their original pointer path.
+	legacyTupleItems       bool                      // True when the source document uses the legacy array form of items.
 	legacyExclusiveMinimum jsontext.Value            // Raw Draft-04 boolean exclusiveMinimum value.
 	legacyExclusiveMaximum jsontext.Value            // Raw Draft-04 boolean exclusiveMaximum value.
 	disableValidation      bool                      // True when the active metaschema omits validation vocabulary.
+	formatAssertion        bool                      // True when the active metaschema declares Format-Assertion.
+	compiled               bool                      // The graph passed compilation; callers must not mutate it during validation.
 
 	ID     string  `json:"$id,omitempty"`     // Public identifier for the schema.
 	Schema string  `json:"$schema,omitempty"` // URI indicating the specification the schema conforms to.
@@ -128,22 +134,11 @@ type Schema struct {
 	Extra map[string]any `json:"-"`
 }
 
-// newSchema parses JSON schema data and returns a Schema object.
-func newSchema(jsonSchema []byte, compilers ...*Compiler) (*Schema, error) {
+func parseSchema(jsonSchema []byte) (*Schema, error) {
 	schema := &Schema{}
-
-	// Parse schema
 	if err := json.Unmarshal(jsonSchema, schema); err != nil {
 		return nil, err
 	}
-	var compiler *Compiler
-	if len(compilers) > 0 {
-		compiler = compilers[0]
-	}
-	if err := schema.applyDialects(compiler); err != nil {
-		return nil, err
-	}
-
 	return schema, nil
 }
 
@@ -163,6 +158,9 @@ func (s *Schema) initializeSchemaWithoutReferences(compiler *Compiler, parent *S
 // When resolveRefs is true, references are resolved immediately after nested schema initialization.
 // When resolveRefs is false, reference resolution is deferred (used by CompileBatch).
 func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolveRefs bool) {
+	if s.compiled {
+		return
+	}
 	if compiler != nil {
 		s.compiler = compiler
 	}
@@ -194,7 +192,7 @@ func (s *Schema) initializeSchemaCore(compiler *Compiler, parent *Schema, resolv
 	initializeNestedSchemasCore(s, compiler, resolveRefs)
 	s.compileRegexCaches()
 	if resolveRefs {
-		s.resolveReferences()
+		_ = s.resolveReferences()
 	}
 
 	// Handle PreserveExtra option
@@ -217,6 +215,9 @@ func (s *Schema) compileRegexCaches() {
 // resolveBaseURI resolves the base URI for the schema
 func (s *Schema) resolveBaseURI(compiler *Compiler) {
 	parentBaseURI := s.parentBaseURI()
+	if s.parent == nil && s.retrievalURI != "" {
+		parentBaseURI = s.retrievalURI
+	}
 	if parentBaseURI == "" {
 		parentBaseURI = compiler.DefaultBaseURI
 	}
@@ -354,7 +355,10 @@ func (s *Schema) collectRegexErrors(pathTokens []string, visited map[*Schema]boo
 	addSchema(s.UnevaluatedItems, "unevaluatedItems")
 	addSchema(s.PropertyNames, "propertyNames")
 	addSchema(s.ContentSchema, "contentSchema")
-	addSchema(s.Items, "items")
+	if s.Items != s.legacyAdditionalItems {
+		addSchema(s.Items, "items")
+	}
+	addSchema(s.legacyAdditionalItems, "additionalItems")
 	addSchema(s.Contains, "contains")
 	addSchema(s.Not, "not")
 	addSchema(s.If, "if")
@@ -548,6 +552,68 @@ func (s *Schema) MarshalJSON() ([]byte, error) {
 		result["const"] = value
 	}
 
+	// Direct decoding leaves dialect-specific members unclaimed until compilation.
+	maps.Copy(result, s.rawExtra)
+
+	// Preserve source keyword paths so serialized $ref targets remain addressable.
+	additionalItems := s.legacyAdditionalItems
+	if s.legacyTupleItems {
+		additionalItems = s.Items
+	}
+	if additionalItems != nil {
+		value, ok := result["items"]
+		if !ok || additionalItems != s.Items {
+			value, err = marshalJSON(additionalItems)
+			if err != nil {
+				return nil, err
+			}
+		}
+		result["additionalItems"] = value
+	}
+	if s.legacyTupleItems {
+		value := result["prefixItems"]
+		if len(value) == 0 {
+			value = jsontext.Value("[]")
+		}
+		result["items"] = value
+		delete(result, "prefixItems")
+	}
+	if len(s.legacyDependentSchemas) > 0 {
+		var dependentSchemas map[string]jsontext.Value
+		if value, ok := result["dependentSchemas"]; ok {
+			if err := json.Unmarshal(value, &dependentSchemas); err != nil {
+				return nil, err
+			}
+		}
+
+		dependencies := make(map[string]jsontext.Value, len(s.legacyDependentSchemas))
+		for property, schema := range s.legacyDependentSchemas {
+			value := dependentSchemas[property]
+			if s.DependentSchemas[property] == schema {
+				delete(dependentSchemas, property)
+			} else {
+				value, err = marshalJSON(schema)
+				if err != nil {
+					return nil, err
+				}
+			}
+			dependencies[property] = value
+		}
+		value, err := json.Marshal(dependencies, json.Deterministic(true))
+		if err != nil {
+			return nil, err
+		}
+		result["dependencies"] = value
+		delete(result, "dependentSchemas")
+		if len(dependentSchemas) > 0 {
+			value, err := json.Marshal(dependentSchemas, json.Deterministic(true))
+			if err != nil {
+				return nil, err
+			}
+			result["dependentSchemas"] = value
+		}
+	}
+
 	for name, extra := range s.Extra {
 		value, err := marshalJSON(extra)
 		if err != nil {
@@ -587,6 +653,8 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	// field, so there is no separate hand-maintained keyword list to drift.
 	type Alias Schema
 	aux := &struct {
+		Ref              *string        `json:"$ref,omitempty"`
+		DynamicRef       *string        `json:"$dynamicRef,omitempty"`
 		Items            jsontext.Value `json:"items,omitempty"`
 		ExclusiveMinimum jsontext.Value `json:"exclusiveMinimum,omitempty"`
 		ExclusiveMaximum jsontext.Value `json:"exclusiveMaximum,omitempty"`
@@ -602,27 +670,33 @@ func (s *Schema) UnmarshalJSON(data []byte) error {
 	if err := unmarshalJSON(data, &aux); err != nil {
 		return err
 	}
+	if aux.Ref != nil {
+		s.Ref = normalizeRef(*aux.Ref)
+	}
+	if aux.DynamicRef != nil {
+		s.DynamicRef = normalizeRef(*aux.DynamicRef)
+	}
 	if err := decodeExclusiveBound("exclusiveMinimum", aux.ExclusiveMinimum, &s.ExclusiveMinimum, &s.legacyExclusiveMinimum); err != nil {
 		return err
 	}
 	if err := decodeExclusiveBound("exclusiveMaximum", aux.ExclusiveMaximum, &s.ExclusiveMaximum, &s.legacyExclusiveMaximum); err != nil {
 		return err
 	}
-	// "items" polymorphism (legacy tuple form vs 2020-12 list form). When items
-	// is an array, the sibling "additionalItems" (legacy) validates the rest;
-	// consume it from Rest so it is not later treated as an extension keyword.
+	// "items" polymorphism (legacy tuple form vs 2020-12 list form). Preserve
+	// the source shape so JSON Pointer resolution can distinguish tuple items
+	// from a schema-valued items keyword after dialect normalization.
 	if len(aux.Items) > 0 {
 		trimmed := bytes.TrimSpace(aux.Items)
-		if len(trimmed) > 0 && trimmed[0] == '[' {
+		s.legacyTupleItems = len(trimmed) > 0 && trimmed[0] == '['
+		if s.legacyTupleItems {
 			if err := json.Unmarshal(aux.Items, &s.PrefixItems); err != nil {
 				return err
 			}
-			if additional, ok := aux.Rest["additionalItems"]; ok {
-				item := &Schema{}
-				if err := json.Unmarshal(additional, item); err != nil {
+			// Tuple syntax also identifies additionalItems during direct decoding.
+			if raw, ok := aux.Rest["additionalItems"]; ok {
+				if err := s.applyLegacyAdditionalItems(raw); err != nil {
 					return err
 				}
-				s.Items = item
 				delete(aux.Rest, "additionalItems")
 			}
 		} else {

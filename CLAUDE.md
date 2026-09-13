@@ -84,7 +84,19 @@ Key entry points:
 - Preserve untyped JSON numbers as `encoding/json.Number` on package-owned decode paths; route numeric classification, constraints, equality, and hashing through the shared rational conversion semantics in [SPECS/01-exact-json-numbers.md](SPECS/01-exact-json-numbers.md).
 - Keep JSON equality and hashing total and consistent: caller-provided values must not panic, and equal supported values must hash equally.
 - Treat custom JSON codecs as caller-owned policy. Do not silently restore package precision semantics behind an explicit codec override.
-- Preserve JSON Schema Draft 2020-12 semantics. `format` remains annotation-only unless the caller opts in with `Compiler.SetAssertFormat(true)`.
+- Preserve JSON Schema Draft 2020-12 semantics. `format` remains annotation-only
+  in the standard dialect unless the caller opts in with
+  `Compiler.SetAssertFormat(true)`; a dialect declaring Format-Assertion always
+  asserts it.
+- Publish only fully initialized and bound graphs. Concurrent dependency retrieval
+  reuses the first published resource; explicit duplicate definitions remain errors.
+  Never rebind published nodes or hold the registry lock during loader callbacks.
+- Keep document compilation separate from compiled-node composition. Serialization
+  does not copy parent scope, inherited dialect, or compiler policy. Do not restore
+  an ambiguous `SetSchema` wrapper or add a general graph importer without a use case.
+- Mutable constructor graphs check references on every validation. Do not cache
+  readiness without an enforceable immutability boundary; compile standalone
+  constructor documents once for repeated validation of large graphs.
 - Keep constructor helpers chainable and close to JSON Schema vocabulary.
 - Preserve deterministic generated schema output unless an option explicitly allows otherwise, such as `RequiredSortNone`.
 - Reuse the modern stdlib/tooling patterns already in the codebase: `slices`, `maps`, `for range N`, and `testing.B.Loop()`.
@@ -133,6 +145,8 @@ task bench                           # Package benchmarks
 |----------|----------|
 | [SPECS/README.md](SPECS/README.md) | Specification ownership and navigation. |
 | [SPECS/01-exact-json-numbers.md](SPECS/01-exact-json-numbers.md) | Exact number representation, conversion, equality, hashing, unmarshaling, and codec ownership. |
+| [SPECS/02-format-vocabularies.md](SPECS/02-format-vocabularies.md) | Format policy, vocabulary requirements, lookup, and resource inheritance. |
+| [SPECS/03-compilation-lifecycle.md](SPECS/03-compilation-lifecycle.md) | Complete publication, resource identity, concurrent retrieval, and constructor composition. |
 
 ## Dependencies
 

@@ -1,6 +1,8 @@
 # Schema Compilation Guide
 
-Guide to compiling and configuring JSON Schemas.
+Guide to compiling and configuring JSON Schemas. Successful compilation returns
+a fully initialized reference graph. Missing targets and loader failures are
+errors; references are never silently ignored or bound by a later compilation.
 
 ## Basic Compilation
 
@@ -43,7 +45,7 @@ schema, err := compiler.Compile([]byte(`{
 
 ### Format Validation
 
-Enable format assertions (email, date-time, etc.):
+Enable best-effort format assertions (email, date-time, etc.) as caller policy:
 
 ```go
 compiler := jsonschema.NewCompiler()
@@ -57,6 +59,10 @@ schema, _ := compiler.Compile([]byte(`{
     }
 }`))
 ```
+
+The standard Draft 2020-12 dialect remains annotation-only by default. A custom
+dialect declaring the Draft 2020-12 Format-Assertion vocabulary asserts formats
+without this setting and rejects unknown format names during compilation.
 
 ### Base URI
 
@@ -81,22 +87,34 @@ schema, _ := compiler.Compile([]byte(`{
 ### Register Format Validators
 
 ```go
-compiler := jsonschema.NewCompiler()
+compiler := jsonschema.NewCompiler().SetAssertFormat(true)
 
 // UUID format
-compiler.RegisterFormat("uuid", func(value string) bool {
-    _, err := uuid.Parse(value)
+compiler.RegisterFormat("uuid", func(value any) bool {
+    text, ok := value.(string)
+    if !ok {
+        return true
+    }
+    _, err := uuid.Parse(text)
     return err == nil
 })
 
 // Custom phone number format
-compiler.RegisterFormat("phone", func(value string) bool {
-    return len(value) >= 10 && regexp.MustCompile(`^\+?[0-9\-\s]+$`).MatchString(value)
+compiler.RegisterFormat("phone", func(value any) bool {
+    text, ok := value.(string)
+    if !ok {
+        return true
+    }
+    return len(text) >= 10 && regexp.MustCompile(`^\+?[0-9\-\s]+$`).MatchString(text)
 })
 
 // Date format (YYYY-MM-DD)
-compiler.RegisterFormat("date", func(value string) bool {
-    _, err := time.Parse("2006-01-02", value)
+compiler.RegisterFormat("date", func(value any) bool {
+    text, ok := value.(string)
+    if !ok {
+        return true
+    }
+    _, err := time.Parse("2006-01-02", text)
     return err == nil
 })
 ```
@@ -163,6 +181,34 @@ mainSchema, _ := compiler.Compile([]byte(`{
 }`))
 ```
 
+### Batch Compilation
+
+For mutually dependent resources, use `CompileBatch` so both definitions are
+available before references are bound:
+
+```go
+schemas, err := compiler.CompileBatch(map[string][]byte{
+    "urn:example:parent": []byte(`{"type":"object","properties":{"child":{"$ref":"urn:example:child"}}}`),
+    "urn:example:child":  []byte(`{"type":"object","properties":{"parent":{"$ref":"urn:example:parent"}}}`),
+})
+if err != nil {
+    log.Fatal(err)
+}
+parentSchema := schemas["urn:example:parent"]
+```
+
+A failed batch does not expose partially compiled resources or change existing
+bindings. Loaders run outside registry locks. Their external side effects are
+caller-owned and are not rolled back.
+
+Each resource URI has one definition per compiler. `Compile` and `CompileBatch`
+reject explicit duplicate definitions with `ErrSchemaConflict`. Retrieve
+existing resources with `Schema`; use a new compiler for replacement definitions.
+Concurrent compilations and lookups can share a cold dependency. The first complete
+publication wins; other private builds retry against that definition. Loaders can
+run concurrently or more than once, and should return stable content per URI.
+This does not publish partial graphs or require waiting on another private graph.
+
 ### Dynamic References
 
 ```go
@@ -171,6 +217,7 @@ schema, _ := compiler.Compile([]byte(`{
     "$id": "tree.json",
     "$defs": {
         "node": {
+            "$dynamicAnchor": "node",
             "type": "object",
             "properties": {
                 "value": {"type": "string"},
@@ -238,18 +285,21 @@ Register custom loaders for different protocols:
 
 ```go
 // HTTP loader
-compiler.RegisterLoader("http", func(url string) ([]byte, error) {
+compiler.RegisterLoader("http", func(url string) (io.ReadCloser, error) {
     resp, err := http.Get(url)
     if err != nil {
         return nil, err
     }
-    defer resp.Body.Close()
-    return io.ReadAll(resp.Body)
+    if resp.StatusCode != http.StatusOK {
+        _ = resp.Body.Close()
+        return nil, fmt.Errorf("unexpected HTTP status: %s", resp.Status)
+    }
+    return resp.Body, nil // The compiler reads and closes the body.
 })
 
 // File loader
-compiler.RegisterLoader("file", func(url string) ([]byte, error) {
-    return os.ReadFile(strings.TrimPrefix(url, "file://"))
+compiler.RegisterLoader("file", func(url string) (io.ReadCloser, error) {
+    return os.Open(strings.TrimPrefix(url, "file://"))
 })
 ```
 
@@ -368,5 +418,3 @@ if err != nil {
 3. **Use specific IDs** for schemas you'll reference
 4. **Register custom formats** before compilation
 5. **Set base URI** for relative references
-
-```

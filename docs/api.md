@@ -14,7 +14,14 @@ compiler := jsonschema.NewCompiler()
 
 ### `(*Compiler) Compile(schema []byte, id ...string) (*Schema, error)`
 
-Compiles a JSON schema from bytes. Optionally provide an ID for schema referencing.
+Compiles a complete schema graph from bytes. The optional URI is its retrieval
+address and supplies `$id` when absent. Missing references fail compilation with
+`ErrReferenceResolution`; the error includes the resource, keyword location,
+reference text, and underlying cause. Later compilations never rebind this graph.
+
+Submitting an occupied resource URI returns `ErrSchemaConflict`, even for the
+same document. Use `Schema` to retrieve an existing definition, or a new compiler
+to replace a set of definitions.
 
 ```go
 // Compile schema without ID
@@ -23,6 +30,35 @@ schema, err := compiler.Compile([]byte(`{"type": "string"}`))
 // Compile schema with specific ID for referencing
 schema, err := compiler.Compile([]byte(`{"type": "object", ...}`), "user.json")
 ```
+
+### `(*Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, error)`
+
+Compiles related resources together. Map keys are retrieval addresses; each
+document can declare its own `$id`. Batch resources, including meta-schemas, are
+available to one another during compilation. Legal cycles are supported. Nothing
+from the batch is published until all references and compilation checks succeed.
+
+### `(*Compiler) Schema(ref string) (*Schema, error)`
+
+Retrieves a completed resource or fragment, using a registered loader when the
+resource is absent. Relative addresses use `DefaultBaseURI`. A retrieval address
+and the document's resolved `$id` identify the same compiled resource.
+
+Concurrent cold lookups and compilations sharing a dependency reuse its first
+published definition. Loaders may run concurrently and more than once; they
+should return stable content for each URI. Explicit duplicate document submissions
+still fail with `ErrSchemaConflict`.
+
+To compile a standalone constructor document, serialize it with `MarshalJSON`
+and pass the bytes to `Compile`. To reuse an already-compiled root or subschema,
+compose it directly with constructors so its original scope and policy survive.
+Serialization does not export a compiled node's inherited context.
+
+Configure a compiler before sharing it. Published schemas support concurrent
+validation and concurrent compilation of new resources, provided callers do not
+mutate schemas, instances, or unsynchronized configuration and callbacks are
+safe for concurrent use. Format registrations and caller policy remain dynamic;
+stable reference bindings do not freeze callback behavior or compiler settings.
 
 ### `(*Compiler) ValidateSchema(schema []byte) (*EvaluationResult, error)`
 
@@ -62,22 +98,34 @@ Supported dialect constants:
 | `Draft6` | Draft-06 |
 | `Draft4` | Draft-04 |
 
+### `(*Compiler) SetAssertFormat(assert bool) *Compiler`
+
+Enables best-effort assertion for recognized formats. Unknown format names
+remain annotations. A schema resource whose dialect declares the Draft 2020-12
+Format-Assertion vocabulary asserts formats independently of this setting and
+rejects unknown format names during compilation.
+
 ### `(*Compiler) RegisterFormat(name string, fn FormatFunc) *Compiler`
 
 Registers a custom format validator.
 
 ```go
-compiler.RegisterFormat("uuid", func(value string) bool {
-    _, err := uuid.Parse(value)
-    return err == nil
-})
+compiler.RegisterFormat("uuid", func(value any) bool {
+	text, ok := value.(string)
+	if !ok {
+		return true
+	}
+	_, err := uuid.Parse(text)
+	return err == nil
+}, "string")
 ```
 
 ### `(*Compiler) UnregisterFormat(name string) *Compiler`
 
-Removes a previously registered custom format from the compiler. If `AssertFormat` is
-set to `true`, schemas that reference this format will fail validation; otherwise the
-format annotation will be ignored.
+Removes a previously registered custom format from the compiler. The name
+remains an annotation in default and best-effort modes. Under Format-Assertion,
+an unregistered name causes schema compilation to fail; removing a registration
+after compilation produces an `unknown_format` evaluation error.
 
 ```go
 // Remove a custom format

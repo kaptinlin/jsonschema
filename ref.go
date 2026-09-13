@@ -9,14 +9,22 @@ import (
 	"github.com/kaptinlin/jsonpointer"
 )
 
-// resolveRef resolves a reference to another schema, either locally or globally, supporting both $ref and $dynamicRef.
-func (s *Schema) resolveRef(ref string) (*Schema, error) {
+// An explicit empty URI references the current resource, just like "#".
+// Canonicalizing it keeps the zero string available for an absent keyword.
+func normalizeRef(ref string) string {
+	if ref == "" {
+		return "#"
+	}
+	return ref
+}
+
+func (s *Schema) resolveRefUsing(ref string, lookup func(string) (*Schema, error)) (*Schema, error) {
 	if ref == "#" {
 		return s.scopeSchema(), nil
 	}
 
 	if anchor, ok := strings.CutPrefix(ref, "#"); ok {
-		return s.resolveAnchor(anchor)
+		return s.scopeSchema().resolveAnchor(anchor)
 	}
 
 	// Resolve the full URL if ref is a relative URL
@@ -25,38 +33,37 @@ func (s *Schema) resolveRef(ref string) (*Schema, error) {
 	}
 
 	// Handle full URL references
-	return s.resolveRefWithFullURL(ref)
+	return s.resolveRefWithLookup(ref, lookup)
 }
 
 func (s *Schema) resolveAnchor(anchorName string) (*Schema, error) {
-	if isJSONPointer(anchorName) {
-		schema, err := s.resolveJSONPointer(anchorName)
-		if schema == nil && s.parent != nil {
-			return s.parent.resolveAnchor(anchorName)
-		}
-		return schema, err
+	if anchorName == "" {
+		return s, nil
+	}
+	decoded, err := url.PathUnescape(anchorName)
+	if err != nil {
+		return nil, ErrJSONPointerSegmentDecode
+	}
+	if strings.HasPrefix(decoded, "/") {
+		return s.resolveJSONPointer(anchorName)
 	}
 
-	if schema, ok := s.anchors[anchorName]; ok {
+	if schema, ok := s.anchors[decoded]; ok {
 		return schema, nil
 	}
-	if schema, ok := s.dynamicAnchors[anchorName]; ok {
+	if schema, ok := s.dynamicAnchors[decoded]; ok {
 		return schema, nil
 	}
-	if s.parent != nil {
-		return s.parent.resolveAnchor(anchorName)
-	}
-	return nil, nil
+	return nil, ErrReferenceResolution
 }
 
-// resolveRefWithFullURL resolves a full URL reference to another schema.
-func (s *Schema) resolveRefWithFullURL(ref string) (*Schema, error) {
+func (s *Schema) resolveRefWithLookup(ref string, lookup func(string) (*Schema, error)) (*Schema, error) {
 	root := s.rootSchema()
 	if resolved, err := root.getSchema(ref); err == nil {
 		return resolved, nil
 	}
 
-	resolved, err := s.Compiler().Schema(ref)
+	resolved, err := lookup(ref)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s: %w", ErrGlobalReferenceResolution, ref, err)
 	}
@@ -65,10 +72,6 @@ func (s *Schema) resolveRefWithFullURL(ref string) (*Schema, error) {
 
 // resolveJSONPointer resolves a JSON Pointer within the schema based on JSON Schema structure.
 func (s *Schema) resolveJSONPointer(pointer string) (*Schema, error) {
-	if pointer == "/" {
-		return s, nil
-	}
-
 	decodedPointer, err := url.PathUnescape(pointer)
 	if err != nil {
 		return nil, ErrJSONPointerSegmentDecode
@@ -108,11 +111,10 @@ func (s *Schema) schemaForPointerSegment(segment string, segments []string, inde
 	case "dependentSchemas":
 		return schemaMapPointerTarget(s.DependentSchemas, segments, index)
 	case "dependencies":
-		// Draft 4-2019 spelling; the parser folds it into DependentSchemas.
 		if !s.Dialect().supportsLegacyDependencies() {
 			return nil, ErrJSONPointerSegmentNotFound
 		}
-		return schemaMapPointerTarget(s.DependentSchemas, segments, index)
+		return schemaMapPointerTarget(s.legacyDependentSchemas, segments, index)
 	case "prefixItems":
 		return schemaSlicePointerTarget(s.PrefixItems, segments, index)
 	case "allOf":
@@ -130,16 +132,15 @@ func (s *Schema) schemaForPointerSegment(segment string, segments []string, inde
 	case "else":
 		return schemaPointerTarget(s.Else)
 	case "items":
-		if s.Dialect().usesLegacyTupleItems() && len(s.PrefixItems) > 0 {
+		if s.Dialect().usesLegacyTupleItems() && s.legacyTupleItems {
 			return schemaSlicePointerTarget(s.PrefixItems, segments, index)
 		}
 		return schemaPointerTarget(s.Items)
 	case "additionalItems":
-		// Legacy sibling of a tuple "items"; the parser folds it into Items.
-		if !s.Dialect().usesLegacyTupleItems() || len(s.PrefixItems) == 0 {
+		if !s.Dialect().usesLegacyTupleItems() {
 			return nil, ErrJSONPointerSegmentNotFound
 		}
-		return schemaPointerTarget(s.Items)
+		return schemaPointerTarget(s.legacyAdditionalItems)
 	case "contains":
 		return schemaPointerTarget(s.Contains)
 	case "additionalProperties":
@@ -176,7 +177,7 @@ func schemaSlicePointerTarget(schemas []*Schema, segments []string, index *int) 
 
 	*index += 1
 	itemIndex, err := strconv.Atoi(segments[*index])
-	if err != nil || itemIndex < 0 || itemIndex >= len(schemas) || schemas[itemIndex] == nil {
+	if err != nil || strconv.Itoa(itemIndex) != segments[*index] || itemIndex < 0 || itemIndex >= len(schemas) || schemas[itemIndex] == nil {
 		return nil, ErrJSONPointerSegmentNotFound
 	}
 	return schemas[itemIndex], nil
@@ -189,95 +190,52 @@ func schemaPointerTarget(schema *Schema) (*Schema, error) {
 	return schema, nil
 }
 
-// ResolveUnresolvedReferences tries to resolve any previously unresolved references.
-// This is called after new schemas are added to the compiler.
-func (s *Schema) ResolveUnresolvedReferences() {
-	// Try to resolve unresolved $ref
-	if s.Ref != "" && s.ResolvedRef == nil {
-		if resolved, err := s.resolveRef(s.Ref); err == nil {
-			s.ResolvedRef = resolved
-		}
-	}
-
-	// Try to resolve unresolved $dynamicRef
-	if s.DynamicRef != "" && s.ResolvedDynamicRef == nil {
-		if resolved, err := s.resolveRef(s.DynamicRef); err == nil {
-			s.ResolvedDynamicRef = resolved
-		}
-	}
-
-	s.walkNestedSchemas((*Schema).ResolveUnresolvedReferences)
+func (s *Schema) resolveReferences() error {
+	return s.bindReferences(s.Compiler().Schema, "#")
 }
 
-func (s *Schema) resolveReferences() {
-	if s.Ref != "" {
-		if resolved, err := s.resolveRef(s.Ref); err == nil {
-			s.ResolvedRef = resolved
-		}
+func (s *Schema) bindReferences(lookup func(string) (*Schema, error), location string) error {
+	if s.compiled {
+		return nil
 	}
-
-	if s.DynamicRef != "" {
-		if resolved, err := s.resolveRef(s.DynamicRef); err == nil {
-			s.ResolvedDynamicRef = resolved
-		}
+	if s.ID != "" {
+		location = "#"
 	}
-
-	s.walkNestedSchemas((*Schema).resolveReferences)
-}
-
-// walkNestedSchemas applies fn recursively to all nested subschemas.
-func (s *Schema) walkNestedSchemas(fn func(*Schema)) {
-	for _, schema := range s.Defs {
-		if schema != nil {
-			fn(schema)
-		}
-	}
-
-	if s.Properties != nil {
-		for _, schema := range *s.Properties {
-			if schema != nil {
-				fn(schema)
-			}
-		}
-	}
-	if s.PatternProperties != nil {
-		for _, schema := range *s.PatternProperties {
-			if schema != nil {
-				fn(schema)
-			}
-		}
-	}
-	for _, schema := range s.DependentSchemas {
-		if schema != nil {
-			fn(schema)
-		}
-	}
-
-	for _, schemas := range [][]*Schema{s.AllOf, s.AnyOf, s.OneOf, s.PrefixItems} {
-		for _, schema := range schemas {
-			if schema != nil {
-				fn(schema)
-			}
-		}
-	}
-
-	for _, schema := range []*Schema{
-		s.Not,
-		s.If,
-		s.Then,
-		s.Else,
-		s.Items,
-		s.AdditionalProperties,
-		s.Contains,
-		s.PropertyNames,
-		s.UnevaluatedItems,
-		s.UnevaluatedProperties,
-		s.ContentSchema,
+	for _, ref := range []struct {
+		keyword string
+		value   string
+		target  **Schema
+	}{
+		{"$ref", s.Ref, &s.ResolvedRef},
+		{"$dynamicRef", s.DynamicRef, &s.ResolvedDynamicRef},
 	} {
-		if schema != nil {
-			fn(schema)
+		*ref.target = nil
+		if ref.value == "" {
+			continue
 		}
+		resolved, err := s.resolveRefUsing(ref.value, lookup)
+		if err != nil {
+			return fmt.Errorf("%w in %s at %s/%s (%q): %w", ErrReferenceResolution, s.scopeSchema().SchemaURI(), location, ref.keyword, ref.value, err)
+		}
+		if resolved == nil {
+			return fmt.Errorf("%w in %s at %s/%s (%q): target is not a schema", ErrReferenceResolution, s.scopeSchema().SchemaURI(), location, ref.keyword, ref.value)
+		}
+		*ref.target = resolved
 	}
+	var err error
+	s.forEachChildPath(func(child *Schema, path schemaPath) {
+		if err != nil {
+			return
+		}
+		var suffix string
+		if path.hasMember {
+			suffix = jsonpointer.FromTokens(path.keyword, path.member).String()
+		} else {
+			suffix = jsonpointer.FromTokens(path.keyword).String()
+		}
+		err = child.bindReferences(lookup, location+suffix)
+	})
+	return err
 }
 
 // UnresolvedReferenceURIs returns a list of URIs that this schema references but are not yet resolved.
@@ -292,47 +250,9 @@ func (s *Schema) UnresolvedReferenceURIs() []string {
 		if schema.DynamicRef != "" && schema.ResolvedDynamicRef == nil {
 			unresolvedURIs = append(unresolvedURIs, schema.DynamicRef)
 		}
-		schema.walkNestedSchemas(collect)
+		schema.forEachChild(collect)
 	}
 	collect(s)
 
 	return unresolvedURIs
-}
-
-func (s *Schema) unresolvedReferenceTargetURIs() []string {
-	var unresolvedURIs []string
-
-	var collect func(*Schema)
-	collect = func(schema *Schema) {
-		if schema.Ref != "" && schema.ResolvedRef == nil {
-			if uri := schema.unresolvedReferenceTargetURI(schema.Ref); uri != "" {
-				unresolvedURIs = append(unresolvedURIs, uri)
-			}
-		}
-		if schema.DynamicRef != "" && schema.ResolvedDynamicRef == nil {
-			if uri := schema.unresolvedReferenceTargetURI(schema.DynamicRef); uri != "" {
-				unresolvedURIs = append(unresolvedURIs, uri)
-			}
-		}
-		schema.walkNestedSchemas(collect)
-	}
-	collect(s)
-
-	return unresolvedURIs
-}
-
-func (s *Schema) unresolvedReferenceTargetURI(ref string) string {
-	if strings.HasPrefix(ref, "#") {
-		return ""
-	}
-
-	if !isAbsoluteURI(ref) && s.baseURI != "" {
-		ref = resolveRelativeURI(s.baseURI, ref)
-	}
-
-	baseURI, _ := splitRef(ref)
-	if baseURI != "" {
-		return baseURI
-	}
-	return ref
 }

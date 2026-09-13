@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
 	"sync"
 	"time"
 
@@ -89,12 +88,11 @@ type FormatDef struct {
 type Compiler struct {
 	mu             sync.RWMutex                                       // Protects concurrent access to schemas map
 	schemas        map[string]*Schema                                 // Cache of compiled schemas.
-	unresolvedRefs map[string][]*Schema                               // Track schemas that have unresolved references by URI
 	Decoders       map[string]func(string) ([]byte, error)            // Decoders for various encoding formats.
 	MediaTypes     map[string]func([]byte) (any, error)               // Media type handlers for unmarshalling data.
 	Loaders        map[string]func(url string) (io.ReadCloser, error) // Functions to load schemas from URLs.
 	DefaultBaseURI string                                             // Base URI used to resolve relative references.
-	AssertFormat   bool                                               // Flag to enforce format validation.
+	AssertFormat   bool                                               // Enables caller-requested best-effort format assertion.
 	// PreserveExtra indicates whether to preserve unknown keywords in the schema.
 	// If false (default), unknown keywords are stripped during compilation.
 	PreserveExtra  bool
@@ -119,7 +117,6 @@ type DefaultFunc func(args ...any) (any, error)
 func NewCompiler() *Compiler {
 	compiler := &Compiler{
 		schemas:        make(map[string]*Schema),
-		unresolvedRefs: make(map[string][]*Schema),
 		Decoders:       make(map[string]func(string) ([]byte, error)),
 		MediaTypes:     make(map[string]func([]byte) (any, error)),
 		Loaders:        make(map[string]func(url string) (io.ReadCloser, error)),
@@ -151,141 +148,61 @@ func (c *Compiler) WithDecoderJSON(decoder func(data []byte, v any) error) *Comp
 	return c
 }
 
-// Compile compiles a JSON schema and caches it. If an URI is provided, it uses that as the key; otherwise, it generates a hash.
-func (c *Compiler) Compile(jsonSchema []byte, uris ...string) (*Schema, error) {
-	schema, err := newSchema(jsonSchema, c)
-	if err != nil {
-		return nil, err
+// Compile builds and publishes a complete schema graph. The optional URI is
+// its retrieval address and supplies $id when the document has none.
+func (c *Compiler) Compile(data []byte, uris ...string) (*Schema, error) {
+	var uri string
+	if len(uris) > 0 {
+		uri = uris[0]
 	}
-
-	if schema.ID == "" && len(uris) > 0 {
-		schema.ID = uris[0]
-	}
-
-	uri := schema.ID
-
-	if uri != "" && isValidURI(uri) {
-		schema.uri = uri
-
-		c.mu.RLock()
-		existingSchema, exists := c.schemas[uri]
-		c.mu.RUnlock()
-
-		if exists {
-			return existingSchema, nil
+	return compileGraph(c, func(build *compilation) (*Schema, error) {
+		schema, err := build.parse(data, uri)
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	schema.initializeSchema(c, nil)
-
-	if err := schema.validateRegexSyntax(); err != nil {
-		return nil, err
-	}
-
-	c.mu.Lock()
-	if schema.uri != "" && isValidURI(schema.uri) {
-		c.schemas[schema.uri] = schema
-	}
-
-	// Track unresolved references from this schema
-	c.trackUnresolvedReferences(schema)
-
-	// If this schema has a URI, check if any previously compiled schemas were waiting for it
-	var schemasToResolve []*Schema
-	if schema.uri != "" {
-		if waitingSchemas, exists := c.unresolvedRefs[schema.uri]; exists {
-			schemasToResolve = slices.Clone(waitingSchemas)
-			delete(c.unresolvedRefs, schema.uri) // Clear the waiting list
-		}
-	}
-	c.mu.Unlock()
-
-	// Only re-resolve schemas that were actually waiting for this URI
-	for _, waitingSchema := range schemasToResolve {
-		waitingSchema.ResolveUnresolvedReferences()
-		// Re-track any still unresolved references
-		c.mu.Lock()
-		c.trackUnresolvedReferences(waitingSchema)
-		c.mu.Unlock()
-	}
-
-	return schema, nil
+		return schema, build.prepareAll()
+	})
 }
 
-// trackUnresolvedReferences tracks which schemas have unresolved references to which URIs.
-// This method should be called with mutex locked.
-func (c *Compiler) trackUnresolvedReferences(schema *Schema) {
-	for _, uri := range schema.unresolvedReferenceTargetURIs() {
-		if !slices.Contains(c.unresolvedRefs[uri], schema) {
-			c.unresolvedRefs[uri] = append(c.unresolvedRefs[uri], schema)
-		}
-	}
-}
-
-// resolveSchemaURL attempts to fetch and compile a schema from a URL.
-func (c *Compiler) resolveSchemaURL(url string) (*Schema, error) {
-	id, anchor := splitRef(url)
-
-	c.mu.RLock()
-	schema, exists := c.schemas[id]
-	c.mu.RUnlock()
-
-	if exists {
-		return schema, nil
-	}
-
-	loader, ok := c.Loaders[getURLScheme(url)]
+// loadSchema reads a resource without publishing it or resolving its references.
+func (c *Compiler) loadSchema(uri string) ([]byte, error) {
+	loader, ok := c.Loaders[getURLScheme(uri)]
 	if !ok {
 		return nil, ErrNoLoaderRegistered
 	}
-
-	body, err := loader(url)
+	body, err := loader(uri)
 	if err != nil {
-		return nil, fmt.Errorf("loading schema from %s: %w", url, err)
+		return nil, fmt.Errorf("loading schema from %s: %w", uri, err)
+	}
+	if body == nil {
+		return nil, fmt.Errorf("loading schema from %s: %w", uri, ErrDataRead)
 	}
 	defer func() { _ = body.Close() }()
-
 	data, err := io.ReadAll(body)
 	if err != nil {
-		return nil, fmt.Errorf("reading from %s: %w", url, err)
+		return nil, fmt.Errorf("reading schema from %s: %w", uri, err)
 	}
-
-	compiledSchema, err := c.Compile(data, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if anchor != "" {
-		return compiledSchema.resolveAnchor(anchor)
-	}
-
-	return compiledSchema, nil
+	return data, nil
 }
 
-// SetSchema associates a specific schema with a URI.
-func (c *Compiler) SetSchema(uri string, schema *Schema) *Compiler {
-	c.mu.Lock()
-	c.schemas[uri] = schema
-	c.mu.Unlock()
-	return c
-}
-
-// Schema retrieves a schema by reference. If the schema is not found in the cache and the ref is a URL, it tries to resolve it.
+// Schema retrieves a published resource, loading and compiling it when absent.
 func (c *Compiler) Schema(ref string) (*Schema, error) {
-	baseURI, anchor := splitRef(ref)
-
+	if ref != "" {
+		ref = resolveRelativeURI(c.DefaultBaseURI, ref)
+	}
+	uri, anchor := splitRef(ref)
 	c.mu.RLock()
-	schema, exists := c.schemas[baseURI]
+	schema := c.schemas[uri]
 	c.mu.RUnlock()
-
-	if exists {
-		if baseURI == ref {
+	if schema != nil {
+		if anchor == "" {
 			return schema, nil
 		}
 		return schema.resolveAnchor(anchor)
 	}
-
-	return c.resolveSchemaURL(ref)
+	return compileGraph(c, func(build *compilation) (*Schema, error) {
+		return build.lookup(ref)
+	})
 }
 
 // SetDefaultBaseURI sets the default base URL for resolving relative references.
@@ -294,12 +211,12 @@ func (c *Compiler) SetDefaultBaseURI(baseURI string) *Compiler {
 	return c
 }
 
-// SetAssertFormat enables or disables format assertion.
+// SetAssertFormat enables or disables best-effort format assertion.
 //
 // Disabled by default to match JSON Schema Draft 2020-12 semantics, where
-// "format" is annotation-only. Most applications want assertion: pass true
-// once on the compiler if validation should fail on bad emails, dates, UUIDs,
-// and the like.
+// "format" is annotation-only. Enabling it validates recognized formats and
+// leaves unknown formats as annotations. An active Format-Assertion vocabulary
+// always asserts formats regardless of this setting.
 func (c *Compiler) SetAssertFormat(assert bool) *Compiler {
 	c.AssertFormat = assert
 	return c
@@ -427,44 +344,20 @@ func (c *Compiler) setupLoaders() {
 	c.RegisterLoader("https", defaultHTTPLoader)
 }
 
-// CompileBatch compiles multiple schemas efficiently by deferring reference resolution
-// until all schemas are compiled. This is the most efficient approach when you have
-// many schemas with interdependencies.
+// CompileBatch builds interdependent resources privately and publishes them
+// together only after every reference and compilation check succeeds.
 func (c *Compiler) CompileBatch(schemas map[string][]byte) (map[string]*Schema, error) {
-	compiledSchemas := make(map[string]*Schema, len(schemas))
-
-	// First pass: compile all schemas without resolving references
-	for id, schemaBytes := range schemas {
-		schema, err := newSchema(schemaBytes, c)
-		if err != nil {
-			return nil, fmt.Errorf("compiling schema %s: %w", id, err)
+	return compileGraph(c, func(build *compilation) (map[string]*Schema, error) {
+		compiled := make(map[string]*Schema, len(schemas))
+		for uri, data := range schemas {
+			schema, err := build.parse(data, uri)
+			if err != nil {
+				return nil, fmt.Errorf("compiling schema %s: %w", uri, err)
+			}
+			compiled[uri] = schema
 		}
-
-		if schema.ID == "" {
-			schema.ID = id
-		}
-		schema.uri = schema.ID
-
-		// Initialize schema structure but skip reference resolution
-		schema.compiler = c
-		// Initialize basic properties without resolving references
-		schema.initializeSchemaWithoutReferences(c, nil)
-
-		compiledSchemas[id] = schema
-
-		c.mu.Lock()
-		if schema.uri != "" && isValidURI(schema.uri) {
-			c.schemas[schema.uri] = schema
-		}
-		c.mu.Unlock()
-	}
-
-	// Second pass: resolve all references at once
-	for _, schema := range compiledSchemas {
-		schema.resolveReferences()
-	}
-
-	return compiledSchemas, nil
+		return compiled, build.prepareAll()
+	})
 }
 
 // RegisterFormat registers a custom format.
@@ -486,7 +379,9 @@ func (c *Compiler) RegisterFormat(name string, validator func(any) bool, typeNam
 	return c
 }
 
-// UnregisterFormat removes a custom format.
+// UnregisterFormat removes a custom format. An unregistered name remains an
+// annotation under best-effort assertion, but causes compilation to fail when
+// the active dialect declares the Format-Assertion vocabulary.
 func (c *Compiler) UnregisterFormat(name string) *Compiler {
 	c.customFormatsRW.Lock()
 	defer c.customFormatsRW.Unlock()

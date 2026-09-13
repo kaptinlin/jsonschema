@@ -590,7 +590,8 @@ func TestUnmarshalErrors(t *testing.T) {
             }
         })
     }
-} 
+}
+```
 
 ---
 
@@ -604,6 +605,13 @@ Returned by `compiler.Compile()` for compilation failures such as invalid JSON,
 invalid regular expressions, and unresolved references. `Compile` does not run
 schema meta-validation automatically; use `compiler.ValidateSchema()` when the
 schema document itself must be checked against its declared meta-schema.
+
+Reference failures wrap `ErrReferenceResolution` and preserve loader errors for
+`errors.Is` / `errors.As`. Their messages identify the owning resource and the
+keyword's JSON Pointer location. Duplicate resource definitions wrap
+`ErrSchemaConflict`; use `Compiler.Schema` for retrieval instead of recompiling
+the same URI. Compilation failure never leaves a partially bound graph available
+through the public registry.
 
 ```go
 compiler := jsonschema.NewCompiler()

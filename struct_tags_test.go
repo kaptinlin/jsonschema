@@ -492,9 +492,9 @@ func TestContentAndReferenceValidators(t *testing.T) {
 		ContentField string `jsonschema:"contentSchema=string"`
 
 		// Manual references
-		RefField    any `jsonschema:"ref=#/$defs/MyType"`
+		RefField    any `jsonschema:"ref=#/$defs/ContentTest"`
 		AnchorField any `jsonschema:"anchor=main"`
-		DynamicRef  any `jsonschema:"dynamicRef=#meta"`
+		DynamicRef  any `jsonschema:"dynamicRef=#main"`
 
 		// Examples and defaults
 		ExampleField string `jsonschema:"examples=test,sample,demo"`

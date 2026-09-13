@@ -33,25 +33,61 @@ func (s *Schema) ValidateJSON(data []byte) *EvaluationResult {
 		return result
 	}
 
-	dynamicScope := NewDynamicScope()
-	result, _, _ := s.evaluate(parsed, dynamicScope)
-	return result
+	return s.validate(parsed)
 }
 
 // ValidateStruct validates Go struct data directly using reflection.
 // This method uses cached reflection data for optimal performance.
 func (s *Schema) ValidateStruct(instance any) *EvaluationResult {
-	dynamicScope := NewDynamicScope()
-	result, _, _ := s.evaluate(instance, dynamicScope)
-	return result
+	return s.validate(instance)
 }
 
 // ValidateMap validates map[string]any data directly.
 // This method provides optimal performance for pre-parsed JSON data.
 func (s *Schema) ValidateMap(data map[string]any) *EvaluationResult {
+	return s.validate(data)
+}
+
+func (s *Schema) validate(instance any) *EvaluationResult {
+	if !s.compiled {
+		if err := s.checkReferenceReadiness(make(map[*Schema]bool)); err != nil {
+			return NewEvaluationResult(s).AddError(err)
+		}
+	}
 	dynamicScope := NewDynamicScope()
-	result, _, _ := s.evaluate(data, dynamicScope)
+	result, _, _ := s.evaluate(instance, dynamicScope)
 	return result
+}
+
+// Check uncompiled caller-owned graphs before evaluating any applicator. An
+// unresolved schema must not become valid through not or an unused branch.
+func (s *Schema) checkReferenceReadiness(visited map[*Schema]bool) *EvaluationError {
+	if s == nil || s.compiled || visited[s] {
+		return nil
+	}
+	visited[s] = true
+	for _, ref := range []struct {
+		keyword string
+		value   string
+		target  *Schema
+	}{
+		{"$ref", s.Ref, s.ResolvedRef},
+		{"$dynamicRef", s.DynamicRef, s.ResolvedDynamicRef},
+	} {
+		if ref.value != "" && ref.target == nil {
+			return NewEvaluationError(ref.keyword, "unresolved_reference", "Unresolved schema reference '{ref}'", map[string]any{"ref": ref.value})
+		}
+		if err := ref.target.checkReferenceReadiness(visited); err != nil {
+			return err
+		}
+	}
+	var err *EvaluationError
+	s.forEachChild(func(child *Schema) {
+		if err == nil {
+			err = child.checkReferenceReadiness(visited)
+		}
+	})
+	return err
 }
 
 // processJSONBytes handles []byte input with smart JSON parsing

@@ -263,11 +263,15 @@ func FromStructWithOptions[T any](options *StructTagOptions) (*Schema, error) {
 
 	// Resolve all references to ensure ResolvedRef fields are populated
 	// This is critical for validation to work correctly with nested structs
-	schema.resolveReferences()
+	schema.initializeSchemaWithoutReferences(nil, nil)
+	if err := schema.resolveReferences(); err != nil {
+		return nil, err
+	}
 
 	if err := schema.validateRegexSyntax(); err != nil {
 		return nil, err
 	}
+	schema.markCompiled()
 
 	// Clean up visited state
 	generator.visited = make(map[reflect.Type]int)

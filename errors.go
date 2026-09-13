@@ -89,6 +89,9 @@ var (
 	// ErrSchemaCompilation reports a schema compilation failure.
 	ErrSchemaCompilation = errors.New("schema compilation failed")
 
+	// ErrSchemaConflict reports two definitions claiming the same resource URI.
+	ErrSchemaConflict = errors.New("schema resource URI already registered")
+
 	// ErrReferenceResolution reports a reference resolution failure.
 	ErrReferenceResolution = errors.New("reference resolution failed")
 
@@ -121,6 +124,9 @@ var (
 
 	// ErrUnsupportedVocabulary reports a required vocabulary the compiler does not support.
 	ErrUnsupportedVocabulary = errors.New("unsupported required vocabulary")
+
+	// ErrUnknownFormat reports a format not recognized under the Format-Assertion vocabulary.
+	ErrUnknownFormat = errors.New("unknown format")
 )
 
 // RegexPatternError provides structured context for invalid regular expressions discovered during schema compilation.

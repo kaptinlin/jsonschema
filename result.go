@@ -179,6 +179,9 @@ func (e *EvaluationResult) CollectAnnotations() *EvaluationResult {
 	if e.schema.Examples != nil {
 		e.Annotations["examples"] = e.schema.Examples
 	}
+	if e.schema.Format != nil {
+		e.Annotations["format"] = e.schema.Format
+	}
 
 	return e
 }

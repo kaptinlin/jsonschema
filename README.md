@@ -138,7 +138,9 @@ Supported dialects are:
 | Draft-06 | `jsonschema.Draft6` |
 | Draft-04 | `jsonschema.Draft4` |
 
-`format` remains annotation-only unless `SetAssertFormat(true)` is enabled.
+`format` remains annotation-only in the standard Draft 2020-12 dialect. Custom
+dialects can require Format-Assertion, and callers can independently enable
+best-effort assertion with `SetAssertFormat(true)`.
 `Compile` does not perform schema meta-validation by default; call
 `ValidateSchema` when the schema document itself is untrusted.
 
@@ -212,7 +214,9 @@ Use `FromStructWithOptions` when you need a custom tag name, schema version, req
 
 ### Custom Formats
 
-Format validation is annotation-only by default. Turn it on explicitly and register your own validators when needed.
+Format validation is annotation-only by default. Enable best-effort assertion
+explicitly and register your own validators when application policy requires it.
+Schemas using a custom Format-Assertion dialect assert formats automatically.
 
 ```go
 compiler := jsonschema.NewCompiler().SetAssertFormat(true)
@@ -233,7 +237,14 @@ compiler.RegisterDefaultFunc("now", jsonschema.DefaultNowFunc)
 
 ### References, Extras, and Batch Compilation
 
-- Use `CompileBatch` to compile related schemas before resolving cross-references.
+- Use `CompileBatch` for interdependent resources. Compilation rejects missing
+  references and duplicate resource definitions; use `Compiler.Schema` to reuse
+  a published definition. Concurrent loading of a shared dependency reuses the
+  first published resource. Later compilation never rebinds an existing graph.
+- Reuse compiled nodes directly in constructor composition to preserve their
+  resource scope and compiler policy. For repeated validation of a standalone
+  constructor document, use `MarshalJSON` followed by `Compile` once; direct
+  validation of mutable builders checks the entire graph for unresolved references.
 - Use `SetPreserveExtra(true)` when tools need to keep non-standard extension keywords in `Schema.Extra`.
 - Reference loaders are pluggable per scheme via `RegisterLoader`. `http` and `https` ship pre-registered with a 10s timeout. If your schemas come from untrusted sources, replace or remove those loaders so external `$ref` resolution is gated by your own host/size/timeout policy.
 

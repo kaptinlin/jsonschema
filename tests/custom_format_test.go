@@ -118,7 +118,19 @@ func TestUnregisterCustomFormat(t *testing.T) {
 	schema, err := compiler.Compile([]byte(`{"type": "string", "format": "test-format"}`))
 	require.NoError(t, err)
 
-	assert.False(t, schema.Validate("test").IsValid(), "Validation should fail for an unregistered format when AssertFormat is true")
+	result := schema.Validate("test")
+	assert.True(t, result.IsValid(), "Unknown formats remain annotations in best-effort mode")
+	assert.Equal(t, schema.Format, result.Annotations["format"])
+}
+
+func TestNilCustomFormatIsUnknown(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+	compiler.SetAssertFormat(true)
+	compiler.RegisterFormat("nil-format", nil, "string")
+
+	schema, err := compiler.Compile([]byte(`{"format":"nil-format"}`))
+	require.NoError(t, err)
+	assert.True(t, schema.Validate("value").IsValid())
 }
 
 func TestOpenAPICustomFormatValidation(t *testing.T) {

@@ -238,8 +238,14 @@ func Example_schemaRegistration() {
 		jsonschema.Required("id", "name", "email"),
 	)
 
-	// Register the schema
-	compiler.SetSchema("https://example.com/schemas/user", userSchema)
+	// Compile the standalone constructor document.
+	data, err := userSchema.MarshalJSON()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := compiler.Compile(data); err != nil {
+		log.Fatal(err)
+	}
 
 	// Create Profile schema that references User schema
 	profileJSON := `{

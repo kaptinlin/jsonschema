@@ -335,7 +335,7 @@ const (
 	FormatIPv4 = "ipv4"
 	// FormatIPv6 is the `ipv6` format (RFC 4291).
 	FormatIPv6 = "ipv6"
-	// FormatRegex is the ECMA-262 regular expression format.
+	// FormatRegex is the JSON Schema interoperable regular expression format.
 	FormatRegex = "regex"
 	// FormatIdnEmail is the `idn-email` format (RFC 6531).
 	FormatIdnEmail = "idn-email"

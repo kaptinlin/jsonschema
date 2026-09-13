@@ -1,63 +1,49 @@
 package jsonschema
 
-// evaluateFormat checks if the data conforms to the format specified in the schema.
-// According to the JSON Schema Draft 2020-12:
-//   - The "format" keyword defines the data format expected for a value.
-//   - The format must be a string that names a specific format which the value should conform to.
-//   - The function uses custom formats first, then falls back to the global `Formats` map.
-//   - If the format is not supported or not found, it may fall back to a no-op validation depending on configuration.
-//
-// This method ensures that data matches the expected format as specified in the schema.
-// It handles formats as annotations by default, but can assert format validation if configured.
-//
-// Reference: https://json-schema.org/draft/2020-12/json-schema-validation#name-format
+// evaluateFormat applies dialect-required or caller-requested format assertion.
+// Compiler-specific validators take precedence over the package registry.
 func evaluateFormat(schema *Schema, value any) *EvaluationError {
 	if schema.Format == nil {
 		return nil
 	}
 
-	formatName := *schema.Format
-	var formatDef *FormatDef
-	var customValidator func(any) bool
-
-	// Get the effective compiler (may be from parent or defaultCompiler)
 	compiler := schema.Compiler()
+	assert := schema.formatAssertion || compiler != nil && compiler.AssertFormat
+	if !assert {
+		return nil
+	}
 
-	// 1. Check compiler-specific custom formats first
+	formatName := *schema.Format
+	validator, typeName, ok := lookupFormat(compiler, formatName)
+	if !ok {
+		if schema.formatAssertion {
+			return NewEvaluationError("format", "unknown_format", "Unknown format '{format}'", map[string]any{"format": formatName})
+		}
+		return nil
+	}
+
+	if typeName != "" {
+		valueType := getDataType(value)
+		if valueType != typeName && (typeName != "number" || valueType != "integer") {
+			return nil
+		}
+	}
+	if !validator(value) {
+		return NewEvaluationError("format", "format_mismatch", "Value does not match format '{format}'", map[string]any{"format": formatName})
+	}
+
+	return nil
+}
+
+func lookupFormat(compiler *Compiler, name string) (func(any) bool, string, bool) {
 	if compiler != nil {
 		compiler.customFormatsRW.RLock()
-		formatDef = compiler.customFormats[formatName]
+		formatDef, ok := compiler.customFormats[name]
 		compiler.customFormatsRW.RUnlock()
-	}
-
-	if formatDef != nil {
-		// Found in custom formats
-		if formatDef.Type != "" {
-			valueType := getDataType(value)
-			if valueType != formatDef.Type && (formatDef.Type != "number" || valueType != "integer") {
-				return nil // Type doesn't match, so skip validation
-			}
+		if ok && formatDef != nil && formatDef.Validate != nil {
+			return formatDef.Validate, formatDef.Type, true
 		}
-		customValidator = formatDef.Validate
-	} else if globalValidator, ok := Formats[formatName]; ok {
-		// Fallback to global formats
-		customValidator = globalValidator
 	}
-
-	// If a validator was found (either custom or global)
-	if customValidator != nil {
-		if !customValidator(value) {
-			if compiler != nil && compiler.AssertFormat {
-				return NewEvaluationError("format", "format_mismatch", "Value does not match format '{format}'", map[string]any{"format": formatName})
-			}
-		}
-		return nil // Validation passed or not asserted
-	}
-
-	// If no validator was found and AssertFormat is true, fail
-	if compiler != nil && compiler.AssertFormat {
-		return NewEvaluationError("format", "unknown_format", "Unknown format '{format}'", map[string]any{"format": formatName})
-	}
-
-	return nil // Default behavior: ignore unknown formats
+	validator, ok := Formats[name]
+	return validator, "", ok && validator != nil
 }

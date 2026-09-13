@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"encoding/json/v2"
@@ -13,9 +15,7 @@ import (
 
 // TestFormatForTestSuite executes the format validation tests for Schema Test Suite.
 func TestFormatForTestSuite(t *testing.T) {
-	testJSONSchemaTestSuiteWithFilePath(t, "../testdata/JSON-Schema-Test-Suite/tests/draft2020-12/format.json",
-		"idn-email format",
-		"idn-hostname format")
+	testJSONSchemaTestSuiteWithFilePath(t, "../testdata/JSON-Schema-Test-Suite/tests/draft2020-12/format.json")
 }
 
 func TestFormatDateTimeForTestSuite(t *testing.T) {
@@ -36,6 +36,32 @@ func TestFormatEmailForTestSuite(t *testing.T) {
 
 func TestFormatHostnameForTestSuite(t *testing.T) {
 	testJSONSchemaTestSuiteWithFilePath(t, "../testdata/JSON-Schema-Test-Suite/tests/draft2020-12/optional/format/hostname.json")
+}
+
+func TestFormatIDNEmailForTestSuite(t *testing.T) {
+	testJSONSchemaTestSuiteWithFilePath(t, "../testdata/JSON-Schema-Test-Suite/tests/draft2020-12/optional/format/idn-email.json")
+}
+
+func TestFormatIDNHostnameForTestSuite(t *testing.T) {
+	const group = "validation of internationalized host names/"
+	// x/net/idna does not implement these exhaustive RFC 5892 ContextO/NV8
+	// checks. The built-in format intentionally promises minimal syntax checks.
+	testJSONSchemaTestSuiteWithFilePath(
+		t,
+		"../testdata/JSON-Schema-Test-Suite/tests/draft2020-12/optional/format/idn-hostname.json",
+		group+"contains illegal char U+302E Hangul single dot tone mark",
+		group+"Exceptions that are DISALLOWED, right-to-left chars",
+		group+"Exceptions that are DISALLOWED, left-to-right chars",
+		group+"MIDDLE DOT with no preceding 'l'",
+		group+"MIDDLE DOT with nothing preceding",
+		group+"MIDDLE DOT with no following 'l'",
+		group+"MIDDLE DOT with nothing following",
+		group+"Greek KERAIA not followed by anything",
+		group+"Hebrew GERESH not preceded by anything",
+		group+"Hebrew GERSHAYIM not preceded by anything",
+		group+"KATAKANA MIDDLE DOT with no Hiragana, Katakana, or Han",
+		group+"KATAKANA MIDDLE DOT with no other characters",
+	)
 }
 
 func TestFormatIpv4ForTestSuite(t *testing.T) {
@@ -90,55 +116,433 @@ func TestFormatUuidForTestSuite(t *testing.T) {
 	testJSONSchemaTestSuiteWithFilePath(t, "../testdata/JSON-Schema-Test-Suite/tests/draft2020-12/optional/format/uuid.json")
 }
 
-func TestFormatAssertionVocabulary(t *testing.T) {
-	const (
-		formatAssertion = "https://json-schema.org/draft/2020-12/vocab/format-assertion"
-		metaSchemaURI   = "https://example.com/meta/format-assertion"
+func TestFormatAssertionForTestSuite(t *testing.T) {
+	testJSONSchemaTestSuiteWithCompiler(
+		t,
+		"../testdata/JSON-Schema-Test-Suite/tests/draft2020-12/optional/format-assertion.json",
+		func(compiler *jsonschema.Compiler) {
+			compileTestSuiteRemotes(t, compiler, "draft2020-12",
+				"format-assertion-true.json",
+				"format-assertion-false.json",
+			)
+		},
 	)
+}
+
+const (
+	formatAnnotationVocabulary = "https://json-schema.org/draft/2020-12/vocab/format-annotation"
+	formatAssertionVocabulary  = "https://json-schema.org/draft/2020-12/vocab/format-assertion"
+	validationVocabulary       = "https://json-schema.org/draft/2020-12/vocab/validation"
+	draft202012CoreVocabulary  = "https://json-schema.org/draft/2020-12/vocab/core"
+	draft202012Schema          = "https://json-schema.org/draft/2020-12/schema"
+)
+
+func registerFormatDialect(
+	t *testing.T,
+	compiler *jsonschema.Compiler,
+	uri string,
+	vocabulary map[string]bool,
+) {
+	t.Helper()
+	metaSchema, err := json.Marshal(map[string]any{
+		"$schema":     draft202012Schema,
+		"$id":         uri,
+		"$vocabulary": vocabulary,
+	})
+	require.NoError(t, err)
+	_, err = compiler.Compile(metaSchema)
+	require.NoError(t, err)
+}
+
+func TestFormatAssertionVocabulary(t *testing.T) {
+	const metaSchemaURI = "https://example.com/meta"
 
 	compileMetaSchema := func(t *testing.T, required bool) *jsonschema.Compiler {
 		t.Helper()
 		compiler := jsonschema.NewCompiler()
-		metaSchema, err := json.Marshal(map[string]any{
-			"$schema": "https://json-schema.org/draft/2020-12/schema",
-			"$id":     metaSchemaURI,
-			"$vocabulary": map[string]bool{
-				"https://json-schema.org/draft/2020-12/vocab/core": true,
-				formatAssertion: required,
-			},
+		registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+			draft202012CoreVocabulary: true,
+			validationVocabulary:      true,
+			formatAssertionVocabulary: required,
 		})
-		require.NoError(t, err)
-		_, err = compiler.Compile(metaSchema)
-		require.NoError(t, err)
 		return compiler
 	}
 	compileSchema := func(t *testing.T, compiler *jsonschema.Compiler) (*jsonschema.Schema, error) {
 		t.Helper()
 		schemaJSON, err := json.Marshal(map[string]any{
 			"$schema": metaSchemaURI,
-			"type":    "string",
-			"format":  "date-time",
+			"type":    "object",
+			"properties": map[string]any{
+				"createdAt": map[string]any{
+					"type":   "string",
+					"format": "date-time",
+				},
+			},
 		})
 		require.NoError(t, err)
 		return compiler.Compile(schemaJSON)
 	}
 
-	t.Run("required", func(t *testing.T) {
-		compiler := compileMetaSchema(t, true)
-		_, err := compileSchema(t, compiler)
-		require.ErrorIs(t, err, jsonschema.ErrUnsupportedVocabulary)
-		assert.ErrorContains(t, err, formatAssertion)
+	type document struct {
+		CreatedAt string `json:"createdAt"`
+	}
+
+	for _, required := range []bool{true, false} {
+		t.Run(fmt.Sprintf("required=%t", required), func(t *testing.T) {
+			compiler := compileMetaSchema(t, required)
+			direct, err := compiler.Compile([]byte(`{
+				"$schema":"https://example.com/meta",
+				"type":"string",
+				"format":"date-time"
+			}`))
+			require.NoError(t, err)
+			assert.True(t, direct.Validate("2026-08-22T12:00:00Z").IsValid())
+			assert.False(t, direct.Validate("not-a-date").IsValid())
+
+			schema, err := compileSchema(t, compiler)
+			require.NoError(t, err)
+
+			validResults := map[string]*jsonschema.EvaluationResult{
+				"Validate":       schema.Validate(map[string]any{"createdAt": "2026-08-22T12:00:00Z"}),
+				"ValidateJSON":   schema.ValidateJSON([]byte(`{"createdAt":"2026-08-22T12:00:00Z"}`)),
+				"ValidateMap":    schema.ValidateMap(map[string]any{"createdAt": "2026-08-22T12:00:00Z"}),
+				"ValidateStruct": schema.ValidateStruct(document{CreatedAt: "2026-08-22T12:00:00Z"}),
+			}
+			for name, result := range validResults {
+				assert.True(t, result.IsValid(), name)
+			}
+
+			invalidResults := map[string]*jsonschema.EvaluationResult{
+				"Validate":       schema.Validate(map[string]any{"createdAt": "not-a-date"}),
+				"ValidateJSON":   schema.ValidateJSON([]byte(`{"createdAt":"not-a-date"}`)),
+				"ValidateMap":    schema.ValidateMap(map[string]any{"createdAt": "not-a-date"}),
+				"ValidateStruct": schema.ValidateStruct(document{CreatedAt: "not-a-date"}),
+			}
+			for name, result := range invalidResults {
+				assert.False(t, result.IsValid(), name)
+			}
+		})
+	}
+}
+
+func TestFormatAssertionWithDefaultDialect(t *testing.T) {
+	const metaSchemaURI = "https://example.com/meta/default-format-assertion"
+	compiler := jsonschema.NewCompiler()
+	registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+		draft202012CoreVocabulary: true,
+		validationVocabulary:      true,
+		formatAssertionVocabulary: true,
+	})
+	compiler.SetDefaultDialect(jsonschema.Dialect(metaSchemaURI))
+
+	schema, err := compiler.Compile([]byte(`{
+		"type":"string",
+		"format":"date-time"
+	}`))
+	require.NoError(t, err)
+	assert.Equal(t, jsonschema.Dialect(metaSchemaURI), schema.Dialect())
+	assert.True(t, schema.Validate("2026-08-22T12:00:00Z").IsValid())
+	assert.False(t, schema.Validate("not-a-date").IsValid())
+}
+
+func TestFormatAssertionAcceptsLargeRegexQuantifiers(t *testing.T) {
+	const metaSchemaURI = "https://example.com/meta/regex-format-assertion"
+	compiler := jsonschema.NewCompiler()
+	registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+		draft202012CoreVocabulary: true,
+		formatAssertionVocabulary: true,
 	})
 
-	t.Run("optional", func(t *testing.T) {
-		compiler := compileMetaSchema(t, false)
-		schema, err := compileSchema(t, compiler)
+	schema, err := compiler.Compile([]byte(`{
+		"$schema":"https://example.com/meta/regex-format-assertion",
+		"format":"regex"
+	}`))
+	require.NoError(t, err)
+	assert.True(t, schema.Validate("a{1001}").IsValid())
+	assert.False(t, schema.Validate("a{1001,1000}").IsValid())
+}
+
+func TestFormatVocabularyBehavior(t *testing.T) {
+	t.Run("best effort", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler().SetAssertFormat(true)
+		schema, err := compiler.Compile([]byte(`{
+			"$schema":"https://json-schema.org/draft/2020-12/schema",
+			"type":"string",
+			"format":"date-time"
+		}`))
 		require.NoError(t, err)
-		assert.True(t, schema.Validate("not-a-date").IsValid())
 
-		compiler.SetAssertFormat(true)
-		assert.False(t, schema.Validate("not-a-date").IsValid())
+		result := schema.Validate("not-a-date")
+		assert.False(t, result.IsValid())
+		assert.Equal(t, schema.Format, result.Annotations["format"])
 	})
+
+	t.Run("annotation only", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		const metaSchemaURI = "https://example.com/meta/format-annotation"
+		registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+			draft202012CoreVocabulary:  true,
+			validationVocabulary:       true,
+			formatAnnotationVocabulary: true,
+		})
+		schema, err := compiler.Compile([]byte(`{
+			"$schema":"https://example.com/meta/format-annotation",
+			"type":"string",
+			"format":"date-time"
+		}`))
+		require.NoError(t, err)
+
+		result := schema.Validate("not-a-date")
+		assert.True(t, result.IsValid())
+		assert.Equal(t, schema.Format, result.Annotations["format"])
+	})
+
+	t.Run("annotation and assertion", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler().SetAssertFormat(false)
+		const metaSchemaURI = "https://example.com/meta/both-format-vocabularies"
+		registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+			draft202012CoreVocabulary:  true,
+			validationVocabulary:       true,
+			formatAnnotationVocabulary: true,
+			formatAssertionVocabulary:  false,
+		})
+		schema, err := compiler.Compile([]byte(`{
+			"$schema":"https://example.com/meta/both-format-vocabularies",
+			"type":"string",
+			"format":"date-time"
+		}`))
+		require.NoError(t, err)
+
+		valid := schema.Validate("2026-08-22T12:00:00Z")
+		invalid := schema.Validate("not-a-date")
+		assert.True(t, valid.IsValid())
+		assert.False(t, invalid.IsValid())
+		assert.Equal(t, schema.Format, valid.Annotations["format"])
+		assert.Equal(t, schema.Format, invalid.Annotations["format"])
+	})
+
+	t.Run("unknown format", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		const metaSchemaURI = "https://example.com/meta/unknown-format"
+		registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+			draft202012CoreVocabulary: true,
+			formatAssertionVocabulary: true,
+		})
+		_, err := compiler.Compile([]byte(`{
+			"$schema":"https://example.com/meta/unknown-format",
+			"format":"unregistered-format"
+		}`))
+		require.Error(t, err)
+		assert.ErrorIs(t, err, jsonschema.ErrUnknownFormat)
+		assert.True(t, strings.Contains(err.Error(), "unregistered-format"))
+	})
+
+	t.Run("registered custom format", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.RegisterFormat("customer-id", func(value any) bool {
+			id, ok := value.(string)
+			return ok && strings.HasPrefix(id, "CUST-")
+		}, "string")
+		const metaSchemaURI = "https://example.com/meta/custom-format"
+		registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+			draft202012CoreVocabulary: true,
+			formatAssertionVocabulary: true,
+		})
+		schema, err := compiler.Compile([]byte(`{
+			"$schema":"https://example.com/meta/custom-format",
+			"format":"customer-id"
+		}`))
+		require.NoError(t, err)
+		assert.True(t, schema.Validate("CUST-123").IsValid())
+		assert.False(t, schema.Validate("OTHER-123").IsValid())
+
+		compiler.UnregisterFormat("customer-id")
+		result := schema.Validate("CUST-123")
+		assert.False(t, result.IsValid())
+		assert.Equal(t, "unknown_format", result.Errors["format"].Code)
+	})
+
+	t.Run("nil custom format is unknown", func(t *testing.T) {
+		compiler := jsonschema.NewCompiler()
+		compiler.RegisterFormat("nil-format", nil, "string")
+		const metaSchemaURI = "https://example.com/meta/nil-custom-format"
+		registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+			draft202012CoreVocabulary: true,
+			formatAssertionVocabulary: true,
+		})
+		_, err := compiler.Compile([]byte(`{
+			"$schema":"https://example.com/meta/nil-custom-format",
+			"format":"nil-format"
+		}`))
+		assert.ErrorIs(t, err, jsonschema.ErrUnknownFormat)
+	})
+}
+
+func TestFormatVocabularyNestedResources(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+	const metaSchemaURI = "https://example.com/meta/nested-format-assertion"
+	registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+		draft202012CoreVocabulary: true,
+		validationVocabulary:      true,
+		formatAssertionVocabulary: true,
+	})
+
+	assertionRoot, err := compiler.Compile([]byte(`{
+		"$schema":"https://example.com/meta/nested-format-assertion",
+		"type":"object",
+		"properties":{
+			"inherited":{"type":"string","format":"date-time"},
+			"reset":{
+				"$id":"https://example.com/schema/reset-format",
+				"$schema":"https://json-schema.org/draft/2020-12/schema",
+				"type":"string",
+				"format":"date-time"
+			}
+		}
+	}`))
+	require.NoError(t, err)
+	assert.False(t, assertionRoot.ValidateMap(map[string]any{"inherited": "not-a-date"}).IsValid())
+	assert.True(t, assertionRoot.ValidateMap(map[string]any{"reset": "not-a-date"}).IsValid())
+
+	standardRoot, err := compiler.Compile([]byte(`{
+		"$schema":"https://json-schema.org/draft/2020-12/schema",
+		"type":"object",
+		"properties":{
+			"enabled":{
+				"$id":"https://example.com/schema/enable-format",
+				"$schema":"https://example.com/meta/nested-format-assertion",
+				"type":"string",
+				"format":"date-time"
+			}
+		}
+	}`))
+	require.NoError(t, err)
+	assert.False(t, standardRoot.ValidateMap(map[string]any{"enabled": "not-a-date"}).IsValid())
+}
+
+func TestFormatVocabularyReferencesKeepTargetBehavior(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+	const metaSchemaURI = "https://example.com/meta/referenced-format-assertion"
+	registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+		draft202012CoreVocabulary: true,
+		formatAssertionVocabulary: true,
+	})
+
+	_, err := compiler.Compile([]byte(`{
+		"$id":"https://example.com/schema/annotation-target",
+		"$schema":"https://json-schema.org/draft/2020-12/schema",
+		"format":"date-time"
+	}`))
+	require.NoError(t, err)
+	assertionRef, err := compiler.Compile([]byte(`{
+		"$schema":"https://example.com/meta/referenced-format-assertion",
+		"$ref":"https://example.com/schema/annotation-target"
+	}`))
+	require.NoError(t, err)
+	assert.True(t, assertionRef.Validate("not-a-date").IsValid())
+
+	_, err = compiler.Compile([]byte(`{
+		"$id":"https://example.com/schema/assertion-target",
+		"$schema":"https://example.com/meta/referenced-format-assertion",
+		"$dynamicAnchor":"formatted",
+		"format":"date-time"
+	}`))
+	require.NoError(t, err)
+	standardRef, err := compiler.Compile([]byte(`{
+		"$schema":"https://json-schema.org/draft/2020-12/schema",
+		"$ref":"https://example.com/schema/assertion-target"
+	}`))
+	require.NoError(t, err)
+	assert.False(t, standardRef.Validate("not-a-date").IsValid())
+
+	standardDynamicRef, err := compiler.Compile([]byte(`{
+		"$schema":"https://json-schema.org/draft/2020-12/schema",
+		"$dynamicRef":"https://example.com/schema/assertion-target#formatted"
+	}`))
+	require.NoError(t, err)
+	assert.False(t, standardDynamicRef.Validate("not-a-date").IsValid())
+}
+
+func TestFormatVocabularyIgnoresNonStrings(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+	const metaSchemaURI = "https://example.com/meta/string-formats"
+	registerFormatDialect(t, compiler, metaSchemaURI, map[string]bool{
+		draft202012CoreVocabulary: true,
+		formatAssertionVocabulary: true,
+	})
+
+	formats := []string{
+		"date-time", "date", "time", "duration", "email", "idn-email",
+		"hostname", "idn-hostname", "ipv4", "ipv6", "uri", "uri-reference",
+		"iri", "iri-reference", "uuid", "uri-template", "json-pointer",
+		"relative-json-pointer", "regex",
+	}
+	for _, format := range formats {
+		t.Run(format, func(t *testing.T) {
+			schemaJSON, err := json.Marshal(map[string]any{
+				"$schema": metaSchemaURI,
+				"format":  format,
+			})
+			require.NoError(t, err)
+			schema, err := compiler.Compile(schemaJSON)
+			require.NoError(t, err)
+			assert.True(t, schema.Validate(42).IsValid())
+		})
+	}
+}
+
+func TestCompileBatchFormatAssertionVocabulary(t *testing.T) {
+	const metaSchemaURI = "https://example.com/meta/batch-format-assertion"
+	for range 10 {
+		compiler := jsonschema.NewCompiler()
+		metaSchema, err := json.Marshal(map[string]any{
+			"$schema": draft202012Schema,
+			"$id":     metaSchemaURI,
+			"$vocabulary": map[string]bool{
+				draft202012CoreVocabulary: true,
+				formatAssertionVocabulary: true,
+			},
+		})
+		require.NoError(t, err)
+
+		compiled, err := compiler.CompileBatch(map[string][]byte{
+			"meta": metaSchema,
+			"schema": []byte(`{
+				"$schema":"https://example.com/meta/batch-format-assertion",
+				"format":"date-time"
+			}`),
+		})
+		require.NoError(t, err)
+		assert.False(t, compiled["schema"].Validate("not-a-date").IsValid())
+	}
+
+	compiler := jsonschema.NewCompiler()
+	metaSchema, err := json.Marshal(map[string]any{
+		"$schema": draft202012Schema,
+		"$id":     metaSchemaURI,
+		"$vocabulary": map[string]bool{
+			draft202012CoreVocabulary: true,
+			formatAssertionVocabulary: true,
+		},
+	})
+	require.NoError(t, err)
+	_, err = compiler.CompileBatch(map[string][]byte{
+		"meta": metaSchema,
+		"schema": []byte(`{
+			"$schema":"https://example.com/meta/batch-format-assertion",
+			"format":"unregistered-format"
+		}`),
+	})
+	assert.ErrorIs(t, err, jsonschema.ErrUnknownFormat)
+
+	// A failed batch must not publish resources before every schema passes
+	// compilation.
+	schema, err := compiler.Compile([]byte(`{
+		"$schema":"https://example.com/meta/batch-format-assertion",
+		"format":"unregistered-format"
+	}`))
+	require.NoError(t, err)
+	assert.True(t, schema.Validate("anything").IsValid())
 }
 
 // TestCompileBatchFormatValidation tests that format validation works correctly
