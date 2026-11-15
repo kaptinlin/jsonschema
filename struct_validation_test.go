@@ -911,3 +911,99 @@ func BenchmarkMapValidation(b *testing.B) {
 		_ = schema.Validate(data)
 	}
 }
+
+type embeddedBase struct {
+	ID   string `json:"id"`
+	Kind string `json:"kind,omitempty"`
+}
+
+type EmbeddedAudit struct {
+	CreatedBy string `json:"created_by"`
+}
+
+type embeddingRecord struct {
+	embeddedBase
+	*EmbeddedAudit
+	Name string `json:"name"`
+}
+
+type shadowingRecord struct {
+	embeddedBase
+	Kind  int           `json:"kind"`
+	Audit EmbeddedAudit `json:"audit"`
+}
+
+// TestEmbeddedStructFields validates that fields of embedded structs are promoted like encoding/json does
+func TestEmbeddedStructFields(t *testing.T) {
+	schema := compileTestSchema(t, `{
+		"type": "object",
+		"properties": {
+			"id": {"type": "string", "minLength": 3},
+			"kind": {"type": "string"},
+			"created_by": {"type": "string"},
+			"name": {"type": "string"}
+		},
+		"required": ["id", "name"],
+		"additionalProperties": false
+	}`)
+
+	t.Run("promoted fields are validated", func(t *testing.T) {
+		valid := embeddingRecord{
+			embeddedBase:  embeddedBase{ID: "abc", Kind: "user"},
+			EmbeddedAudit: &EmbeddedAudit{CreatedBy: "admin"},
+			Name:          "record",
+		}
+		if result := schema.Validate(valid); !result.IsValid() {
+			details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
+			t.Errorf("Expected embedded fields to be found: %s", string(details))
+		}
+
+		invalid := embeddingRecord{embeddedBase: embeddedBase{ID: "ab"}, Name: "record"}
+		result := schema.Validate(invalid)
+		if result.IsValid() {
+			t.Fatal("Expected promoted id to fail minLength")
+		}
+		if _, ok := result.Errors["properties"]; !ok {
+			t.Errorf("Expected a properties error, got %v", result.Errors)
+		}
+	})
+
+	t.Run("nil embedded pointer omits its fields", func(t *testing.T) {
+		data := embeddingRecord{embeddedBase: embeddedBase{ID: "abc"}, Name: "record"}
+		if result := schema.Validate(data); !result.IsValid() {
+			details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
+			t.Errorf("Expected nil embedded pointer to be skipped: %s", string(details))
+		}
+	})
+
+	t.Run("missing promoted required field", func(t *testing.T) {
+		result := schema.Validate(embeddingRecord{Name: "record"})
+		if result.IsValid() {
+			t.Fatal("Expected empty promoted id to be reported as missing")
+		}
+		if _, ok := result.Errors["required"]; !ok {
+			t.Errorf("Expected a required error, got %v", result.Errors)
+		}
+	})
+
+	t.Run("outer field hides embedded field", func(t *testing.T) {
+		shadowSchema := compileTestSchema(t, `{
+			"type": "object",
+			"properties": {
+				"id": {"type": "string"},
+				"kind": {"type": "integer"},
+				"audit": {"type": "object", "required": ["created_by"]}
+			},
+			"additionalProperties": false
+		}`)
+		data := shadowingRecord{
+			embeddedBase: embeddedBase{ID: "abc", Kind: "ignored"},
+			Kind:         7,
+			Audit:        EmbeddedAudit{CreatedBy: "admin"},
+		}
+		if result := shadowSchema.Validate(data); !result.IsValid() {
+			details, _ := json.Marshal(result.ToList(false), jsontext.WithIndent("  "))
+			t.Errorf("Expected outer kind and tagged audit field to win: %s", string(details))
+		}
+	})
+}

@@ -44,7 +44,7 @@ type FieldCache struct {
 
 // FieldInfo contains metadata for a struct field
 type FieldInfo struct {
-	Index     int          // Field index in the struct
+	Index     []int        // Field index path, as used by reflect.Value.FieldByIndex
 	JSONName  string       // JSON field name (after processing tags)
 	Omitempty bool         // Whether the field has omitempty tag
 	Omitzero  bool         // Whether the field has omitzero tag
@@ -68,34 +68,103 @@ func getFieldCache(structType reflect.Type) *FieldCache {
 	return cache
 }
 
-// parseStructType analyzes a struct type and extracts field information
+// parseStructType collects the JSON fields of a struct type the way
+// encoding/json does: fields of untagged embedded structs are promoted, a
+// shallower field hides deeper ones with the same name, and at equal depth a
+// tagged field wins while an untagged conflict drops the name.
 func parseStructType(structType reflect.Type) *FieldCache {
 	cache := &FieldCache{
 		FieldsByName: make(map[string]FieldInfo),
 	}
 
-	for field := range structType.Fields() {
-		// Skip unexported fields
-		if !field.IsExported() {
-			continue
+	type embedded struct {
+		typ   reflect.Type
+		index []int
+	}
+	type candidate struct {
+		info   FieldInfo
+		tagged bool
+	}
+
+	hidden := make(map[string]bool)
+	visited := make(map[reflect.Type]bool)
+	current := []embedded{{typ: structType}}
+
+	for len(current) > 0 {
+		var next []embedded
+		candidates := make(map[string][]candidate)
+
+		for _, e := range current {
+			if visited[e.typ] {
+				continue
+			}
+			for field := range e.typ.Fields() {
+				fieldType := field.Type
+				if field.Anonymous && fieldType.Kind() == reflect.Pointer {
+					fieldType = fieldType.Elem()
+				}
+				if !field.IsExported() && (!field.Anonymous || fieldType.Kind() != reflect.Struct) {
+					continue // Skip unexported fields, but keep embedded structs with exported fields
+				}
+
+				tag := field.Tag.Get("json")
+				if tag == jsonTagIgnore {
+					continue // Skip fields marked with json:"-"
+				}
+				jsonName, omitempty, omitzero := parseJSONTag(tag, field.Name)
+				tagName, _, _ := strings.Cut(tag, ",")
+				tagged := tagName != ""
+
+				index := append(slices.Clone(e.index), field.Index[0])
+				if field.Anonymous && !tagged && fieldType.Kind() == reflect.Struct {
+					next = append(next, embedded{typ: fieldType, index: index})
+					continue
+				}
+				if hidden[jsonName] {
+					continue
+				}
+
+				candidates[jsonName] = append(candidates[jsonName], candidate{
+					info: FieldInfo{
+						Index:     index,
+						JSONName:  jsonName,
+						Omitempty: omitempty,
+						Omitzero:  omitzero,
+						Type:      field.Type,
+					},
+					tagged: tagged,
+				})
+			}
+		}
+		for _, e := range current {
+			visited[e.typ] = true
 		}
 
-		jsonName, omitempty, omitzero := parseJSONTag(field.Tag.Get("json"), field.Name)
-		if jsonName == jsonTagIgnore {
-			continue // Skip fields marked with json:"-"
+		for name, fields := range candidates {
+			hidden[name] = true
+			if len(fields) > 1 {
+				fields = slices.DeleteFunc(fields, func(c candidate) bool { return !c.tagged })
+			}
+			if len(fields) == 1 {
+				cache.FieldsByName[name] = fields[0].info
+				cache.FieldCount++
+			}
 		}
 
-		cache.FieldsByName[jsonName] = FieldInfo{
-			Index:     field.Index[0],
-			JSONName:  jsonName,
-			Omitempty: omitempty,
-			Omitzero:  omitzero,
-			Type:      field.Type,
-		}
-		cache.FieldCount++
+		current = next
 	}
 
 	return cache
+}
+
+// fieldByIndex returns the struct field at index, or the zero Value when a nil
+// embedded pointer is on the path. encoding/json omits such fields.
+func fieldByIndex(structValue reflect.Value, index []int) reflect.Value {
+	fieldValue, err := structValue.FieldByIndexErr(index)
+	if err != nil {
+		return reflect.Value{}
+	}
+	return fieldValue
 }
 
 // parseJSONTag parses a JSON struct tag and returns the field name, omitempty and omitzero flags
@@ -133,8 +202,10 @@ func isZeroValue(rv reflect.Value) bool {
 }
 
 // shouldOmitField determines if a field should be omitted based on omitempty/omitzero tags
+// or because it sits behind a nil embedded pointer
 func shouldOmitField(fieldInfo FieldInfo, fieldValue reflect.Value) bool {
-	return fieldInfo.Omitzero && isZeroValue(fieldValue) ||
+	return !fieldValue.IsValid() ||
+		fieldInfo.Omitzero && isZeroValue(fieldValue) ||
 		fieldInfo.Omitempty && isEmptyValue(fieldValue)
 }
 
@@ -324,8 +395,12 @@ func evaluatePropertiesStruct(schema *Schema, structValue reflect.Value, fieldCa
 	for propName, propSchema := range *schema.Properties {
 		evaluatedProps[propName] = true
 
+		var fieldValue reflect.Value
 		fieldInfo, exists := fieldCache.FieldsByName[propName]
-		if !exists {
+		if exists {
+			fieldValue = fieldByIndex(structValue, fieldInfo.Index)
+		}
+		if !fieldValue.IsValid() {
 			// Field doesn't exist in struct, only validate as nil if required and no default
 			if slices.Contains(schema.Required, propName) && (propSchema == nil || propSchema.Default == nil) {
 				result, _, _ := propSchema.evaluate(nil, dynamicScope)
@@ -333,9 +408,6 @@ func evaluatePropertiesStruct(schema *Schema, structValue reflect.Value, fieldCa
 			}
 			continue
 		}
-
-		// Get field value
-		fieldValue := structValue.Field(fieldInfo.Index)
 
 		// Handle omitempty/omitzero: skip validation if field should be omitted
 		if shouldOmitField(fieldInfo, fieldValue) {
@@ -367,7 +439,7 @@ func evaluateRequiredStruct(schema *Schema, structValue reflect.Value, fieldCach
 			continue
 		}
 
-		fieldValue := structValue.Field(fieldInfo.Index)
+		fieldValue := fieldByIndex(structValue, fieldInfo.Index)
 
 		// Check if field is missing or empty
 		if !fieldValue.IsValid() || isMissingValue(fieldValue) {
@@ -383,7 +455,7 @@ func evaluatePropertyCountStruct(schema *Schema, structValue reflect.Value, fiel
 	// Count actual non-empty properties (considering omitempty)
 	actualCount := 0
 	for _, fieldInfo := range fieldCache.FieldsByName {
-		fieldValue := structValue.Field(fieldInfo.Index)
+		fieldValue := fieldByIndex(structValue, fieldInfo.Index)
 		if !shouldOmitField(fieldInfo, fieldValue) {
 			actualCount++
 		}
@@ -416,7 +488,7 @@ func evaluatePatternPropertiesStruct(schema *Schema, structValue reflect.Value, 
 			continue
 		}
 
-		fieldValue := structValue.Field(fieldInfo.Index)
+		fieldValue := fieldByIndex(structValue, fieldInfo.Index)
 		if shouldOmitField(fieldInfo, fieldValue) {
 			continue
 		}
@@ -460,7 +532,7 @@ func evaluateAdditionalPropertiesStruct(schema *Schema, structValue reflect.Valu
 			continue
 		}
 
-		fieldValue := structValue.Field(fieldInfo.Index)
+		fieldValue := fieldByIndex(structValue, fieldInfo.Index)
 		if shouldOmitField(fieldInfo, fieldValue) {
 			continue
 		}
@@ -502,7 +574,7 @@ func evaluatePropertyNamesStruct(schema *Schema, structValue reflect.Value, fiel
 	var invalidProperties []string
 
 	for jsonName, fieldInfo := range fieldCache.FieldsByName {
-		fieldValue := structValue.Field(fieldInfo.Index)
+		fieldValue := fieldByIndex(structValue, fieldInfo.Index)
 		if shouldOmitField(fieldInfo, fieldValue) {
 			continue
 		}
@@ -539,7 +611,7 @@ func evaluateDependentRequiredStruct(schema *Schema, structValue reflect.Value, 
 		if !exists {
 			continue
 		}
-		if isEmptyValue(structValue.Field(fieldInfo.Index)) {
+		if isEmptyValue(fieldByIndex(structValue, fieldInfo.Index)) {
 			continue
 		}
 
@@ -548,7 +620,7 @@ func evaluateDependentRequiredStruct(schema *Schema, structValue reflect.Value, 
 			if !depExists {
 				return newDependentRequiredMissingError(requiredProp, propName)
 			}
-			if isMissingValue(structValue.Field(depFieldInfo.Index)) {
+			if isMissingValue(fieldByIndex(structValue, depFieldInfo.Index)) {
 				return newDependentRequiredMissingError(requiredProp, propName)
 			}
 		}
