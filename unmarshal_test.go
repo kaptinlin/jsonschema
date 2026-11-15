@@ -1682,3 +1682,46 @@ func TestPointerFieldsWithDefaults(t *testing.T) {
 		})
 	}
 }
+
+// TestUnmarshalEmbeddedStructs tests that promoted fields of embedded structs are set
+func TestUnmarshalEmbeddedStructs(t *testing.T) {
+	type Base struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+	}
+	type Audit struct {
+		CreatedBy string `json:"created_by"`
+	}
+	type Record struct {
+		Base
+		*Audit
+		Name string `json:"name"`
+	}
+
+	compiler := NewCompiler()
+	schema, err := compiler.Compile([]byte(`{
+		"type": "object",
+		"properties": {
+			"id": {"type": "string"},
+			"kind": {"type": "string", "default": "user"},
+			"created_by": {"type": "string"},
+			"name": {"type": "string"}
+		}
+	}`))
+	require.NoError(t, err)
+
+	var result Record
+	err = schema.Unmarshal(&result, []byte(`{"id": "abc", "created_by": "admin", "name": "record"}`))
+	require.NoError(t, err)
+
+	assert.Equal(t, "abc", result.ID)
+	assert.Equal(t, "user", result.Kind)
+	require.NotNil(t, result.Audit)
+	assert.Equal(t, "admin", result.CreatedBy)
+	assert.Equal(t, "record", result.Name)
+
+	var withoutAudit Record
+	err = schema.Unmarshal(&withoutAudit, []byte(`{"id": "abc"}`))
+	require.NoError(t, err)
+	assert.Nil(t, withoutAudit.Audit)
+}

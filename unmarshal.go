@@ -690,8 +690,8 @@ func (s *Schema) unmarshalToStruct(dstVal reflect.Value, data map[string]any) er
 			continue // Skip unknown fields
 		}
 
-		fieldVal := dstVal.Field(fieldInfo.Index)
-		if !fieldVal.CanSet() {
+		fieldVal := settableFieldByIndex(dstVal, fieldInfo.Index)
+		if !fieldVal.IsValid() || !fieldVal.CanSet() {
 			continue // Skip unexported fields
 		}
 
@@ -701,6 +701,26 @@ func (s *Schema) unmarshalToStruct(dstVal reflect.Value, data map[string]any) er
 	}
 
 	return nil
+}
+
+// settableFieldByIndex returns the struct field at index, allocating nil
+// embedded struct pointers on the way like encoding/json does. It returns the
+// zero Value when such a pointer cannot be set.
+func settableFieldByIndex(structValue reflect.Value, index []int) reflect.Value {
+	fieldVal := structValue
+	for i, fieldIndex := range index {
+		if i > 0 && fieldVal.Kind() == reflect.Pointer {
+			if fieldVal.IsNil() {
+				if !fieldVal.CanSet() {
+					return reflect.Value{}
+				}
+				fieldVal.Set(reflect.New(fieldVal.Type().Elem()))
+			}
+			fieldVal = fieldVal.Elem()
+		}
+		fieldVal = fieldVal.Field(fieldIndex)
+	}
+	return fieldVal
 }
 
 // setFieldValue sets a struct field value with type conversion
